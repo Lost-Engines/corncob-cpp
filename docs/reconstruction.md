@@ -40,9 +40,19 @@ The first resource is the unmodified compressed cockpit mask, embedded by CMake.
 The decompressor is checked against the native-verified decoded mask. Its stray
 diagonal line is part of the original asset and is deliberately retained.
 
-Next: reconcile original renderer symbols with the reference disassembly,
-translate fixed-point transforms/projection and rasterisation, embed White Sands
-and model data, then bring up the original aircraft update with native comparisons.
+The four original theatres and the 3.42 data segment are now embedded too.
+Typed loaders decode the 61 object templates, shared polygon/wire/point/disc
+primitives and eight authored painter lists. The renderer retains the original
+three distance/detail tiers, fixed-point projection, focal-plane clipping,
+viewport frames and direction-dependent painter order. Sky and ground colours
+come from the tile headers, rather than a guessed default palette.
+
+The current scene preview draws stored objects without running their gameplay
+update routines. Destruction/model swaps, AI, forcefield motion, instruments,
+propeller and ground detail remain to be connected. Its free camera is an
+inspection aid, not a replacement flight model. Walking is the original game's
+initial state; the current cockpit preview is deliberately not a faithful
+startup sequence yet.
 
 ## Initial validation
 
@@ -71,3 +81,18 @@ already rounded forward matrix does not produce the same coefficients.
 `tools/generate_native_reference.py` regenerates the fixtures using Unicorn
 and the sibling research inputs. These are development dependencies only.
 The normal CMake build and executable require neither.
+
+## Software raster verification
+
+The C++ disc routine matches every indexed pixel from 30 executions of original
+DRAWDisc: all 17 small masks, larger CSQRT-based discs and viewport-edge cases.
+Twelve polygon fixtures likewise match original DRAWPoly, including reversed
+winding, viewport clipping, degenerate surfaces and a rejected concave shape.
+The scan converter preserves the negative-slope fractional-word quirk, rounded
+division and EGA row-address clipping. Wire rasterisation and the complete scene
+are not yet claimed to match every original pixel.
+
+The fixture generators use Unicorn and a small EGA plane/latch/write-mode adapter
+in development only. Normal tests run entirely in C++ with committed fixture
+hashes. An additional sweep renders from every placed object's neighbourhood in
+all four theatres, testing cockpit/full-screen layouts and front/rear clipping.

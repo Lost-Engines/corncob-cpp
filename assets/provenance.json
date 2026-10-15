@@ -1,0 +1,43 @@
+{
+  "reference": "normal Corncob 3D 3.42",
+  "engine_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "files": [
+    {
+      "path": "engine.dat",
+      "source": "3.EXE data segment at file offset 0x11490; original model, template and tuning data, no executable instructions",
+      "bytes": 63346,
+      "sha256": "c47e0834587ec1dd57e163a6be637c62f5680bff11d721709ac17f87ec5d02cc"
+    },
+    {
+      "path": "white_sands.cct",
+      "source": "DEF/WHTSANDS.CCT",
+      "bytes": 2209,
+      "sha256": "a301174d37fc001f335d8030045ee3899f4266a3a46f96f87b0349683d2c7ea7"
+    },
+    {
+      "path": "morning.cct",
+      "source": "DEF/MORNING.CCT",
+      "bytes": 6119,
+      "sha256": "83cecb036934128c53a1df75930c6a112b393da5c089847180741c0e60726a0e"
+    },
+    {
+      "path": "dusk.cct",
+      "source": "DEF/DUSK.CCT",
+      "bytes": 4923,
+      "sha256": "1d33d329f60b9f0742f87f6e15828aa4d6f1820b74ab3dc21ab8afccbdb34983"
+    },
+    {
+      "path": "wasteland.cct",
+      "source": "DEF/WASTELND.CCT",
+      "bytes": 5291,
+      "sha256": "e27219613ae9a7470798081b9d29502834318877b2e377ee95770e19d51e7588"
+    },
+    {
+      "path": "cockpit.img",
+      "source": "IMG/3D.IMG",
+      "bytes": 7065,
+      "sha256": "ead2f72e60ee99ab84ff47e8e0e00d7ed5aca67e0bb109923dc0d4a90cfa7c48"
+    }
+  ],
+  "note": "Original model/template/world data embedded at build time. No DOS engine is executed or required at runtime. Music is not included."
+}

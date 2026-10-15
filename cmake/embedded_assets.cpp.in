@@ -5,15 +5,15 @@ namespace corncob::resources {
 
 namespace {
 
-std::array<uint8_t, @cockpit_size@> const cockpit_bytes{
-  @cockpit_bytes@
+std::array<uint8_t, @resource_size@> const @resource_name@_bytes{
+  @resource_bytes@
 };
 
 } // anonymous namespace
 
-std::span<uint8_t const> cockpit_asset() noexcept {
+std::span<uint8_t const> @resource_name@_asset() noexcept {
   /// Expose immutable resource bytes embedded at build time
-  return cockpit_bytes;
+  return @resource_name@_bytes;
 }
 
 } // namespace corncob::resources

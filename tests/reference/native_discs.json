@@ -1,0 +1,233 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "routine_file_offset": "0x6b45",
+  "adapter": "EGA plane latches, write modes 0/2/3, masks and graphics-controller output",
+  "viewport": [
+    8,
+    4,
+    631,
+    199,
+    623,
+    195,
+    300,
+    200,
+    319,
+    101,
+    321,
+    15920
+  ],
+  "colour": 12,
+  "background": 0,
+  "cases": [
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 0,
+      "hash_fnv1a64": "20303c584706fb29",
+      "ega_writes": 3
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 1,
+      "hash_fnv1a64": "20303c584706fb29",
+      "ega_writes": 3
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 2,
+      "hash_fnv1a64": "c91f0522a113e961",
+      "ega_writes": 6
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 3,
+      "hash_fnv1a64": "ec247c3208d12fdd",
+      "ega_writes": 9
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 4,
+      "hash_fnv1a64": "c61f96c383ae4185",
+      "ega_writes": 9
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 5,
+      "hash_fnv1a64": "7d15db9035b0f4e5",
+      "ega_writes": 12
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 6,
+      "hash_fnv1a64": "a5cc4147d81ee35d",
+      "ega_writes": 15
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 7,
+      "hash_fnv1a64": "6e79b0cedd0fce85",
+      "ega_writes": 18
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 8,
+      "hash_fnv1a64": "435c01913c0b47f5",
+      "ega_writes": 21
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 9,
+      "hash_fnv1a64": "e3a1cd8c5437c449",
+      "ega_writes": 21
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 10,
+      "hash_fnv1a64": "e558638a0694a11d",
+      "ega_writes": 21
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 11,
+      "hash_fnv1a64": "3ece1a5e89e08585",
+      "ega_writes": 24
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 12,
+      "hash_fnv1a64": "428104e9818a3ce5",
+      "ega_writes": 24
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 13,
+      "hash_fnv1a64": "beef1a6bd5c87649",
+      "ega_writes": 27
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 14,
+      "hash_fnv1a64": "c9ed5a483e990de5",
+      "ega_writes": 30
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 15,
+      "hash_fnv1a64": "e553519b23d8b569",
+      "ega_writes": 33
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 16,
+      "hash_fnv1a64": "67b09fd84c897405",
+      "ega_writes": 33
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 17,
+      "hash_fnv1a64": "8765eb82a6c18b1d",
+      "ega_writes": 37
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 18,
+      "hash_fnv1a64": "e51cde5c43f5a049",
+      "ega_writes": 38
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 31,
+      "hash_fnv1a64": "1d1dbf7802ec0c75",
+      "ega_writes": 91
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 64,
+      "hash_fnv1a64": "b8f9e76ed14e0b09",
+      "ega_writes": 327
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 127,
+      "hash_fnv1a64": "32de543b68fd1eb5",
+      "ega_writes": 1205
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 500,
+      "hash_fnv1a64": "f27957011ccac441",
+      "ega_writes": 14698
+    },
+    {
+      "x": 320,
+      "y": 100,
+      "diameter": 1023,
+      "hash_fnv1a64": "d886d627486750a5",
+      "ega_writes": 33588
+    },
+    {
+      "x": 8,
+      "y": 4,
+      "diameter": 16,
+      "hash_fnv1a64": "db17c4c921ae617d",
+      "ega_writes": 33
+    },
+    {
+      "x": 8,
+      "y": 4,
+      "diameter": 17,
+      "hash_fnv1a64": "9e3ec39c67d88e15",
+      "ega_writes": 14
+    },
+    {
+      "x": 7,
+      "y": 4,
+      "diameter": 16,
+      "hash_fnv1a64": "45cbb1ea5eceff25",
+      "ega_writes": 0
+    },
+    {
+      "x": 7,
+      "y": 4,
+      "diameter": 17,
+      "hash_fnv1a64": "5ce3478b5059fba5",
+      "ega_writes": 10
+    },
+    {
+      "x": 630,
+      "y": 198,
+      "diameter": 16,
+      "hash_fnv1a64": "0e3f974b229bee05",
+      "ega_writes": 33
+    },
+    {
+      "x": 630,
+      "y": 198,
+      "diameter": 31,
+      "hash_fnv1a64": "3e29f80ea682967d",
+      "ega_writes": 65
+    }
+  ]
+}

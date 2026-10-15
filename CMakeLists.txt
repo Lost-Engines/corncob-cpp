@@ -38,28 +38,43 @@ function(configure_first_party target)
   )
 endfunction()
 
-# Embed original compressed resource bytes using CMake alone; no runtime file access or Python build dependency
-set(cockpit_asset "${PROJECT_SOURCE_DIR}/assets/cockpit.img")
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${cockpit_asset}")
-file(READ "${cockpit_asset}" cockpit_hex HEX)
-file(SIZE "${cockpit_asset}" cockpit_size)
-string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1, " cockpit_bytes "${cockpit_hex}")
-file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/generated")
-configure_file(cmake/embedded_assets.cpp.in generated/embedded_assets.cpp @ONLY)
+# Embed original resources with CMake alone; the application performs no asset file I/O
+function(embed_resource resource_name asset_file)
+  set(resource_path "${PROJECT_SOURCE_DIR}/assets/${asset_file}")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${resource_path}")
+  file(READ "${resource_path}" resource_hex HEX)
+  file(SIZE "${resource_path}" resource_size)
+  string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1, " resource_bytes "${resource_hex}")
+  configure_file(cmake/embedded_assets.cpp.in "generated/${resource_name}.cpp" @ONLY)
+  target_sources(corncob_core PRIVATE "${PROJECT_BINARY_DIR}/generated/${resource_name}.cpp")
+endfunction()
 
 add_library(corncob_core STATIC
+  src/graphics/raster.cpp
+  src/graphics/raster.h
+  src/graphics/scene.cpp
+  src/graphics/scene.h
   src/maths/fixed.cpp
   src/maths/fixed.h
   src/render/framebuffer.cpp
   src/render/framebuffer.h
   src/resources/assets.h
+  src/resources/geometry_bank.cpp
+  src/resources/geometry_bank.h
+  src/world/world.cpp
+  src/world/world.h
   src/resources/cockpit_mask.cpp
   src/resources/cockpit_mask.h
-  "${PROJECT_BINARY_DIR}/generated/embedded_assets.cpp"
 )
 configure_first_party(corncob_core)
 target_include_directories(corncob_core SYSTEM PUBLIC "${PROJECT_SOURCE_DIR}")
 target_compile_definitions(corncob_core PUBLIC VECTORSTORM_NO_BOOST)
+embed_resource(cockpit cockpit.img)
+embed_resource(engine_data engine.dat)
+embed_resource(white_sands white_sands.cct)
+embed_resource(morning morning.cct)
+embed_resource(dusk dusk.cct)
+embed_resource(wasteland wasteland.cct)
 
 add_library(corncob_platform STATIC
   src/platform/framebuffer_presenter.cpp
@@ -85,11 +100,19 @@ if(BUILD_TESTING)
   add_executable(resource_checks tests/resource_checks.cpp)
   target_link_libraries(resource_checks PRIVATE corncob_core)
   configure_first_party(resource_checks)
-  add_test(NAME embedded_cockpit COMMAND resource_checks)
+  add_test(NAME embedded_resources COMMAND resource_checks)
   add_executable(fixed_math_checks tests/fixed_math_checks.cpp)
   target_link_libraries(fixed_math_checks PRIVATE corncob_core)
   configure_first_party(fixed_math_checks)
   add_test(NAME native_fixed_math COMMAND fixed_math_checks "${PROJECT_SOURCE_DIR}/tests/reference/fixed_math.bin")
+  add_executable(raster_checks tests/raster_checks.cpp)
+  target_link_libraries(raster_checks PRIVATE corncob_core)
+  configure_first_party(raster_checks)
+  add_test(NAME native_raster COMMAND raster_checks)
+  add_executable(scene_checks tests/scene_checks.cpp)
+  target_link_libraries(scene_checks PRIVATE corncob_core)
+  configure_first_party(scene_checks)
+  add_test(NAME original_theatres COMMAND scene_checks)
 endif()
 
 install(TARGETS corncob RUNTIME DESTINATION .)

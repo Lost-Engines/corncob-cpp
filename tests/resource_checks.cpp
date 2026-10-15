@@ -7,6 +7,8 @@
 #include "render/framebuffer.h"
 #include "resources/assets.h"
 #include "resources/cockpit_mask.h"
+#include "resources/geometry_bank.h"
+#include "world/world.h"
 
 namespace {
 
@@ -43,6 +45,20 @@ auto main()->int {
   require(desktop.width == 1280 && desktop.height == 960 && desktop.x == 320 && desktop.y == 60, "integer display scaling does not fit the desktop");
   auto const small{corncob::render::fit_viewport(320, 240)};
   require(small.width == 320 && small.height == 240, "small-window downscaling changed the display aspect ratio");
-  std::cout << "Embedded cockpit matches the native-verified mask; boundary and display checks pass" << std::endl;
+  corncob::resources::geometry_bank const geometry{corncob::resources::engine_data_asset()};
+  auto const &aircraft{geometry.definition(corncob::world::object_type::aircraft)};
+  require(aircraft.models.near == 0x4aa9 && aircraft.hit_points == 2, "embedded aircraft definition differs from the original template");
+  std::array const sources{corncob::resources::white_sands_asset(), corncob::resources::morning_asset(),
+                           corncob::resources::dusk_asset(), corncob::resources::wasteland_asset()};
+  std::array<unsigned int, 4> const expected_counts{51, 221, 169, 185};
+  for(unsigned int i{0}; i != sources.size(); ++i) {
+    auto const world{corncob::world::decode_theatre(sources[i])};
+    require(world.objects.size() == expected_counts[i], "original theatre object count changed during decoding");
+    require(world.start.x == -848'968 && world.start.y == 0 && world.start.z == 720, "original theatre start trailer changed during decoding");
+    unsigned int total{0};
+    for(auto const &tile : world.tiles) total += tile.object_count;
+    require(total == world.objects.size(), "theatre tile ranges do not cover every placed object");
+  }
+  std::cout << "Embedded cockpit, all 61 model definitions, four original theatres and display checks pass" << std::endl;
   return EXIT_SUCCESS;
 }
