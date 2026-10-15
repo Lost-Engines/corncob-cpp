@@ -1,0 +1,39 @@
+#pragma once
+
+#include <array>
+#include <cstdint>
+
+namespace corncob::render {
+
+struct screen_layout {
+  static unsigned int constexpr width{640};
+  static unsigned int constexpr height{350};
+  static unsigned int constexpr pixel_count{width * height};
+  static unsigned int constexpr mask_stride{width / 8};
+  static unsigned int constexpr mask_bytes{mask_stride * height};
+  static int constexpr display_width{640};
+  static int constexpr display_height{480};
+};
+
+struct rgba_pixel {
+  uint8_t red;
+  uint8_t green;
+  uint8_t blue;
+  uint8_t alpha{255};
+};
+static_assert(sizeof(rgba_pixel) == 4);
+
+struct framebuffer {
+  std::array<rgba_pixel, screen_layout::pixel_count> pixels;
+};
+
+struct viewport {
+  int x;
+  int y;
+  int width;
+  int height;
+};
+
+viewport fit_viewport(int width, int height) noexcept;
+
+} // namespace corncob::render

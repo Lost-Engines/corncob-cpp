@@ -1,0 +1,19 @@
+#include "resources/assets.h"
+#include <array>
+
+namespace corncob::resources {
+
+namespace {
+
+std::array<uint8_t, @cockpit_size@> const cockpit_bytes{
+  @cockpit_bytes@
+};
+
+} // anonymous namespace
+
+std::span<uint8_t const> cockpit_asset() noexcept {
+  /// Expose immutable resource bytes embedded at build time
+  return cockpit_bytes;
+}
+
+} // namespace corncob::resources
