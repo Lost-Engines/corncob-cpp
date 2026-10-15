@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include "graphics/stars.h"
 
 namespace corncob::graphics {
 
@@ -114,7 +115,7 @@ struct visible_object {
 };
 
 std::optional<visible_object> visibility(world::placed_object const &object, resources::object_definition const &definition,
-                                       maths::world_position const &observer) noexcept {
+                                       maths::world_position const &observer, resources::model_levels const &models) noexcept {
   /// Translate DISTEVAL's three coordinate scales and D3DOBJ's original model breakpoints
   maths::world_position const delta{object.position - observer};
   int64_t maximum{0};
@@ -128,17 +129,17 @@ std::optional<visible_object> visibility(world::placed_object const &object, res
     distance += static_cast<uint32_t>(component * component);
   }
   unsigned int reduction{0};
-  auto address{definition.models.near};
+  auto address{models.near};
   if(tier == 0 && distance > definition.limits.near_squared) {
     reduction = 4;
-    address = definition.models.middle;
+    address = models.middle;
   } else if(tier == 1) {
     reduction = distance > definition.limits.middle_squared ? 8u : 4u;
-    address = reduction == 4 ? definition.models.middle : definition.models.far;
+    address = reduction == 4 ? models.middle : models.far;
   } else if(tier == 2) {
     if(distance > definition.limits.far_squared) return std::nullopt;
     reduction = 8;
-    address = definition.models.far;
+    address = models.far;
   }
   if(object.type == world::object_type::aircraft && (object.flags & 0x2000u) != 0 && reduction != 8) address = resources::geometry_bank::experimental_model;
   return visible_object{
@@ -200,6 +201,50 @@ void scene_renderer::background(view_parameters const &view, maths::rotation con
       };
       indexed.pixels[static_cast<unsigned int>(y) * render::screen_layout::width + static_cast<unsigned int>(x)] = height >= 0 ? 11 : 2;
     }
+  }
+}
+
+void scene_renderer::draw_ground_and_stars(world::theatre const &theatre, camera const &observer, maths::rotation const &rotation,
+                                          std::span<view_parameters const> const views) {
+  /// GRNDPT maintains eighty world-anchored dots within sixty-four observer heights and refreshes off-screen points
+  if(!observer.ground_detail) return;
+  bool const dark{(palette[11].red >> 2) + (palette[11].green >> 2) + (palette[11].blue >> 2) <= 48};
+  auto draw_point{[&](maths::world_position const &position, bool const star){
+    auto delta{position - observer.position};
+    if(star) for(unsigned int axis{0}; axis != 3; ++axis) delta[axis] >>= 8;
+    int64_t maximum{0};
+    for(unsigned int axis{0}; axis != 3; ++axis) maximum = std::max(maximum, std::abs(static_cast<int64_t>(delta[axis])));
+    if(maximum >= 8'388'608) return false;
+    unsigned int const shift{maximum < 32'768 ? 1u : maximum < 524'288 ? 5u : 9u};
+    maths::fixed_vector const relative{maths::word(delta.x >> shift), maths::word(delta.y >> shift), maths::word(delta.z >> shift)};
+    auto const transformed{maths::transform(rotation, relative)};
+    bool visible{false};
+    for(auto const &view : views.first(star ? views.size() : 1)) {
+      if(auto const pixel{project(in_view(transformed, view), view)}) {
+        if(pixel->x >= view.bounds.left && pixel->x < view.bounds.right && pixel->y >= view.bounds.top && pixel->y < view.bounds.bottom) {
+          raster{indexed, view.bounds, random}.point(*pixel, star ? 15 : dark ? 14 : 0);
+          visible = true;
+        }
+      }
+    }
+    return visible;
+  }};
+  auto regenerate{[&](maths::world_position &position){
+    int64_t const range{std::max<int64_t>(0, observer.position.z) * 64};
+    position = maths::world_position{
+      observer.position.x + static_cast<int32_t>((range * random.next() >> 16) - range / 2),
+      observer.position.y + static_cast<int32_t>((range * random.next() >> 16) - range / 2),
+      0,
+    };
+  }};
+  for(auto &point : ground_points) {
+    if(!ground_initialised) regenerate(point);
+    if(!draw_point(point, false)) regenerate(point);
+    if(random.next() <= 91) regenerate(point);
+  }
+  ground_initialised = true;
+  if(theatre.sky.stars) {
+    for(auto const &star : original_stars) draw_point(star, true);
   }
 }
 
@@ -271,7 +316,7 @@ scene_renderer::scene_renderer(resources::geometry_bank &geometry, resources::co
 }
 
 render_statistics scene_renderer::render(world::theatre const &theatre, camera const &observer, unsigned int const frame,
-                                        uint16_t const timer, render::framebuffer &output) {
+                                        uint16_t const timer, render::framebuffer &output, instrument_telemetry const *const telemetry) {
   /// Render the original world through fixed-point transforms into a 640x350 indexed software surface
   statistics = {};
   set_palette(theatre, observer.position);
@@ -306,7 +351,11 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
   auto const rotation{maths::make_rotation(observer.attitude)};
   for(auto const &view : views) background(view, rotation);
 
-  maths::angle constexpr sun_angle{8192};
+  draw_ground_and_stars(theatre, observer, rotation, views);
+  auto sky{theatre.sky};
+  if((palette[11].red >> 2) + (palette[11].green >> 2) + (palette[11].blue >> 2) <= 48) sky.sun_colour = 15;
+  geometry.configure_sun(sky);
+  maths::angle const sun_angle{theatre.sky.sun_angle};
   maths::fixed_vector const sun_relative{0, maths::multiply(maths::negate(maths::sine(sun_angle)), 1000), maths::multiply(maths::cosine(sun_angle), 1000)};
   auto const sun_origin{maths::transform(rotation, sun_relative)};
   draw_model(resources::geometry_bank::sun_model, 0, rotation, sun_origin, 0, views);
@@ -314,7 +363,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
   std::vector<visible_object> visible;
   for(auto const &object : theatre.objects) {
     if(!object.has(world::object_flag::present)) continue;
-    if(auto item{visibility(object, geometry.definition(object.type), observer.position)}) visible.push_back(std::move(*item));
+    if(auto item{visibility(object, geometry.definition(object.type), observer.position, geometry.appearance(object))}) visible.push_back(std::move(*item));
   }
   std::ranges::stable_sort(visible, [](visible_object const &lhs, visible_object const &rhs){
     return lhs.tier != rhs.tier ? lhs.tier > rhs.tier : lhs.distance > rhs.distance;
@@ -328,6 +377,39 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     auto const origin{maths::transform(rotation, item.relative)};
     draw_model(item.model, model_octant(item.relative, inverse), matrix, origin, item.reduction, views);
     ++statistics.objects;
+  }
+  if(telemetry && telemetry->aircraft.throttle <= 50) {
+    auto const &aircraft{telemetry->aircraft};
+    auto const offset{maths::transform(maths::make_inverse_rotation(aircraft.attitude), maths::fixed_vector{10, 0, -900})};
+    world::placed_object propeller{
+      .position{aircraft.position + maths::world_position{offset}},
+      .attitude{
+        .heading{aircraft.attitude.heading},
+        .pitch{aircraft.attitude.pitch},
+        .roll{static_cast<maths::angle>(-static_cast<uint32_t>(timer) * (aircraft.throttle - 10) * 2)},
+      },
+      .type{world::object_type::propeller},
+      .flags{1},
+    };
+    auto const &definition{geometry.definition(propeller.type)};
+    if(auto const item{visibility(propeller, definition, observer.position, geometry.appearance(propeller))}) {
+      auto const inverse{maths::make_inverse_rotation(propeller.attitude)};
+      auto const matrix{maths::compose(rotation, inverse)};
+      auto const origin{maths::transform(rotation, item->relative)};
+      draw_model(item->model, model_octant(item->relative, inverse), matrix, origin, item->reduction, views.first(1));
+    }
+  }
+  if(telemetry) {
+    auto const &main_view{views.front()};
+    raster sight{indexed, main_view.bounds, random};
+    int const x{main_view.centre_x}, y{main_view.centre_y};
+    for(int offset{0}; offset != 2; ++offset) {
+      sight.line({x - 12, y + offset}, {x - 4, y + offset}, 7);
+      sight.line({x + 13, y + offset}, {x + 5, y + offset}, 7);
+      sight.line({x + offset, y - 8}, {x + offset, y - 3}, 7);
+      sight.line({x + offset, y + 9}, {x + offset, y + 4}, 7);
+    }
+    if(observer.cockpit) instruments.draw(indexed, random, *telemetry, frame);
   }
   for(unsigned int i{0}; i != output.pixels.size(); ++i) output.pixels[i] = palette[indexed.pixels[i] & 15u];
   return statistics;

@@ -8,45 +8,10 @@
 #include <string>
 #include <string_view>
 #include "flight/aircraft.h"
+#include "tests/reference_reader.h"
 
 namespace {
 
-class fixture {
-private:
-  std::ifstream input;
-
-public:
-  fixture(char const *const path) :
-    input{path, std::ios::binary} {
-    /// Fail on truncated data rather than treating EOF as a native arithmetic result
-    input.exceptions(std::ios::failbit | std::ios::badbit);
-    std::array<char, 8> magic;
-    input.read(magic.data(), magic.size());
-    if(std::string_view{magic.data(), magic.size()} != "CORNFY01") throw std::runtime_error{"invalid native flight fixture"};
-  }
-  uint8_t byte() {
-    /// Read one native byte without relying on char signedness
-    return static_cast<uint8_t>(input.get());
-  }
-  uint16_t word() {
-    /// Decode the fixture's explicit little-endian word order
-    unsigned int const low{byte()}, high{byte()};
-    return static_cast<uint16_t>(low | (high << 8));
-  }
-  int16_t signed_word() {
-    /// Preserve the native sign bit
-    return std::bit_cast<int16_t>(word());
-  }
-  uint32_t dword() {
-    /// Decode a count or dword without host structure padding
-    uint32_t const low{word()};
-    return low | (static_cast<uint32_t>(word()) << 16);
-  }
-  int32_t signed_dword() {
-    /// Read signed world positions and force accumulators
-    return std::bit_cast<int32_t>(dword());
-  }
-};
 
 template<typename value_type>
 void check(value_type const actual, value_type const expected, char const *const name, unsigned int const index) {
@@ -67,7 +32,7 @@ corncob::flight::aircraft_variant variant(uint16_t const flags) {
 int main(int const argc, char const *const argv[]) {
   /// Compare the original atmosphere, force and integration code with its native C++ translation
   if(argc != 2) throw std::invalid_argument{"flight_checks requires its reference fixture path"};
-  fixture input{argv[1]};
+  corncob::tests::reference_reader input{argv[1], "CORNFY01"};
   unsigned int const angles{input.dword()}, forces{input.dword()}, positions{input.dword()};
   for(unsigned int i{0}; i != angles; ++i) {
     auto const x{input.signed_word()}, y{input.signed_word()};

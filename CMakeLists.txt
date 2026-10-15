@@ -50,8 +50,16 @@ function(embed_resource resource_name asset_file)
 endfunction()
 
 add_library(corncob_core STATIC
+  src/game/session.cpp
+  src/game/session.h
   src/flight/aircraft.cpp
   src/flight/aircraft.h
+  src/flight/controls.cpp
+  src/flight/controls.h
+  src/flight/landing.cpp
+  src/flight/landing.h
+  src/graphics/instruments.cpp
+  src/graphics/instruments.h
   src/graphics/raster.cpp
   src/graphics/raster.h
   src/graphics/scene.cpp
@@ -63,6 +71,8 @@ add_library(corncob_core STATIC
   src/resources/assets.h
   src/resources/geometry_bank.cpp
   src/resources/geometry_bank.h
+  src/world/motion.cpp
+  src/world/motion.h
   src/world/world.cpp
   src/world/world.h
   src/resources/cockpit_mask.cpp
@@ -77,6 +87,11 @@ embed_resource(white_sands white_sands.cct)
 embed_resource(morning morning.cct)
 embed_resource(dusk dusk.cct)
 embed_resource(wasteland wasteland.cct)
+embed_resource(white_sands_briefing white_sands.twr)
+embed_resource(morning_briefing morning.twr)
+embed_resource(dusk_briefing dusk.twr)
+embed_resource(wasteland_briefing wasteland.twr)
+
 
 add_library(corncob_platform STATIC
   src/platform/framebuffer_presenter.cpp
@@ -119,6 +134,26 @@ if(BUILD_TESTING)
   target_link_libraries(flight_checks PRIVATE corncob_core)
   configure_first_party(flight_checks)
   add_test(NAME native_flight COMMAND flight_checks "${PROJECT_SOURCE_DIR}/tests/reference/flight.bin")
+  add_executable(control_checks tests/control_checks.cpp)
+  target_link_libraries(control_checks PRIVATE corncob_core)
+  configure_first_party(control_checks)
+  add_test(NAME native_controls COMMAND control_checks "${PROJECT_SOURCE_DIR}/tests/reference/controls.bin")
+  add_executable(landing_checks tests/landing_checks.cpp)
+  target_link_libraries(landing_checks PRIVATE corncob_core)
+  configure_first_party(landing_checks)
+  add_test(NAME native_landing COMMAND landing_checks "${PROJECT_SOURCE_DIR}/tests/reference/landing.bin")
+  add_executable(session_checks tests/session_checks.cpp)
+  target_link_libraries(session_checks PRIVATE corncob_core)
+  configure_first_party(session_checks)
+  add_test(NAME scripted_session COMMAND session_checks)
 endif()
 
 install(TARGETS corncob RUNTIME DESTINATION .)
+
+if(BUILD_TESTING)
+  add_executable(motion_checks tests/motion_checks.cpp)
+  configure_first_party(motion_checks)
+  target_include_directories(motion_checks PRIVATE "${PROJECT_SOURCE_DIR}")
+  target_link_libraries(motion_checks PRIVATE corncob_core)
+  add_test(NAME native_motion COMMAND motion_checks "${PROJECT_SOURCE_DIR}/tests/reference/motion.bin")
+endif()

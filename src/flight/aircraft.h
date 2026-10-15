@@ -25,6 +25,7 @@ struct atmosphere {
 
 struct aircraft_state {
   maths::world_position position{0, 0, 720};
+  maths::angles attitude;
   maths::rotation world_to_body{maths::make_rotation({})};
   maths::rotation body_to_world{maths::make_inverse_rotation({})};
   maths::fixed_vector velocity{0, 0, 0};
@@ -35,6 +36,8 @@ struct aircraft_state {
   vec3<int32_t> body_force{0, 0, 0};
   aircraft_variant variant{aircraft_variant::standard};
   uint16_t throttle{20};
+  uint16_t engine_temperature{0};
+  uint16_t oil_pressure{0};
   uint16_t density{5957};
   uint16_t power_factor{65'535};
   int16_t angle_of_attack{0};

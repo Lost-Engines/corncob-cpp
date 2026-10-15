@@ -1,0 +1,17 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "a7ac460cf92c04d09cdf1ff211d549c7878fdc45943d85d29454eb7861610a01",
+  "matrix_cases": 512,
+  "control_cases": 512,
+  "routines": [
+    "0xd2b7 GETANG",
+    "0xd4db ROLPLN",
+    "0x31a7..0x37d0 controls"
+  ],
+  "stubs": [
+    "0x0627 supplies recorded rudder input",
+    "0x1492 flashstall HUD/random only",
+    "0xcc91 drawbutton"
+  ],
+  "scope": "Undamaged stability, autopilot off, wheel contact marked runway to avoid taxi jitter; wing/rudder damage and stall limiter included."
+}

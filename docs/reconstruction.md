@@ -47,12 +47,12 @@ three distance/detail tiers, fixed-point projection, focal-plane clipping,
 viewport frames and direction-dependent painter order. Sky and ground colours
 come from the tile headers, rather than a guessed default palette.
 
-The current scene preview draws stored objects without running their gameplay
-update routines. Destruction/model swaps, AI, forcefield motion, instruments,
-propeller and ground detail remain to be connected. Its free camera is an
-inspection aid, not a replacement flight model. Walking is the original game's
-initial state; the current cockpit preview is deliberately not a faithful
-startup sequence yet.
+The native session now owns live placements, the aircraft and the on-foot pilot.
+It starts on foot, supports boarding and re-entry, flight, landing, ejection,
+parachuting and remote flight. Original instruments, propeller, ground dots,
+radar rotation, crew gestures and theatre sun/atmosphere directives are connected.
+Combat, AI, campaign progression, the unified front end and sound remain underway.
+The free camera is a developer inspection aid.
 
 ## Initial validation
 
@@ -104,9 +104,7 @@ of the scene preview: atmosphere/density, gravity in body axes, thrust and rocke
 boost, longitudinal/lateral drag, lift, flap/stall limits and position integration.
 They preserve the original previous-pass density dependency, wrapping force
 accumulators, rounded dword division, word velocity limits and the experimental
-aircraft's fourfold position scaling. This is a force/integration foundation;
-control response, ground contact and the rest of the flight loop still need to
-be translated before it becomes interactive flight.
+aircraft's fourfold position scaling. Control response and ground contact now connect this foundation to the interactive session.
 
 The original 1,024-entry arctangent table matches the target binary too. Tests
 compare 8,228 airflow angles, 256 native force passes (including intermediate
@@ -115,3 +113,25 @@ The first eight force passes reproduce the established research scenarios;
 others exercise rotated axes, variable time steps, atmosphere, aircraft variants
 and ground flags. HUD/audio calls are stubbed only in the native fixture harness.
 The ordinary build runs pure C++, without emulator dependencies.
+
+## Controls, landing and live-session checks
+
+A further 512 native control passes and 512 attitude/matrix passes verify the
+speed- and density-dependent angular response, ground steering and stall limiter.
+The autopilot, optional stability assistance and damage-induced jitter are not
+yet connected. Ground checks cover 1,024 original approximate vector magnitudes,
+256 wheel-height cases and 512 suspension/braking passes. The source disables its
+optional suspension-damping branch, as does the reference binary.
+
+Scripted input walks to the actual White Sands aircraft, boards, verifies its
+clearance lock and pause behaviour, then grants clearance to exercise a powered
+takeoff and sustained climb. It also ejects, opens the parachute and flies the
+abandoned aircraft remotely. Captured frames are inspected during development.
+This checks the connected path without claiming every pilot/flight transition
+has yet been matched against a complete DOS session.
+
+Generic object motion is checked against 512 original OBJMOV executions, including
+PRNG drift, quadratic drag, rotation, time adjustment, the special gravity-55
+constant-descent convention and ground stopping. A further 512 CHKBOX cases verify
+strict overlap, zero-X disabling and carries in summed unsigned half-extents.
+The successful-overlap callbacks are stubbed in those geometry-only fixtures.

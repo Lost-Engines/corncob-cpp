@@ -31,6 +31,7 @@ def main():
     save('engine.dat', exe[models['data_file_base']:], '3.EXE data segment at file offset 0x11490; original model, template and tuning data, no executable instructions')
     for target, source in (('white_sands', 'WHTSANDS'), ('morning', 'MORNING'), ('dusk', 'DUSK'), ('wasteland', 'WASTELND')):
         save(target + '.cct', (install / 'DEF' / (source + '.CCT')).read_bytes(), 'DEF/' + source + '.CCT')
+        save(target + '.twr', (install / 'DEF' / (source + '.TWR')).read_bytes(), 'DEF/' + source + '.TWR')
     records.append({'path': 'cockpit.img', 'source': 'IMG/3D.IMG', 'bytes': (assets / 'cockpit.img').stat().st_size,
                     'sha256': hashlib.sha256((assets / 'cockpit.img').read_bytes()).hexdigest()})
     manifest = {'reference': 'normal Corncob 3D 3.42', 'engine_sha256': REFERENCE_HASH, 'files': records,
@@ -56,6 +57,14 @@ def main():
                   f'    .timer_mask{{0x{rule.get("mask", 0):04x}}},', '  },']
     lines += ['};', '', '} // namespace corncob::resources', '']
     (ROOT / 'src/resources/colour_rules.h').write_text('\n'.join(lines))
+    stars = json.loads((args.research / 'analysis/resources/renderer/stars.json').read_text())
+    lines = ['#pragma once', '', '#include <array>', '#include "maths/fixed.h"', '', 'namespace corncob::graphics {', '',
+             '// original generated star bank: drawing consumes the anchor and the first 79 generated records',
+             'inline std::array<maths::world_position, 80> const original_stars{']
+    for record in stars['records'][:stars['draw_count']]:
+        lines.append('  maths::world_position{' + ', '.join(map(str, record['position_cm'])) + '},')
+    lines += ['};', '', '} // namespace corncob::graphics', '']
+    (ROOT / 'src/graphics/stars.h').write_text('\n'.join(lines))
     print('Imported embedded model data and four base-game theatres; generated traced colour rules')
 
 

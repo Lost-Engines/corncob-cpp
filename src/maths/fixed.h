@@ -43,10 +43,13 @@ coefficient sine(angle value) noexcept;
 coefficient cosine(angle value) noexcept;
 uint16_t sine_magnitude(angle value) noexcept;
 angle arctangent(coefficient x, coefficient y) noexcept;
+uint16_t magnitude(fixed_vector const &value) noexcept;
 rotation make_rotation(angles const &value) noexcept;
 rotation make_inverse_rotation(angles const &value) noexcept;
 fixed_vector transform(rotation const &matrix, fixed_vector const &value) noexcept;
 fixed_vector transform_vertex(rotation const &matrix, fixed_vector const &value) noexcept;
 rotation compose(rotation const &lhs, rotation const &rhs) noexcept;
+angles extract_angles(rotation const &body_to_world) noexcept;
+rotation rotate_local(rotation const &body_to_world, angles const &change) noexcept;
 
 } // namespace corncob::maths

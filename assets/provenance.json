@@ -15,10 +15,22 @@
       "sha256": "a301174d37fc001f335d8030045ee3899f4266a3a46f96f87b0349683d2c7ea7"
     },
     {
+      "path": "white_sands.twr",
+      "source": "DEF/WHTSANDS.TWR",
+      "bytes": 1098,
+      "sha256": "219e260c46c6b220163b0a5d38808556e7be94476d84b7558ca0e4495f085aa7"
+    },
+    {
       "path": "morning.cct",
       "source": "DEF/MORNING.CCT",
       "bytes": 6119,
       "sha256": "83cecb036934128c53a1df75930c6a112b393da5c089847180741c0e60726a0e"
+    },
+    {
+      "path": "morning.twr",
+      "source": "DEF/MORNING.TWR",
+      "bytes": 4721,
+      "sha256": "ff7ca7bc789ea3e7e602d631f3900b5c4bbdd6c9229ac13350b58344a78ea4e6"
     },
     {
       "path": "dusk.cct",
@@ -27,10 +39,22 @@
       "sha256": "1d33d329f60b9f0742f87f6e15828aa4d6f1820b74ab3dc21ab8afccbdb34983"
     },
     {
+      "path": "dusk.twr",
+      "source": "DEF/DUSK.TWR",
+      "bytes": 5053,
+      "sha256": "501c6ac6d57089768217b7cdb81ba26faeb416647d31f1374bd8d3a5eaa69d84"
+    },
+    {
       "path": "wasteland.cct",
       "source": "DEF/WASTELND.CCT",
       "bytes": 5291,
       "sha256": "e27219613ae9a7470798081b9d29502834318877b2e377ee95770e19d51e7588"
+    },
+    {
+      "path": "wasteland.twr",
+      "source": "DEF/WASTELND.TWR",
+      "bytes": 3061,
+      "sha256": "45d7876b54bbf76efa0fdadd2ba26640472eadf01f1e1336f78b2129e4b52235"
     },
     {
       "path": "cockpit.img",

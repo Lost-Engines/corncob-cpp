@@ -3,30 +3,15 @@
 #include <bit>
 #include <cassert>
 #include <cstdlib>
+#include "maths/integer.h"
 
 namespace corncob::flight {
 
 namespace {
 
-int32_t wrap(int64_t const value) noexcept {
-  /// Preserve native dword wrap at each multiply/add rather than overflowing a C++ signed value
-  return std::bit_cast<int32_t>(static_cast<uint32_t>(value));
-}
-int32_t rounded_divide(int32_t const numerator, int16_t const denominator) {
-  /// DIVRS_DW rounds an absolute quotient to nearest, with half cases away from zero
-  assert(denominator != 0);
-  int64_t const dividend{std::abs(static_cast<int64_t>(numerator))};
-  int const divisor{std::abs(static_cast<int>(denominator))};
-  int64_t const quotient{(dividend + divisor / 2) / divisor};
-  return wrap((numerator < 0) != (denominator < 0) ? -quotient : quotient);
-}
-int32_t scale(int32_t const value, int16_t const factor) noexcept {
-  /// Original MULS_DW retains only the low 32 bits of a signed dword-by-word product
-  return wrap(static_cast<int64_t>(value) * factor);
-}
 int32_t adjust_time(int32_t const value, time_step const step) {
   /// DWTADJ scales the accumulated fixed-point quantity before extracting its high word
-  return rounded_divide(scale(value, step.elapsed), step.normal);
+  return maths::rounded_divide(maths::scale(value, step.elapsed), step.normal);
 }
 int32_t signed_square(int16_t const value) noexcept {
   /// Drag preserves the velocity sign while squaring its magnitude
@@ -72,7 +57,7 @@ void advance_forces(aircraft_state &aircraft, atmosphere const &environment, tim
     }
   }
   auto const engine{aircraft.variant == aircraft_variant::reserve ? reserve_engine_coefficient : engine_coefficient};
-  int32_t thrust{rounded_divide(static_cast<uint16_t>(aircraft.throttle - idle_throttle) * engine, full_throttle)};
+  int32_t thrust{maths::rounded_divide(static_cast<uint16_t>(aircraft.throttle - idle_throttle) * engine, full_throttle)};
   if(aircraft.rocket) {
     int16_t const drain{maths::word(static_cast<int32_t>(rocket_drain) * step.elapsed / step.normal)};
     aircraft.rocket_ticks = maths::word(aircraft.rocket_ticks - drain);
@@ -85,9 +70,9 @@ void advance_forces(aircraft_state &aircraft, atmosphere const &environment, tim
     // the original rocket branch replaces engine thrust with the timed drain plus three engine coefficients
     thrust = maths::word(remaining + rocket_engine_multiplier * engine_coefficient);
   }
-  thrust = wrap(static_cast<int64_t>(static_cast<uint16_t>(thrust)) * aircraft.power_factor);
-  thrust = rounded_divide(thrust, std::max(aircraft.scaled_body_velocity.x, minimum_thrust_airflow));
-  aircraft.body_force.x = wrap(static_cast<int64_t>(aircraft.body_force.x) + scale(thrust, force_scale));
+  thrust = maths::dword(static_cast<int64_t>(static_cast<uint16_t>(thrust)) * aircraft.power_factor);
+  thrust = maths::rounded_divide(thrust, std::max(aircraft.scaled_body_velocity.x, minimum_thrust_airflow));
+  aircraft.body_force.x = maths::dword(static_cast<int64_t>(aircraft.body_force.x) + maths::scale(thrust, force_scale));
 
   int const height{std::max(0, static_cast<int>(maths::word(aircraft.position.z >> 8)))};
   int16_t const remaining_height{maths::word(environment.height - height)};
@@ -98,9 +83,9 @@ void advance_forces(aircraft_state &aircraft, atmosphere const &environment, tim
     int16_t const airflow{aircraft.scaled_body_velocity[axis]};
     int16_t divisor{maths::word(airflow - drag_breakpoint) < 0 ? normal_drag : axis == 0 ? fast_drag : fast_side_drag};
     if(axis == 0 && aircraft.flaps) divisor = static_cast<int16_t>(divisor >> 2);
-    int32_t drag{scale(signed_square(airflow), reduced_density)};
-    drag = scale(rounded_divide(drag, divisor), -force_scale);
-    aircraft.body_force[axis] = wrap(static_cast<int64_t>(aircraft.body_force[axis]) + drag);
+    int32_t drag{maths::scale(signed_square(airflow), reduced_density)};
+    drag = maths::scale(maths::rounded_divide(drag, divisor), -force_scale);
+    aircraft.body_force[axis] = maths::dword(static_cast<int64_t>(aircraft.body_force[axis]) + drag);
     if(axis == 1) {
       uint32_t const magnitude{static_cast<uint32_t>(std::abs(static_cast<int64_t>(drag)))};
       aircraft.side_force = (magnitude & 0x8000u) != 0 ? static_cast<int16_t>(drag < 0 ? -32'768 : 32'767) : maths::word(drag);
@@ -117,11 +102,11 @@ void advance_forces(aircraft_state &aircraft, atmosphere const &environment, tim
   int16_t const shifted_angle{maths::word(aircraft.angle_of_attack + half_angle)};
   aircraft.stalled = shifted_angle < 0 || maths::word(shifted_angle - half_angle * 2) >= 0;
   int16_t const lift_divisor{aircraft.stalled ? stalled_lift : static_cast<int16_t>(aircraft.flaps ? normal_lift / 2 : normal_lift)};
-  int32_t lift{rounded_divide(-signed_square(aircraft.body_velocity.z), 16)};
-  lift = rounded_divide(lift, lift_divisor);
-  lift = scale(lift, maths::word(aircraft.density));
-  lift = scale(lift, force_scale);
-  aircraft.body_force.z = wrap(static_cast<int64_t>(aircraft.body_force.z) + lift);
+  int32_t lift{maths::rounded_divide(-signed_square(aircraft.body_velocity.z), 16)};
+  lift = maths::rounded_divide(lift, lift_divisor);
+  lift = maths::scale(lift, maths::word(aircraft.density));
+  lift = maths::scale(lift, force_scale);
+  aircraft.body_force.z = maths::dword(static_cast<int64_t>(aircraft.body_force.z) + lift);
   for(unsigned int axis{0}; axis != 3; ++axis) {
     aircraft.body_acceleration[axis] = maths::word(adjust_time(aircraft.body_force[axis], step) >> 16);
   }
@@ -140,7 +125,7 @@ void advance_position(aircraft_state &aircraft, time_step const step) {
   for(unsigned int axis{0}; axis != 3; ++axis) {
     int16_t const velocity{maths::word((aircraft.acceleration[axis] >> 1) + aircraft.velocity[axis])};
     int32_t const distance{adjust_time(velocity, step) >> shift};
-    aircraft.position[axis] = wrap(static_cast<int64_t>(aircraft.position[axis]) + distance);
+    aircraft.position[axis] = maths::dword(static_cast<int64_t>(aircraft.position[axis]) + distance);
   }
 }
 

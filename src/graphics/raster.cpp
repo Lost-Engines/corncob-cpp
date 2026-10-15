@@ -10,7 +10,8 @@ namespace corncob::graphics {
 void raster::raw_pixel(int const x, int const y, colour_index const colour) noexcept {
   /// Hardware disc masks can extend beyond their centre-tested view, but never beyond our framebuffer
   if(x < 0 || y < 0 || x >= static_cast<int>(render::screen_layout::width) || y >= static_cast<int>(render::screen_layout::height)) return;
-  target.pixels[static_cast<unsigned int>(y) * render::screen_layout::width + static_cast<unsigned int>(x)] = colour & 15u;
+  auto &pixel{target.pixels[static_cast<unsigned int>(y) * render::screen_layout::width + static_cast<unsigned int>(x)]};
+  pixel = operation == pixel_operation::high_plane ? static_cast<uint8_t>((pixel & 7u) | (colour & 8u)) : static_cast<uint8_t>(colour & 15u);
 }
 void raster::span(int const y, int const left, int const right, colour_index const colour, uint8_t const mask) noexcept {
   /// Native horizontal spans include the left pixel and exclude the right pixel and bottom border
@@ -19,19 +20,20 @@ void raster::span(int const y, int const left, int const right, colour_index con
   int const first{std::max(left, bounds.left)}, last{std::min(right, bounds.right)};
   if(first >= last) return;
   auto *const pixels{target.pixels.data() + static_cast<unsigned int>(y) * render::screen_layout::width};
-  if(mask == 0xff) {
+  if(mask == 0xff && operation == pixel_operation::replace) {
     std::fill(pixels + first, pixels + last, colour & 15u);
     return;
   }
   for(int x{first}; x != last; ++x) {
-    if((mask & (0x80u >> (x & 7))) != 0) pixels[x] = colour & 15u;
+    if((mask & (0x80u >> (x & 7))) != 0) raw_pixel(x, y, colour);
   }
 }
 
-raster::raster(indexed_framebuffer &target, clip_rectangle const bounds, random_source &random) :
+raster::raster(indexed_framebuffer &target, clip_rectangle const bounds, random_source &random, pixel_operation const operation) :
   target{target},
   bounds{bounds},
-  random{random} {
+  random{random},
+  operation{operation} {
   /// Share one indexed CPU surface and the original random stream between viewports
 }
 

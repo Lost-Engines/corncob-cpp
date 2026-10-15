@@ -121,13 +121,22 @@ geometry_bank::geometry_bank(std::span<uint8_t const> const source) :
       },
       .collision_extents{input.vector(address + 66)},
       .flags{input.word(address + 24)},
+      .properties{input.word(0x2d44 + type * 2)},
+      .collision_group{input.byte(address + 19)},
       .rotate_below_tier{input.byte(address + 26)},
       .hit_points{input.byte(address + 27)},
+      .motion{
+        .spin{input.vector(address + 54)},
+        .dispersion{input.signed_word(address + 60)},
+        .drag_divisor{input.signed_word(address + 62)},
+        .gravity{input.signed_word(address + 64)},
+      },
     };
     load_model(definitions[type].models.near);
     load_model(definitions[type].models.middle);
     load_model(definitions[type].models.far);
   }
+  for(auto const address : {0x6f71, 0x7099, 0x5e2a, 0x3d64, 0x3d3c, 0x47a1, 0x406a, 0x4132}) load_model(static_cast<model_address>(address));
   load_model(sun_model);
   load_model(experimental_model);
 }
@@ -136,6 +145,26 @@ object_definition const &geometry_bank::definition(world::object_type const type
   /// Provide the original drawing, health and collision defaults for a typed world object
   return definitions.at(std::to_underlying(type));
 }
+model_levels geometry_bank::appearance(world::placed_object const &object) const {
+  /// Typed visual states retain the model-pointer switches authored in the original object handlers
+  switch(object.pose) {
+  case world::model_pose::damaged:
+    if(object.type == world::object_type::aircraft || object.type == world::object_type::internal_aircraft) return {0x47a1, 0x47a1, 0x4ee3};
+    if(object.type == world::object_type::generator_orb) return {0x3227, 0x3227, 0x3227};
+    if(object.type == world::object_type::radar_dish || object.type == world::object_type::radar_base) return {0x406a, 0x4132, 0x4132};
+    if(object.type == world::object_type::fuel_dump) return {0x3521, 0x3569, 0x3569};
+    break;
+  case world::model_pose::gesture: return {0x6f71, 0x6f71, 0x6f71};
+  case world::model_pose::shot: return {0x7099, 0x7099, 0x7099};
+  case world::model_pose::paved: return {0x5e2a, 0x5e2a, 0x5ff2};
+  case world::model_pose::yellow_explosion: return {0x3d64, 0x3d64, 0x3d64};
+  case world::model_pose::red_explosion: return {0x3d3c, 0x3d3c, 0x3d3c};
+  case world::model_pose::radar_wreck: return {0x406a, 0x4132, 0x4132};
+  default: break;
+  }
+  return definition(object.type).models;
+}
+
 std::span<draw_command const> geometry_bank::commands(model_address const address, unsigned int const octant) const {
   /// Expose the selected painter list without copying or sorting its primitives
   return models.at(address).octants.at(octant);
@@ -148,6 +177,15 @@ uint8_t geometry_bank::colour(colour_reference const reference) const noexcept {
   /// A nonzero high byte marks a native colour-variable address rather than a literal index
   return (reference >> 8) != 0 ? colours[reference] : static_cast<uint8_t>(reference);
 }
+void geometry_bank::configure_sun(world::sky_parameters const &sky) {
+  /// READUNIVPARAMS changes the two authored sun discs and their shared colour byte
+  auto const &command{models.at(sun_model).octants.front().front()};
+  auto &sun{std::get<disc_cloud>(primitives.at(command.primitive_index))};
+  sun.discs.at(0).diameter = sky.first_sun_diameter;
+  sun.discs.at(1).diameter = sky.second_sun_diameter;
+  colours[0x537d] = sky.sun_colour;
+}
+
 void geometry_bank::prepare_colours(world::placed_object const &object, unsigned int const frame, uint16_t const timer, uint8_t const random, bool const radar_active) {
   /// Apply the traced per-object quality, shared random and timer-based colour bindings
   uint64_t const type_bit{uint64_t{1} << std::to_underlying(object.type)};

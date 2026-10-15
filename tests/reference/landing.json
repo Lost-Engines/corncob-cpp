@@ -1,0 +1,17 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "d1a1dab296e574d1d127222f7840906411b02fe4a1ecec144e02ba15d68d623e",
+  "magnitude_cases": 1024,
+  "wheel_cases": 256,
+  "contact_cases": 512,
+  "routines": [
+    "0x792b VMAG",
+    "0x129a FINDHEIGHT",
+    "0x1805 DOLANDINGGEAR"
+  ],
+  "stubs": [
+    "0x02cf supplies recorded brake key",
+    "0x1236 home-base statistics only"
+  ],
+  "note": "The preserved source disables DAMPFLAG; the 3.42 binary likewise omits optional suspension damping."
+}

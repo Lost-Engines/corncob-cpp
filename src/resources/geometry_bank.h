@@ -29,8 +29,11 @@ struct object_definition {
   distance_limits limits;
   maths::fixed_vector collision_extents{0, 0, 0};
   uint16_t flags;
+  uint16_t properties;
+  uint8_t collision_group;
   uint8_t rotate_below_tier;
   uint8_t hit_points;
+  world::motion_profile motion;
 };
 
 struct polygon {
@@ -86,9 +89,11 @@ public:
 
   geometry_bank(std::span<uint8_t const> source);
   object_definition const &definition(world::object_type type) const;
+  model_levels appearance(world::placed_object const &object) const;
   std::span<draw_command const> commands(model_address address, unsigned int octant) const;
   primitive const &drawing(unsigned int index) const;
   uint8_t colour(colour_reference reference) const noexcept;
+  void configure_sun(world::sky_parameters const &sky);
   void prepare_colours(world::placed_object const &object, unsigned int frame, uint16_t timer, uint8_t random, bool radar_active);
 };
 

@@ -1,5 +1,6 @@
 #include "fixed.h"
 #include <algorithm>
+#include <cstdlib>
 #include "maths/arctangent_table.h"
 #include "maths/sine_table.h"
 
@@ -72,6 +73,40 @@ angle arctangent(coefficient x, coefficient y) noexcept {
   return static_cast<angle>(result + (quarter << 8));
 }
 
+uint16_t magnitude(fixed_vector const &value) noexcept {
+  /// VMAG uses DSQRT's short Newton iteration and returns one for a zero vector
+  uint32_t squared{0};
+  for(unsigned int axis{0}; axis != 3; ++axis) squared += static_cast<uint32_t>(static_cast<int32_t>(value[axis]) * value[axis]);
+  if((squared & 0xc0000000u) != 0) return 32'767;
+  uint32_t search{squared << 2};
+  unsigned int guess{32'767}, alternate{23'170};
+  bool found{false};
+  for(unsigned int i{0}; i != 14; ++i) {
+    bool const first{(search & 0x80000000u) != 0};
+    search <<= 1;
+    if(first) {
+      found = true;
+      break;
+    }
+    bool const second{(search & 0x80000000u) != 0};
+    search <<= 1;
+    if(second) {
+      guess = alternate;
+      found = true;
+      break;
+    }
+    guess >>= 1;
+    alternate >>= 1;
+  }
+  if(!found) return 1;
+  for(;;) {
+    unsigned int const quotient{squared / guess};
+    unsigned int const next{(guess + quotient) >> 1};
+    if(std::abs(static_cast<int>(guess) - static_cast<int>(next)) < 3) return static_cast<uint16_t>(quotient);
+    guess = next;
+  }
+}
+
 rotation make_rotation(angles const &value) noexcept {
   /// Translate F3DVEC's CALCMAT with its original sequence of Q15 products and saturated additions
   coefficient const sy{sine(value.heading)}, cy{cosine(value.heading)};
@@ -140,6 +175,37 @@ rotation compose(rotation const &lhs, rotation const &rhs) noexcept {
     }
   }
   return result;
+}
+
+angles extract_angles(rotation const &matrix) noexcept {
+  /// GETANG removes yaw and pitch before recovering roll, including its vertical-flight singularity
+  auto sum{[](coefficient const a, coefficient const b){
+    return static_cast<coefficient>(std::clamp(static_cast<int>(a) + b, -32'767, 32'767));
+  }};
+  angles result;
+  coefficient sy{0}, cy{32'767};
+  auto small{[](coefficient const value){
+    return value >= -256 && value <= 255;
+  }};
+  if(small(matrix.rows[1].x) && small(matrix.rows[0].x)) {
+    result.pitch = matrix.rows[2].x < 0 ? angle{16'384} : static_cast<angle>(-16'384);
+  } else {
+    result.heading = arctangent(matrix.rows[0].x, matrix.rows[1].x);
+    sy = sine(result.heading);
+    cy = cosine(result.heading);
+    coefficient const forward{sum(multiply(sy, matrix.rows[1].x), multiply(cy, matrix.rows[0].x))};
+    result.pitch = static_cast<angle>(-arctangent(forward, matrix.rows[2].x));
+  }
+  coefficient const vertical{sum(multiply(matrix.rows[0].y, cy), multiply(matrix.rows[1].y, sy))};
+  coefficient const lateral{sum(negate(multiply(matrix.rows[0].y, sy)), multiply(matrix.rows[1].y, cy))};
+  coefficient const roll_height{sum(multiply(cosine(result.pitch), matrix.rows[2].y), multiply(sine(result.pitch), vertical))};
+  result.roll = arctangent(lateral, roll_height);
+  return result;
+}
+
+rotation rotate_local(rotation const &body_to_world, angles const &change) noexcept {
+  /// ROLPLN composes a local incremental rotation before GETANG normalises the next frame's attitude
+  return compose(body_to_world, make_inverse_rotation(change));
 }
 
 } // namespace corncob::maths

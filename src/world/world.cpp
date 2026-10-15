@@ -1,4 +1,6 @@
 #include "world.h"
+#include <algorithm>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 #include "resources/binary_reader.h"
@@ -51,6 +53,26 @@ theatre decode_theatre(std::span<uint8_t const> const source) {
   if(offset > source.size() || source.size() - offset != 12) throw std::invalid_argument{"embedded theatre has an invalid start-position trailer"};
   result.start = maths::world_position{input.signed_dword(offset), input.signed_dword(offset + 4), input.signed_dword(offset + 8)};
   return result;
+}
+
+void apply_briefing(theatre &theatre, std::span<uint8_t const> const source) {
+  /// TWR's optional first-line X directive controls the actual sun, atmosphere and star settings
+  theatre.briefing.assign(reinterpret_cast<char const*>(source.data()), source.size());
+  if(source.empty() || source.front() != 'X') return;
+  std::istringstream input{theatre.briefing.substr(1, theatre.briefing.find('\n'))};
+  int angle{0}, diameter{0}, colour{0}, gravity{0}, density{0}, stars{0}, height{0};
+  if(!(input >> angle >> diameter >> colour >> gravity >> density >> stars >> height)) throw std::invalid_argument{"embedded theatre has an invalid X directive"};
+  theatre.sky = {
+    .sun_angle{static_cast<maths::angle>(angle)},
+    .first_sun_diameter{static_cast<uint16_t>(diameter)},
+    .second_sun_diameter{static_cast<uint16_t>(diameter + 5)},
+    .sun_colour{static_cast<uint8_t>(colour & 15)},
+    .stars{(stars & 1) != 0},
+  };
+  theatre.environment.gravity = static_cast<int16_t>(std::clamp(gravity, -100, -15));
+  if(density >= 1000 && density <= 10'000) theatre.environment.sea_level_density = static_cast<uint16_t>(density);
+  if(height >= 256 && height <= 32'767) theatre.environment.atmosphere_height = static_cast<uint16_t>(height);
+  theatre.briefing.erase(0, theatre.briefing.find('\n') + 1);
 }
 
 } // namespace corncob::world

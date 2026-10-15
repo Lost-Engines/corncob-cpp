@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 #include "maths/fixed.h"
@@ -26,6 +27,19 @@ enum class object_type : uint16_t {
   count,
 };
 
+enum class object_property : uint16_t {
+  temporary = 1,
+  discard_when_far = 2,
+  collision_callback = 4,
+  forcefield = 8,
+  runway = 16,
+  portal = 32,
+  walkable = 64,
+  kills_person = 128,
+  raised_walking_surface = 256,
+  captures_person = 512,
+};
+
 enum class object_flag : uint16_t {
   present = 0x0001,
   collision_callback = 0x0008,
@@ -38,6 +52,24 @@ enum class object_flag : uint16_t {
   special = 0x0800,
 };
 
+enum class model_pose {
+  normal,
+  damaged,
+  gesture,
+  shot,
+  paved,
+  yellow_explosion,
+  red_explosion,
+  radar_wreck,
+};
+
+struct motion_profile {
+  maths::fixed_vector spin{0, 0, 0};
+  int16_t dispersion{0};
+  int16_t drag_divisor{0};
+  int16_t gravity{0};
+};
+
 struct placed_object {
   maths::world_position position{0, 0, 0};
   maths::angles attitude;
@@ -45,6 +77,10 @@ struct placed_object {
   object_type type{object_type::generator_orb};
   uint16_t flags{0};
   uint16_t timer{0};
+  uint8_t health{0};
+  uint8_t collision_group{0};
+  motion_profile motion{};
+  model_pose pose{model_pose::normal};
 
   unsigned int quality() const noexcept {
     /// Qualities occupy three stored flag bits and index eight-row tuning tables
@@ -63,6 +99,20 @@ struct world_tile {
   std::array<uint8_t, 5> packed_colours;
 };
 
+struct sky_parameters {
+  maths::angle sun_angle{8192};
+  uint16_t first_sun_diameter{120};
+  uint16_t second_sun_diameter{112};
+  uint8_t sun_colour{14};
+  bool stars{false};
+};
+
+struct environment_parameters {
+  int16_t gravity{-48};
+  uint16_t sea_level_density{5957};
+  uint16_t atmosphere_height{5957};
+};
+
 struct theatre {
   static unsigned int constexpr columns{8};
   static unsigned int constexpr rows{8};
@@ -71,8 +121,12 @@ struct theatre {
   std::array<world_tile, columns * rows> tiles;
   std::vector<placed_object> objects;
   maths::world_position start{0, 0, 0};
+  sky_parameters sky{};
+  environment_parameters environment{};
+  std::string briefing;
 };
 
 theatre decode_theatre(std::span<uint8_t const> source);
+void apply_briefing(theatre &theatre, std::span<uint8_t const> source);
 
 } // namespace corncob::world

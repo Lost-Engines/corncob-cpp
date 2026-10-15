@@ -4,6 +4,7 @@
 #include <span>
 #include "vectorstorm/vector/vector2.h"
 #include "render/framebuffer.h"
+#include "maths/random.h"
 
 namespace corncob::graphics {
 
@@ -21,16 +22,11 @@ struct indexed_framebuffer {
   std::array<colour_index, render::screen_layout::pixel_count> pixels;
 };
 
-class random_source {
-private:
-  uint32_t state{2'949'243u};
+using random_source = maths::random_source;
 
-public:
-  uint16_t next() noexcept {
-    /// Retain the assembly engine's wrapping multiplicative random stream
-    state *= 0x27'8d'de'6du;
-    return static_cast<uint16_t>(state >> 16);
-  }
+enum class pixel_operation {
+  replace,
+  high_plane,
 };
 
 class raster {
@@ -38,12 +34,13 @@ private:
   indexed_framebuffer &target;
   clip_rectangle bounds;
   random_source &random;
+  pixel_operation operation;
 
   void raw_pixel(int x, int y, colour_index colour) noexcept;
   void span(int y, int left, int right, colour_index colour, uint8_t mask = 0xff) noexcept;
 
 public:
-  raster(indexed_framebuffer &target, clip_rectangle bounds, random_source &random);
+  raster(indexed_framebuffer &target, clip_rectangle bounds, random_source &random, pixel_operation operation = pixel_operation::replace);
   void point(screen_point const &position, colour_index colour) noexcept;
   void line(screen_point start, screen_point end, colour_index colour) noexcept;
   void polygon(std::span<screen_point const> vertices, colour_index colour) noexcept;

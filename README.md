@@ -29,7 +29,15 @@ The window uses the largest integer multiple of its 640 x 480 display that fits
 within the available desktop. The native 640 x 350 EGA framebuffer is presented
 at the intended 4:3 CRT aspect ratio, using nearest-neighbour sampling. The window
 floats and remains resizable. `--scale 1` selects the initial scale explicitly;
-Escape closes the current preview; R toggles the rear view.
+Escape closes the current build; R toggles the rear view.
+
+You start on foot. Keypad 5 walks forward and keypad 0 walks backwards; arrows
+turn. Walk into an aircraft to board. +/− controls throttle, arrows fly, Z/X
+operate the rudder, F toggles flaps, I uses rocket boost, and . brakes. E leaves
+the aircraft; Space opens a parachute while falling. Caps Lock enables remote
+flight after ejection. L toggles the cockpit, G ground detail, and P pauses.
+The experimental aircraft at White Sands requires campaign clearance before
+its throttle operates; campaign progression is still being connected.
 
 Choose a world with `--theatre white_sands`, `morning`, `dusk` or `wasteland`.
 Debug and RelWithDebInfo also provide `--free-camera` for scenery inspection:
