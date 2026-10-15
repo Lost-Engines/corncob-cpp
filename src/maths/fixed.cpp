@@ -1,4 +1,6 @@
 #include "fixed.h"
+#include <algorithm>
+#include "maths/arctangent_table.h"
 #include "maths/sine_table.h"
 
 namespace corncob::maths {
@@ -13,8 +15,8 @@ coefficient add_saturated(coefficient const lhs, coefficient const rhs) noexcept
   return std::bit_cast<int16_t>(std::rotl(static_cast<uint16_t>(sum), 1));
 }
 
-coefficient sine(angle const value) noexcept {
-  /// Interpolate the original quarter-wave table, then reserve one bit for the sign
+uint16_t sine_magnitude(angle const value) noexcept {
+  /// Raw SIN returns a full unsigned magnitude; the atmosphere code uses this extra bit of precision
   unsigned int constexpr half_turn{32'768};
   unsigned int constexpr quarter_turn{16'384};
   unsigned int constexpr table_fraction_bits{6};
@@ -28,12 +30,46 @@ coefficient sine(angle const value) noexcept {
     auto const index{phase >> table_fraction_bits};
     magnitude = sine_quarter[index] + ((sine_quarter[index + 1] - sine_quarter[index]) * (phase & (table_step - 1))) / table_step;
   }
-  auto const result{static_cast<coefficient>(magnitude >> 1)};
-  return negative ? negate(result) : result;
+  return static_cast<uint16_t>(magnitude);
+}
+coefficient sine(angle const value) noexcept {
+  /// Signed SSIN halves the raw magnitude before restoring the angle sign
+  auto const result{static_cast<coefficient>(sine_magnitude(value) >> 1)};
+  return (value & 0x8000u) != 0 ? negate(result) : result;
 }
 coefficient cosine(angle const value) noexcept {
   /// The original cosine entry adds a quarter turn and jumps into signed sine
   return sine(static_cast<angle>(value + 16'384u));
+}
+
+angle arctangent(coefficient x, coefficient y) noexcept {
+  /// ATN2 selects a quantised octant table; its zero vector deliberately returns an eighth turn
+  if(x == -32'768) ++x;
+  uint8_t quadrant{0}, quarter{0};
+  if(x < 0) {
+    quadrant = 3;
+    x = negate(x);
+  }
+  if(y < 0) {
+    quadrant ^= 5;
+    y = negate(y);
+  }
+  unsigned int const abs_x{static_cast<uint16_t>(x)}, abs_y{static_cast<uint16_t>(y)};
+  uint16_t value{32'768};
+  if(abs_x != abs_y) {
+    unsigned int const larger{std::max(abs_x, abs_y)}, smaller{std::min(abs_x, abs_y)};
+    if(abs_x < abs_y) {
+      quarter = 64;
+      quadrant ^= 1;
+      quadrant = static_cast<uint8_t>(((quadrant >> 2) << 1) | (quadrant & 1));
+    }
+    unsigned int const ratio{((smaller << 16) / larger) >> 1};
+    value = arctangent_table[ratio >> 5];
+  }
+  int result{value >> 2};
+  if((quadrant & 1u) != 0) result = -result;
+  if((quadrant & 2u) != 0) quarter = static_cast<uint8_t>(quarter + 128);
+  return static_cast<angle>(result + (quarter << 8));
 }
 
 rotation make_rotation(angles const &value) noexcept {

@@ -50,6 +50,8 @@ function(embed_resource resource_name asset_file)
 endfunction()
 
 add_library(corncob_core STATIC
+  src/flight/aircraft.cpp
+  src/flight/aircraft.h
   src/graphics/raster.cpp
   src/graphics/raster.h
   src/graphics/scene.cpp
@@ -113,6 +115,10 @@ if(BUILD_TESTING)
   target_link_libraries(scene_checks PRIVATE corncob_core)
   configure_first_party(scene_checks)
   add_test(NAME original_theatres COMMAND scene_checks)
+  add_executable(flight_checks tests/flight_checks.cpp)
+  target_link_libraries(flight_checks PRIVATE corncob_core)
+  configure_first_party(flight_checks)
+  add_test(NAME native_flight COMMAND flight_checks "${PROJECT_SOURCE_DIR}/tests/reference/flight.bin")
 endif()
 
 install(TARGETS corncob RUNTIME DESTINATION .)

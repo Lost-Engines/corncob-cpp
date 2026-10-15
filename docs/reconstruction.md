@@ -96,3 +96,22 @@ The fixture generators use Unicorn and a small EGA plane/latch/write-mode adapte
 in development only. Normal tests run entirely in C++ with committed fixture
 hashes. An additional sweep renders from every placed object's neighbourhood in
 all four theatres, testing cockpit/full-screen layouts and front/rear clipping.
+
+## Aircraft force foundation
+
+The first aircraft simulation routines are translated and tested independently
+of the scene preview: atmosphere/density, gravity in body axes, thrust and rocket
+boost, longitudinal/lateral drag, lift, flap/stall limits and position integration.
+They preserve the original previous-pass density dependency, wrapping force
+accumulators, rounded dword division, word velocity limits and the experimental
+aircraft's fourfold position scaling. This is a force/integration foundation;
+control response, ground contact and the rest of the flight loop still need to
+be translated before it becomes interactive flight.
+
+The original 1,024-entry arctangent table matches the target binary too. Tests
+compare 8,228 airflow angles, 256 native force passes (including intermediate
+forces, acceleration, stall and rocket state) and 128 position integrations.
+The first eight force passes reproduce the established research scenarios;
+others exercise rotated axes, variable time steps, atmosphere, aircraft variants
+and ground flags. HUD/audio calls are stubbed only in the native fixture harness.
+The ordinary build runs pure C++, without emulator dependencies.

@@ -1,0 +1,20 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "a82da3f7283faaf0a069c9a4104c08a2ea44872916bf82871f8a6a1a518994d1",
+  "arctangent_table_file_offset": "0x10c90",
+  "angle_cases": 8228,
+  "force_cases": 256,
+  "position_cases": 128,
+  "routines": {
+    "atn2": "0xd5d5",
+    "forces": "0x37d0..0x3c0c",
+    "moveme": "0x15d5"
+  },
+  "stubs": {
+    "0xcc91": "drawbutton",
+    "0xe0e9": "voiceoff",
+    "0xe0ce": "voiceon"
+  },
+  "scope": "Original arithmetic executes unchanged; HUD and audio side effects omitted.",
+  "format": "CORNFY01; three uint32 counts; (int16 x/y, uint16 angle); force inputs as <3H3hHHiHHh7H followed by native fields in the generator-listed order; position inputs <3i6h2H and outputs <3i; all little-endian"
+}
