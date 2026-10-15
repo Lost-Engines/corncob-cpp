@@ -65,6 +65,26 @@ def main():
         lines.append('  maths::world_position{' + ', '.join(map(str, record['position_cm'])) + '},')
     lines += ['};', '', '} // namespace corncob::graphics', '']
     (ROOT / 'src/graphics/stars.h').write_text('\n'.join(lines))
+    tables = json.loads((args.research / 'analysis/gameplay/tables.json').read_text())['quality_tables']
+    lines = ['#pragma once', '', '#include <array>', '#include <cstdint>', '', 'namespace corncob::resources {', '',
+             '// generated from the original 3.42 quality tables; qualities are stored as indices 0..7']
+    for name, table in tables.items():
+        if name == 'orb_objective':
+            continue
+        fields = [field for field in table['rows'][0] if field != 'quality']
+        lines += ['', 'struct ' + name + '_parameters {']
+        for field in fields:
+            signed = any(row[field] < 0 for row in table['rows'])
+            lines.append('  ' + ('int16_t' if signed else 'uint16_t') + ' ' + field + ';')
+        lines += ['};', '', 'inline std::array<' + name + '_parameters, 8> constexpr ' + name + '_qualities{']
+        for row in table['rows']:
+            lines.append('  ' + name + '_parameters{')
+            for field in fields:
+                lines.append('    .' + field + '{' + str(row[field]) + '},')
+            lines.append('  },')
+        lines.append('};')
+    lines += ['', '} // namespace corncob::resources', '']
+    (ROOT / 'src/resources/actor_tables.h').write_text('\n'.join(lines))
     print('Imported embedded model data and four base-game theatres; generated traced colour rules')
 
 

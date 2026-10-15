@@ -28,7 +28,7 @@ int32_t wide_word(int16_t const value) noexcept {
 } // anonymous namespace
 
 void advance_controls(aircraft_state &aircraft, angular_response &response, control_input const &input,
-                      atmosphere const &environment, time_step const step) {
+                      atmosphere const &environment, time_step const step, maths::random_source *const random) {
   /// Apply original stick torque, inertia, weathercock yaw, ground pitch and stall protection
   int16_t constexpr control_airflow_limit{300};
   int16_t constexpr roll_scale{600}, pitch_scale{125}, yaw_scale{125};
@@ -110,6 +110,13 @@ void advance_controls(aircraft_state &aircraft, angular_response &response, cont
   }
   response.stall_protection = protect;
 
+  if(response.stability_damage != 0 && random != nullptr) {
+    uint16_t const span{static_cast<uint16_t>(std::abs(static_cast<int>(maths::word(static_cast<int32_t>(response.stability_damage) * airflow / 300))) + 2)};
+    for(auto *rate : {&response.pitch, &response.yaw, &response.roll}) {
+      int16_t const noise{maths::word(random->below(span) - span / 2)};
+      *rate = replace_high(*rate, maths::word(high(*rate) + noise));
+    }
+  }
   response.roll = replace_high(response.roll, std::clamp<int16_t>(high(response.roll), -maximum_rate, maximum_rate));
   response.pitch = replace_high(response.pitch, std::clamp<int16_t>(high(response.pitch), -maximum_rate, maximum_rate));
   response.yaw = replace_high(response.yaw, std::clamp<int16_t>(high(response.yaw), -maximum_rate, maximum_rate));

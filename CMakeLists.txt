@@ -50,10 +50,16 @@ function(embed_resource resource_name asset_file)
 endfunction()
 
 add_library(corncob_core STATIC
+  src/game/actors.cpp
+  src/game/actors.h
+  src/game/combat.cpp
+  src/game/combat.h
   src/game/session.cpp
   src/game/session.h
   src/flight/aircraft.cpp
   src/flight/aircraft.h
+  src/flight/damage.cpp
+  src/flight/damage.h
   src/flight/controls.cpp
   src/flight/controls.h
   src/flight/landing.cpp
@@ -156,4 +162,42 @@ if(BUILD_TESTING)
   target_include_directories(motion_checks PRIVATE "${PROJECT_SOURCE_DIR}")
   target_link_libraries(motion_checks PRIVATE corncob_core)
   add_test(NAME native_motion COMMAND motion_checks "${PROJECT_SOURCE_DIR}/tests/reference/motion.bin")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(collision_checks tests/collision_checks.cpp)
+  configure_first_party(collision_checks)
+  target_include_directories(collision_checks PRIVATE "${PROJECT_SOURCE_DIR}")
+  target_link_libraries(collision_checks PRIVATE corncob_core)
+  add_test(NAME native_collisions COMMAND collision_checks "${PROJECT_SOURCE_DIR}/tests/reference/collision.bin")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(combat_checks tests/combat_checks.cpp)
+  configure_first_party(combat_checks)
+  target_link_libraries(combat_checks PRIVATE corncob_core)
+  add_test(NAME scripted_combat COMMAND combat_checks)
+endif()
+
+if(BUILD_TESTING)
+  add_executable(damage_checks tests/damage_checks.cpp)
+  configure_first_party(damage_checks)
+  target_include_directories(damage_checks PRIVATE "${PROJECT_SOURCE_DIR}")
+  target_link_libraries(damage_checks PRIVATE corncob_core)
+  add_test(NAME native_damage COMMAND damage_checks "${PROJECT_SOURCE_DIR}/tests/reference/damage.bin")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(actor_checks tests/actor_checks.cpp)
+  configure_first_party(actor_checks)
+  target_include_directories(actor_checks PRIVATE "${PROJECT_SOURCE_DIR}")
+  target_link_libraries(actor_checks PRIVATE corncob_core)
+  add_test(NAME native_actors COMMAND actor_checks "${PROJECT_SOURCE_DIR}/tests/reference/actors.bin")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(scenario_checks tests/scenario_checks.cpp)
+  configure_first_party(scenario_checks)
+  target_link_libraries(scenario_checks PRIVATE corncob_core)
+  add_test(NAME scripted_scenarios COMMAND scenario_checks)
 endif()

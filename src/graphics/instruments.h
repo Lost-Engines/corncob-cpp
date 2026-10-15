@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "flight/controls.h"
+#include "flight/damage.h"
 #include "graphics/raster.h"
 
 namespace corncob::graphics {
@@ -11,6 +12,7 @@ struct instrument_telemetry {
   flight::control_input controls;
   bool paused{false};
   bool completed{false};
+  flight::damage_state const *damage{nullptr};
 };
 
 class instrument_panel {

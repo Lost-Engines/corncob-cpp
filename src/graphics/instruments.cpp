@@ -73,6 +73,19 @@ void instrument_panel::draw(indexed_framebuffer &target, random_source &random, 
   int const flow_yaw{std::clamp(static_cast<int>(std::bit_cast<int16_t>(maths::arctangent(aircraft.body_velocity.x, aircraft.body_velocity.y))) + 5400, 0, 10'799)};
   solid.disc({559 + flow_yaw * 160 / 10'800 - 80, 298 + flow_pitch * 110 / 10'800 - 55}, 6,
              aircraft.variant == flight::aircraft_variant::reserve ? 9 : 12);
+  if(telemetry.damage != nullptr) {
+    std::array<uint8_t, 13> constexpr colours{10, 10, 9, 9, 9, 9, 14, 14, 14, 14, 12, 12, 8};
+    std::array<int, 4> constexpr rows{213, 219, 226, 233};
+    for(unsigned int channel{0}; channel != rows.size(); ++channel) {
+      auto const hits{telemetry.damage->indicator_hits[channel]};
+      for(unsigned int bar{0}; bar < std::min<unsigned int>(hits, 13); ++bar) {
+        uint8_t colour{colours[bar]};
+        if(bar == 12 && ((frame * 40 / (hits > 14 ? 128 : hits > 13 ? 256 : 512)) & 1u) != 0) colour = 0;
+        int const x{536 + static_cast<int>(bar) * 6};
+        solid.line({x, rows[channel]}, {x + 5, rows[channel]}, colour);
+      }
+    }
+  }
   auto button{[&](clip_rectangle const region, uint8_t const foreground, uint8_t const background){
     for(int y{region.top}; y <= region.bottom; ++y) {
       for(int x{region.left}; x < region.right; ++x) {

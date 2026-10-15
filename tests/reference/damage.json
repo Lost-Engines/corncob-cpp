@@ -1,0 +1,21 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "0890655416a6c47d505d5834e2b27bd64ff769f6216fc8c4f54a3e68943e1759",
+  "cases": 256,
+  "routine": "0x0f85 DAMAGEPLANE",
+  "stubs": [
+    "0xcacb DRAWDAMAGE: visual indicator only"
+  ],
+  "fields": [
+    "total",
+    "worst",
+    "wing",
+    "rudder",
+    "stability",
+    "wing_loss",
+    "engine_hits",
+    "maximum_throttle",
+    "throttle",
+    "PRNG_state"
+  ]
+}

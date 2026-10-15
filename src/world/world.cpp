@@ -7,6 +7,16 @@
 
 namespace corncob::world {
 
+bool in_active_neighbourhood(maths::world_position const &position, maths::world_position const &observer) noexcept {
+  /// UPDATECT streams the four tiles surrounding a half-tile-rounded observer centre
+  for(unsigned int axis{0}; axis != 2; ++axis) {
+    int const centre{((observer[axis] >> 16) - (theatre::origin >> 16) + 16) / 32};
+    int const tile{((position[axis] >> 16) - (theatre::origin >> 16)) / 32};
+    if(tile < 0 || tile >= 8 || centre - tile < 0 || centre - tile > 1) return false;
+  }
+  return true;
+}
+
 theatre decode_theatre(std::span<uint8_t const> const source) {
   /// Expand the original 64-tile CCT stream while retaining its tile and palette boundaries
   unsigned int constexpr header_bytes{16};

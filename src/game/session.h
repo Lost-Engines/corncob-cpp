@@ -3,6 +3,9 @@
 #include <optional>
 #include <string>
 #include "flight/landing.h"
+#include "flight/damage.h"
+#include "game/combat.h"
+#include "game/actors.h"
 #include "graphics/scene.h"
 #include "resources/geometry_bank.h"
 #include "world/world.h"
@@ -28,6 +31,9 @@ enum class action {
   toggle_cockpit,
   toggle_ground,
   pause,
+  drop_bomb,
+  plant_charge,
+  arm_charges,
 };
 
 struct input_state {
@@ -39,6 +45,7 @@ struct input_state {
   bool jump{false};
   bool drop_through{false};
   bool advance_time{false};
+  weapon_controls weapons{};
 };
 
 struct person_state {
@@ -59,7 +66,12 @@ class session {
 private:
   resources::geometry_bank const &geometry;
   world::theatre theatre;
+  combat weapons;
+  actors enemies;
   flight::aircraft_state aircraft;
+  flight::damage_state damage;
+  maths::random_source random;
+  uint32_t last_wall_damage{0};
   flight::angular_response angular;
   flight::landing_state landing;
   flight::atmosphere atmosphere;
@@ -82,6 +94,8 @@ private:
   void update_person(input_state const &input, flight::time_step step);
   void find_surfaces();
   void check_aircraft_entry();
+  void check_aircraft_collisions(flight::time_step step);
+  void enter_portal(world::placed_object &portal);
   void enter_aircraft(unsigned int index);
   void leave_aircraft();
   void retain_aircraft();
@@ -99,6 +113,8 @@ public:
   uint32_t timer() const noexcept;
   unsigned int frame_number() const noexcept;
   bool is_paused() const noexcept;
+  flight::damage_state const &aircraft_damage() const noexcept;
+  combat_statistics const &statistics() const noexcept;
   void set_experimental_clearance(bool permitted) noexcept;
 };
 

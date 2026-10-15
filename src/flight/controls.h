@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "flight/aircraft.h"
+#include "maths/random.h"
 
 namespace corncob::flight {
 
@@ -18,12 +19,13 @@ struct angular_response {
   int32_t yaw{0};
   int16_t wing_damage{0};
   int16_t rudder_damage{0};
+  int16_t stability_damage{0};
   uint16_t almost_stall_angle{2548};
   uint16_t last_protected_pitch_rate{0};
   bool stall_protection{false};
 };
 
 void advance_controls(aircraft_state &aircraft, angular_response &response, control_input const &input,
-                      atmosphere const &environment, time_step step);
+                      atmosphere const &environment, time_step step, maths::random_source *random = nullptr);
 
 } // namespace corncob::flight

@@ -362,7 +362,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
 
   std::vector<visible_object> visible;
   for(auto const &object : theatre.objects) {
-    if(!object.has(world::object_flag::present)) continue;
+    if(!object.has(world::object_flag::present) || !world::in_active_neighbourhood(object.position, observer.position)) continue;
     if(auto item{visibility(object, geometry.definition(object.type), observer.position, geometry.appearance(object))}) visible.push_back(std::move(*item));
   }
   std::ranges::stable_sort(visible, [](visible_object const &lhs, visible_object const &rhs){

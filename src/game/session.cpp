@@ -28,7 +28,9 @@ int16_t timed_word(int16_t const value, flight::time_step const step) noexcept {
 
 session::session(resources::geometry_bank const &geometry, world::theatre theatre) :
   geometry{geometry},
-  theatre{std::move(theatre)} {
+  theatre{std::move(theatre)},
+  weapons{geometry, this->theatre},
+  enemies{geometry, this->theatre, weapons} {
   /// READUNIV starts the pilot on foot three thousand centimetres south of the stored start
   atmosphere = {
     .gravity{this->theatre.environment.gravity},
@@ -79,7 +81,7 @@ void session::press(action const command) {
       notice = "Experimental aircraft clearance required";
       break;
     }
-    aircraft.throttle = static_cast<uint16_t>(std::min<unsigned int>(aircraft.throttle + 20, 200));
+    aircraft.throttle = static_cast<uint16_t>(std::min<unsigned int>(aircraft.throttle + 20, damage.maximum_throttle));
     landing.stopped = false;
     notice = "Engine running - arrows fly, Z/X rudder, E ejects";
     break;
@@ -97,6 +99,15 @@ void session::press(action const command) {
     break;
   case action::parachute:
     if(mode == player_mode::on_foot && !person.standing) person.parachute = true;
+    break;
+  case action::drop_bomb:
+    if(flying) weapons.drop_bomb(aircraft, fast_ticks, {});
+    break;
+  case action::plant_charge:
+    if(mode == player_mode::on_foot) weapons.plant_charge(person.position);
+    break;
+  case action::arm_charges:
+    weapons.arm_charges();
     break;
   case action::toggle_remote:
     if(mode == player_mode::on_foot && controlled_aircraft) {
@@ -142,6 +153,68 @@ void session::find_surfaces() {
   }
 }
 
+void session::enter_portal(world::placed_object &portal) {
+  /// Portal quality selects the native return/random relocation, damage, repair and objective actions
+  if(mode != player_mode::in_aircraft) return;
+  auto const quality{portal.quality()};
+  if(quality == 3) {
+    mode = player_mode::dead;
+    notice = "Fatal portal";
+    return;
+  }
+  if(quality <= 5) {
+    aircraft.position = maths::world_position{theatre.start};
+    if(quality == 1) {
+      aircraft.position.x = static_cast<int32_t>(random.next()) * 256 - 8'388'608;
+      aircraft.position.y = static_cast<int32_t>(random.next()) * 256 - 8'388'608;
+    }
+    aircraft.position.z = 100'000;
+  }
+  if(quality == 2 || quality == 5) flight::apply_damage(damage, aircraft, 75, random, {});
+  if(quality == 6) damage = {};
+  if(quality == 4 || quality == 7) weapons.complete(portal);
+}
+
+void session::check_aircraft_collisions(flight::time_step const step) {
+  /// QCRASH tests the player's point against unrotated object boxes and treats runways and portals specially
+  if(!controlled_aircraft) return;
+  for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
+    auto &object{theatre.objects[i]};
+    if(i == *controlled_aircraft || !object.has(world::object_flag::present) || !object.has(world::object_flag::player_contact)) continue;
+    auto const &definition{geometry.definition(object.type)};
+    bool inside{true};
+    for(unsigned int axis{0}; axis != 3; ++axis) {
+      if(std::abs(static_cast<int64_t>(aircraft.position[axis]) - object.position[axis]) >= static_cast<uint16_t>(object.collision_extents[axis])) inside = false;
+    }
+    if(!inside || has(definition, world::object_property::runway)) continue;
+    if(has(definition, world::object_property::portal)) {
+      enter_portal(object);
+      continue;
+    }
+    auto const attacker{object};
+    bool const fatal_orb{object.type == world::object_type::generator_orb && object.quality() == 4};
+    if(has(definition, world::object_property::collision_callback)) weapons.damage(i, attacker, true);
+    else if(object.has(world::object_flag::collision_callback)) object.timer = 0;
+    unsigned int hits{attacker.has(world::object_flag::heavy_attack) ? 75u : attacker.has(world::object_flag::six_hit_attack) ? 6u : 1u};
+    if(attacker.has(world::object_flag::heavy_attack)) {
+      if(damage.total > hits) continue;
+      aircraft.velocity.x = static_cast<int16_t>(maths::negate(aircraft.velocity.x) >> 1);
+      aircraft.velocity.y = static_cast<int16_t>(maths::negate(aircraft.velocity.y) >> 1);
+    }
+    if(has(definition, world::object_property::forcefield)) {
+      if(fast_ticks - last_wall_damage < 200) continue;
+      last_wall_damage = fast_ticks;
+      hits *= 2;
+    }
+    flight::apply_damage(damage, aircraft, hits, random, step);
+    notice = "Aircraft damaged - E ejects";
+    if(fatal_orb && mode == player_mode::in_aircraft && !damage.invincible) {
+      mode = player_mode::dead;
+      notice = "Fatal impact - objective complete";
+    }
+  }
+}
+
 void session::enter_aircraft(unsigned int const index) {
   /// Entering a parked aircraft adopts its pose and variant and resets the original flight state
   auto &object{theatre.objects.at(index)};
@@ -153,6 +226,7 @@ void session::enter_aircraft(unsigned int const index) {
     notice = "Aircraft re-entered";
     return;
   }
+  weapons.rearm();
   controlled_aircraft = index;
   aircraft = flight::aircraft_state{};
   aircraft.position = maths::world_position{object.position};
@@ -164,6 +238,7 @@ void session::enter_aircraft(unsigned int const index) {
   aircraft.on_ground = true;
   angular = {};
   landing = {};
+  damage = {};
   object.flags &= static_cast<uint16_t>(~std::to_underlying(world::object_flag::present));
   mode = player_mode::in_aircraft;
   remote = false;
@@ -229,7 +304,7 @@ void session::update_aircraft(input_state const &input, flight::time_step const 
   aircraft.body_to_world = maths::make_inverse_rotation(aircraft.attitude);
   flight::control_input const neutral;
   auto const &stick{mode == player_mode::in_aircraft || remote ? input.stick : neutral};
-  if(!landing.crash_landing) flight::advance_controls(aircraft, angular, stick, atmosphere, step);
+  if(!landing.crash_landing) flight::advance_controls(aircraft, angular, stick, atmosphere, step, &random);
   flight::advance_forces(aircraft, atmosphere, step);
   int32_t const altitude{aircraft.position.z - landing.surface_height};
   bool fatal{altitude < 0};
@@ -272,7 +347,7 @@ void session::update_scenery() {
                 && distance_squared(object.position, person.position) <= 2000ll * 2000) {
         object.pose = world::model_pose::gesture;
         if(object.has(world::object_flag::special)) {
-          object.flags |= std::to_underlying(world::object_flag::objective_complete);
+          weapons.complete(object);
           notice = "Contact established - objective complete";
         }
       }
@@ -361,13 +436,42 @@ void session::advance(input_state const &input) {
     .elapsed{static_cast<int16_t>(input.advance_time ? 50 : 5)},
     .normal{5},
   };
+  auto const observer{camera().position};
+  weapons.move(observer, step);
+  auto const &effects{enemies.advance({
+    .observer{observer},
+    .target{controlled_aircraft ? aircraft.position : person.position},
+    .target_velocity{aircraft.velocity},
+    .on_foot{mode == player_mode::on_foot},
+    .timer{fast_ticks},
+  }, step)};
+  if(effects.captured) {
+    mode = player_mode::captured;
+    notice = "Captured";
+  }
+  weapons.collisions(observer);
   update_scenery();
   find_surfaces();
+  check_aircraft_collisions(step);
+  angular.wing_damage = damage.wing;
+  angular.rudder_damage = damage.rudder;
+  angular.stability_damage = damage.stability;
   update_aircraft(input, step);
   if(mode == player_mode::on_foot) {
     update_person(input, step);
     check_aircraft_entry();
   }
+  bool const use_person{mode == player_mode::on_foot && !remote};
+  auto const orientation{use_person ? maths::make_inverse_rotation(person.attitude) : aircraft.body_to_world};
+  weapons.fire(input.weapons, {
+    .position{use_person ? person.position : aircraft.position},
+    .attitude{use_person ? person.attitude : aircraft.attitude},
+    .body_to_world{orientation},
+    .forward_airflow{aircraft.scaled_body_velocity.x},
+    .on_foot{mode == player_mode::on_foot},
+    .remote{remote},
+    .crashed{landing.crash_landing},
+  }, fast_ticks, step);
 }
 
 graphics::camera session::camera() const {
@@ -412,6 +516,14 @@ unsigned int session::frame_number() const noexcept {
 bool session::is_paused() const noexcept {
   /// Paused frames neither consume simulation time nor advance objective/weapon counters
   return paused;
+}
+flight::damage_state const &session::aircraft_damage() const noexcept {
+  /// Report individual native damage channels for the instrument panel
+  return damage;
+}
+combat_statistics const &session::statistics() const noexcept {
+  /// Expose earned totals without permitting the presentation layer to edit gameplay state
+  return weapons.stats();
 }
 void session::set_experimental_clearance(bool const permitted) noexcept {
   /// Campaign rank grants access to the black experimental aircraft's throttle

@@ -1,0 +1,14 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "55150f4fc8b7f56647a4a886a241a58336c6bca33e21b6797710ffacd265d38a",
+  "fast_contacts": 512,
+  "ordinary_contacts": 512,
+  "routines": [
+    "0x7742 QVELON",
+    "0x767b QCOLLIS1"
+  ],
+  "stubs": [
+    "0x755d SLAM records a contact without invoking damage handlers"
+  ],
+  "note": "Measures actual SLAM contacts, not carry alone: QVELON may clear carry for an aligned but still too-distant shot."
+}

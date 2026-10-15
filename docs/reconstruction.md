@@ -135,3 +135,26 @@ PRNG drift, quadratic drag, rotation, time adjustment, the special gravity-55
 constant-descent convention and ground stopping. A further 512 CHKBOX cases verify
 strict overlap, zero-X disabling and carries in summed unsigned half-extents.
 The successful-overlap callbacks are stubbed in those geometry-only fixtures.
+
+## Combat and active actors
+
+Player guns/cannon mode, finite pistol ammunition, unguided missiles, replenishing
+bombs and the planted assassin charge now use separate original-capacity bullet
+and effect pools. Timed movement precedes actor handlers and collision callbacks.
+Original fast-projectile contacts match 512 native QVELON cases; ordinary contacts
+match 512 native QCOLLIS1 cases. Aircraft damage matches 256 original DAMAGEPLANE
+passes, including random-stream continuation, capped wing/rudder channels and
+engine throttle loss. Native KLA launch-rest, steering, speed/noise and low-ground
+avoidance match another 512 reference passes.
+
+A scripted weapon scenario destroys a fuel dump through actual gun launch,
+movement and contact, tests protected orbs and mindbenders, and exercises bomb
+recharge and charge release. Another scenario checks local KLA spawning, hostile
+AAA shells, persistent destroyed-orb objectives and repeated-credit prevention.
+The engine now restricts scenery activation to the original four-tile area.
+
+The remaining actor translations are still under inspection: their connected
+state is not a claim of exhaustive native equivalence. In particular, complete
+sortie/campaign outcomes, capture/rescue handoffs, procedural training, some
+special effects and helper-program UI remain to be finished. The UI still starts
+directly in the chosen theatre, and sound/music are not yet connected.

@@ -180,6 +180,9 @@ auto main(int const argc, char const *const argv[])->int {
     case GLFW_KEY_E: game.press(corncob::game::action::eject); break;
     case GLFW_KEY_SPACE: game.press(corncob::game::action::parachute); break;
     case GLFW_KEY_CAPS_LOCK: game.press(corncob::game::action::toggle_remote); break;
+    case GLFW_KEY_B: game.press(corncob::game::action::drop_bomb); break;
+    case GLFW_KEY_SEMICOLON: game.press(corncob::game::action::plant_charge); break;
+    case GLFW_KEY_D: game.press(corncob::game::action::arm_charges); break;
     case GLFW_KEY_P: game.press(corncob::game::action::pause); break;
     default: break;
     }
@@ -242,6 +245,11 @@ auto main(int const argc, char const *const argv[])->int {
           .jump{held(GLFW_KEY_J)},
           .drop_through{held(GLFW_KEY_E)},
           .advance_time{held(GLFW_KEY_T)},
+          .weapons{
+            .gun{held(GLFW_KEY_SPACE)},
+            .cannon{held(GLFW_KEY_LEFT_SHIFT)},
+            .missile{held(GLFW_KEY_C)},
+          },
         };
       }
       accumulated_time += elapsed;
@@ -262,6 +270,8 @@ auto main(int const argc, char const *const argv[])->int {
       .aircraft{game.craft()},
       .controls{input.stick},
       .paused{game.is_paused()},
+      .completed{game.statistics().objectives_completed != 0},
+      .damage{&game.aircraft_damage()},
     };
     auto const *const panel{!inspect && game.player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
 #ifndef NDEBUG

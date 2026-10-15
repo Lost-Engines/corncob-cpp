@@ -125,6 +125,8 @@ geometry_bank::geometry_bank(std::span<uint8_t const> const source) :
       .collision_group{input.byte(address + 19)},
       .rotate_below_tier{input.byte(address + 26)},
       .hit_points{input.byte(address + 27)},
+      .initial_timer{input.word(address + 52)},
+      .initial_velocity{input.vector(address + 46)},
       .motion{
         .spin{input.vector(address + 54)},
         .dispersion{input.signed_word(address + 60)},

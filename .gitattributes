@@ -3,3 +3,6 @@
 *.bin binary
 *.dat binary
 *.cct binary
+
+# Preserve original embedded briefing bytes, including DOS CRLF
+assets/*.twr binary

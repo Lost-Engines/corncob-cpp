@@ -81,6 +81,7 @@ struct placed_object {
   uint8_t collision_group{0};
   motion_profile motion{};
   model_pose pose{model_pose::normal};
+  maths::fixed_vector collision_extents{0, 0, 0};
 
   unsigned int quality() const noexcept {
     /// Qualities occupy three stored flag bits and index eight-row tuning tables
@@ -125,6 +126,8 @@ struct theatre {
   environment_parameters environment{};
   std::string briefing;
 };
+
+bool in_active_neighbourhood(maths::world_position const &position, maths::world_position const &observer) noexcept;
 
 theatre decode_theatre(std::span<uint8_t const> source);
 void apply_briefing(theatre &theatre, std::span<uint8_t const> source);

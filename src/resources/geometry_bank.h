@@ -33,6 +33,8 @@ struct object_definition {
   uint8_t collision_group;
   uint8_t rotate_below_tier;
   uint8_t hit_points;
+  uint16_t initial_timer;
+  maths::fixed_vector initial_velocity{0, 0, 0};
   world::motion_profile motion;
 };
 
