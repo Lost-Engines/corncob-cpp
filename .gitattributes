@@ -1,2 +1,5 @@
 * text=auto eol=lf
 *.img binary
+*.bin binary
+*.dat binary
+*.cct binary

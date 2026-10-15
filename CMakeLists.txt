@@ -48,6 +48,8 @@ file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/generated")
 configure_file(cmake/embedded_assets.cpp.in generated/embedded_assets.cpp @ONLY)
 
 add_library(corncob_core STATIC
+  src/maths/fixed.cpp
+  src/maths/fixed.h
   src/render/framebuffer.cpp
   src/render/framebuffer.h
   src/resources/assets.h
@@ -56,6 +58,8 @@ add_library(corncob_core STATIC
   "${PROJECT_BINARY_DIR}/generated/embedded_assets.cpp"
 )
 configure_first_party(corncob_core)
+target_include_directories(corncob_core SYSTEM PUBLIC "${PROJECT_SOURCE_DIR}")
+target_compile_definitions(corncob_core PUBLIC VECTORSTORM_NO_BOOST)
 
 add_library(corncob_platform STATIC
   src/platform/framebuffer_presenter.cpp
@@ -82,6 +86,10 @@ if(BUILD_TESTING)
   target_link_libraries(resource_checks PRIVATE corncob_core)
   configure_first_party(resource_checks)
   add_test(NAME embedded_cockpit COMMAND resource_checks)
+  add_executable(fixed_math_checks tests/fixed_math_checks.cpp)
+  target_link_libraries(fixed_math_checks PRIVATE corncob_core)
+  configure_first_party(fixed_math_checks)
+  add_test(NAME native_fixed_math COMMAND fixed_math_checks "${PROJECT_SOURCE_DIR}/tests/reference/fixed_math.bin")
 endif()
 
 install(TARGETS corncob RUNTIME DESTINATION .)

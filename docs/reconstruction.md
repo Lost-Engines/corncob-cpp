@@ -15,7 +15,8 @@ is deferred. The core will not execute x86 code or depend on DOSBox at runtime.
 
 During project setup we found the public
 [foone/Corncob3D source repository](https://github.com/foone/Corncob3D), inspected at
-commit `c723ba1fe2b099bcd406e1b44ce57e2bff7b20ab`.
+Initial Import commit `2759414da1e6e645c3640288577d1e0cc8c32be4`, now preserved
+in `corncob-reverse/analysis/original_source/` without the later MASM edits.
 It contains original assembly for flight, object definitions, rendering,
 instruments, sound and the SRATS ending. Its makefile distinguishes shareware
 and registered builds. The snapshot's exact relationship to the retained 3.42
@@ -51,3 +52,22 @@ display confirms a 1,280 x 960 floating window within a 1,600 x 1,200 desktop an
 clean Escape handling. Release help excludes the developer screenshot and time
 limit options. Windows/macOS runtime checks and Wayland interactive sizing have
 not yet been performed.
+
+## Fixed-point translation
+
+The original 257-word sine table exactly matches 3.42 at file offset `0x10280`.
+The C++ signed sine matches native execution for every one of the 65,536 angle
+inputs. Forward/inverse rotation generation matches 512 angle sets; saturated
+physics transforms and fast vertex transforms match 512 cases each, and matrix
+composition matches 128 cases. Fixtures come from execution of unchanged DOS
+routines, not from a second implementation of the same formulas.
+
+The translation preserves the original word wrapping, product truncation,
+pairwise MADD rounding and its JS/JNS sign-test overflow quirk. Model vertices
+use the original rotate-high-word multiplication, which differs from HMUL.
+Inverse matrix generation is translated separately because transposing an
+already rounded forward matrix does not produce the same coefficients.
+
+`tools/generate_native_reference.py` regenerates the fixtures using Unicorn
+and the sibling research inputs. These are development dependencies only.
+The normal CMake build and executable require neither.

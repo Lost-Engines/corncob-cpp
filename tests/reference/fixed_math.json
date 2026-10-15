@@ -1,0 +1,23 @@
+{
+  "reference": "normal Corncob 3D 3.42 / 3.EXE",
+  "sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "original_source_commit": "2759414da1e6e645c3640288577d1e0cc8c32be4",
+  "sine_table_matches_source": true,
+  "sine_inputs": 65536,
+  "forward_and_inverse_matrices": 512,
+  "saturated_and_fast_transforms": 512,
+  "matrix_products": 128,
+  "fixture_sha256": "8e6d201a2277379708a7c93da638fbb4280b0b97bc21936c43286c1863566be2",
+  "routine_file_offsets": {
+    "ssin": "0xd580",
+    "calcsin": "0x5fe1",
+    "calcmat": "0x6021",
+    "ncalcmat": "0x6201",
+    "matvmul": "0x581d",
+    "pmvmul": "0x5807",
+    "dot2": "0x570f"
+  },
+  "format": "CORNREF1; four little-endian uint32 counts; int16 sine results; (3 uint16 angles, 18 int16 matrix values); (12 int16 inputs, 6 int16 outputs); (18 int16 inputs, 9 int16 outputs)",
+  "stubs": [],
+  "scope": "Original integer routines executed directly; no DOS or hardware I/O"
+}
