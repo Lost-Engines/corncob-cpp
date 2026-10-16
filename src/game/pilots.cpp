@@ -11,6 +11,8 @@ namespace corncob::game {
 namespace {
 
 unsigned int constexpr latest_statistics_offset{28}, latest_score_offset{158};
+unsigned int constexpr best_statistics_offset{162}, peak_statistics_offset{296};
+unsigned int constexpr statistics_and_score_bytes{sortie_statistics::native_bytes + 4};
 unsigned int constexpr career_statistics_offset{430}, career_score_offset{560};
 unsigned int constexpr rank_offset{598}, flags_offset{22}, sorties_offset{24}, resurrection_offset{26};
 unsigned int constexpr maximum_name_length{20};
@@ -127,6 +129,22 @@ int32_t pilot_record::career_score() const {
   /// Report the cumulative native signed career score
   return dword(career_score_offset);
 }
+int32_t pilot_record::last_sortie_score() const {
+  /// MOAG's saved score can differ from ISCORE's report for successful suicide objectives or ejection/landing combinations
+  return dword(latest_score_offset);
+}
+int32_t pilot_record::best_sortie_score() const {
+  /// The highest-scoring complete sortie has its own statistics and original signed score
+  return dword(best_statistics_offset + sortie_statistics::native_bytes);
+}
+sortie_statistics pilot_record::best_sortie() const {
+  /// Best-sortie records describe one flight, rather than a mixture of individual peaks
+  return sortie_statistics::decode(std::span{data}.subspan(best_statistics_offset, sortie_statistics::native_bytes));
+}
+sortie_statistics pilot_record::individual_records() const {
+  /// Each native peak field is independently retained, with signed-word comparison and a dword time field
+  return sortie_statistics::decode(std::span{data}.subspan(peak_statistics_offset, sortie_statistics::native_bytes));
+}
 sortie_statistics pilot_record::last_sortie() const {
   /// The latest result block starts immediately after the name, flags and career counters
   return sortie_statistics::decode(std::span{data}.subspan(latest_statistics_offset, sortie_statistics::native_bytes));
@@ -148,25 +166,27 @@ void pilot_record::finish_sortie(sortie_statistics const &result) {
   if(!result.counts_for_career()) return;
   auto const raw{result.encode()};
   std::ranges::copy(raw, data.begin() + latest_statistics_offset);
-  int32_t const score{calculate_score(result)};
+  int32_t const score{calculate_score(result, score_context::campaign)};
   dword(latest_score_offset, score);
   dword(career_score_offset, maths::dword(static_cast<int64_t>(career_score()) + score));
   word(sorties_offset, static_cast<uint16_t>(sorties() + 1));
-  auto totals{career()};
-  auto const before{totals.encode()};
-  std::array<uint8_t, sortie_statistics::native_bytes> combined{};
-  resources::binary_reader const old{before}, recent{raw};
-  for(unsigned int offset{0}; offset != combined.size(); offset += 2) {
-    auto const sum{static_cast<uint16_t>(old.word(offset) + recent.word(offset))};
-    combined[offset] = static_cast<uint8_t>(sum);
-    combined[offset + 1] = static_cast<uint8_t>(sum >> 8);
-  }
-  totals = sortie_statistics::decode(combined);
-  totals.status = static_cast<uint16_t>(old.word(0) | result.status);
-  totals.contacting_type = result.contacting_type;
-  totals.maximum_damage = std::max(career().maximum_damage, result.maximum_damage);
-  auto const total_bytes{totals.encode()};
-  std::ranges::copy(total_bytes, data.begin() + career_statistics_offset);
+  if(score > dword(best_statistics_offset + sortie_statistics::native_bytes))
+    std::copy_n(data.begin() + latest_statistics_offset, statistics_and_score_bytes, data.begin() + best_statistics_offset);
+  auto accumulate_word{[this](unsigned int const offset){
+    uint16_t const recent{word(latest_statistics_offset + offset)};
+    // MOAG compares individual records as signed words, then adds their raw word bits into the career totals
+    if(maths::word(recent) > maths::word(word(peak_statistics_offset + offset))) word(peak_statistics_offset + offset, recent);
+    word(career_statistics_offset + offset, static_cast<uint16_t>(word(career_statistics_offset + offset) + recent));
+  }};
+  for(unsigned int const offset : {4u, 6u, 72u, 74u, 76u}) accumulate_word(offset);
+  std::array<unsigned int, 5> constexpr kill_count_offsets{8, 24, 40, 56, 114};
+  for(unsigned int const first : kill_count_offsets)
+    for(unsigned int quality{0}; quality != 8; ++quality) accumulate_word(first + quality * 2);
+  unsigned int constexpr retained_time_offset{110};
+  int32_t const recent_time{dword(latest_statistics_offset + retained_time_offset)};
+  if(recent_time > dword(peak_statistics_offset + retained_time_offset)) dword(peak_statistics_offset + retained_time_offset, recent_time);
+  dword(career_statistics_offset + retained_time_offset, maths::dword(static_cast<int64_t>(dword(career_statistics_offset + retained_time_offset)) + recent_time));
+  auto const totals{career()};
   if(result.has(sortie_status::killed)) word(flags_offset, static_cast<uint16_t>(word(flags_offset) | 2u));
   if(result.has(sortie_status::captured)) word(flags_offset, static_cast<uint16_t>(word(flags_offset) | 8u));
   auto new_rank{rank()};

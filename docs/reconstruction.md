@@ -207,7 +207,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
 | Title | 1,024 original animation-state/PRNG passes and 6,144 VGA letter-mask pixels |
 | Ending | All 768 initial stars and 64 complete indexed native star frames |
-| Score/persistence | 512 score calculations; 16,384 original mask bytes; original control/model/new-pilot fixtures; exact native high-score retirement; roster/world restart, rename and deletion scenarios |
+| Score/persistence | 512 ISCORE calculations and 256 complete MOAG career updates; 16,384 original mask bytes; original control/model/new-pilot fixtures; exact native high-score retirement; roster/world restart, rename and deletion scenarios |
 | Sound | 512 engine/register-write cases and finite, non-silent PCM from the actual engine patch |
 
 Connected scenarios cover takeoff, ejection/parachute/remote control, weapons and
@@ -250,3 +250,11 @@ match without stubs; the connected rescue scenario still passes.
   draw order before claiming identical whole-session random continuation.
 - Compare the complete soundscape and confirm platform/device behaviour beyond
   the Linux development host. Music remains outside the current implementation.
+
+Career records retain distinct latest sortie, highest-scoring sortie, individual
+peaks and cumulative totals; PgUp/PgDn switches between them. Native comparisons
+cover all 540 bytes of counters/statistics/scores, including signed peaks and word
+wrapping. Cumulative damage adds each sortie's maximum, rather than storing a
+second peak. MOAG's campaign score is intentionally separate from ISCORE's flight
+report: it adds successful suicide-objective credit and its ejection-factor test
+contains an always-false mask. Both original paths are preserved.

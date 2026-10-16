@@ -70,6 +70,8 @@ private:
   roster_action pilot_action{roster_action::activate};
   unsigned int pilot_index{0};
   unsigned int score_list{0};
+  enum class record_view { career, latest, best, individual };
+  record_view records{record_view::career};
   std::optional<graphics::space_sequence> ending;
   std::optional<graphics::title_sequence> title;
   render::framebuffer radio_backdrop;

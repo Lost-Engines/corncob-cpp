@@ -54,13 +54,17 @@ sortie_statistics sortie_statistics::decode(std::span<uint8_t const> const sourc
   for(auto &value : result.orb_kills) value = word();
   return result;
 }
-int32_t calculate_score(sortie_statistics const &statistics) {
+int32_t calculate_score(sortie_statistics const &statistics, score_context const context) {
   /// ISCORE retains signed word intermediates and wrapping dword multiplication before its final signed division
   if(statistics.has(sortie_status::aborted)) return 0;
-  int const present_factor{statistics.has(sortie_status::killed) ? 2 : statistics.has(sortie_status::captured) ? 1
-    : statistics.has(sortie_status::home) ? 5 : statistics.has(sortie_status::rescued) ? 4 : 1};
-  int const sortie_factor{statistics.has(sortie_status::crashed_away) || statistics.has(sortie_status::ejected) ? 1
-    : statistics.has(sortie_status::crashed_home) ? 3 : statistics.has(sortie_status::landed) ? 5 : 1};
+  bool const campaign{context == score_context::campaign};
+  bool const suicide{campaign && statistics.has(sortie_status::suicide_objective)};
+  // MOAG adds successful suicide-objective credit and contains an always-false TEST ...,0 in its ejection test
+  int const present_factor{statistics.has(sortie_status::killed) ? 2 : suicide && statistics.has(sortie_status::rescued) ? 5
+    : statistics.has(sortie_status::captured) ? 1 : statistics.has(sortie_status::home) ? 5
+    : statistics.has(sortie_status::rescued) ? 4 : suicide ? 2 : 1};
+  int const sortie_factor{statistics.has(sortie_status::crashed_away) || (!campaign && statistics.has(sortie_status::ejected)) ? 1
+    : statistics.has(sortie_status::crashed_home) ? 3 : statistics.has(sortie_status::landed) || suicide ? 5 : 1};
   int32_t primary{maths::word(statistics.objectives_completed * 15u + statistics.fuel_tet_kills)};
   int16_t danger{10};
   for(unsigned int q{0}; q != 8; ++q) {

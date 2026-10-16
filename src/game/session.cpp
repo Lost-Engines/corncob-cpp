@@ -751,7 +751,7 @@ bool session::at_home(uint16_t const maximum_distance) const {
 sortie_statistics session::results(bool const aborted) const {
   /// Combine combat credit with the pilot's actual present and historical sortie state
   sortie_statistics result{weapons.stats()};
-  result.status = sortie_flags;
+  result.status |= sortie_flags;
   result.maximum_damage = damage.worst;
   result.aircraft_lost = aircraft_losses;
   result.contacting_type = std::to_underlying(fatal_contact);

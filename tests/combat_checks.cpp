@@ -62,6 +62,8 @@ int main() {
   require(world.objects[*orb].health == 65, "aircraft-impact-only orb accepted a missile");
   combat.damage(*orb, missile, true);
   require(world.objects[*orb].type == world::object_type::destroyed_generator_orb, "aircraft impact failed to destroy the protected orb");
+  combat.complete(world.objects[*orb]);
+  require(combat.stats().has(corncob::game::sortie_status::suicide_objective), "suicide objective did not retain its native scoring flag");
   auto const mindbender{combat.spawn(world::object_type::mindbender, {0, 0, 100000})};
   require(mindbender.has_value(), "mindbender allocation failed");
   world.objects[*mindbender].flags |= 0x800;

@@ -309,6 +309,7 @@ void combat::complete(world::placed_object &object) {
   if(object.has(world::object_flag::objective_complete)) return;
   object.flags |= flag(world::object_flag::objective_complete);
   ++statistics.objectives_completed;
+  if(object.type == world::object_type::destroyed_generator_orb && object.quality() == 4) statistics.mark(sortie_status::suicide_objective);
 }
 void combat::damage(unsigned int const index, world::placed_object const &attacker, bool const aircraft_impact) {
   /// Type handlers retain their weapon restrictions and wreck states before applying common hit-point damage

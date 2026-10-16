@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "6d8c922d59a873073796b367a2a40993fcaa5e763ed2ca907a945981f0c5bc32",
+  "fixture_sha256": "7c140780a58a0ad311d8c4fb2a09efbc0173f6c40e9b9fe18977bb34021c0131",
+  "cases": 256,
+  "routine": "MOAG.EXE file 0x136c4..0x138fe; unchanged score helper and Borland arithmetic/memcpy",
+  "stubs": [],
+  "scope": "Native sortie count, recalculated score, latest/best/peak/cumulative records and dword continuation. Promotion, awards and theatre scanning are separate subsequent decisions."
+}

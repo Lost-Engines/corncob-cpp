@@ -106,7 +106,7 @@ void score_tables::record(std::string_view const theatre, sortie_statistics cons
   /// Mission records are separate achievements; cumulative and fastest lists retain one current row per named career
   if(!result.counts_for_career()) return;
   auto const name{name_bytes(pilot ? pilot->name() : "trainee")};
-  int32_t const points{calculate_score(result)};
+  int32_t const points{calculate_score(result, score_context::campaign)};
   if(points > missions.back().points) {
     std::vector<mission_score> entries{missions.begin(), missions.end()};
     entries.push_back({

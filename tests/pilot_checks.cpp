@@ -58,6 +58,23 @@ int main(int const argc, char const *const argv[]) {
   created.beginner_flight(false);
   auto const references{linked.pilots[0].theatres()};
   if(references.size() != 1 || references[0] != 1 || created.native_data()[0x23d] != linked.pilots[0].native_data()[0x23d]) throw std::runtime_error{"original numbered-theatre references differ"};
+  {
+    /// MOAG records separate latest, best, peak and cumulative blocks; validate every affected byte against its complete original helper
+    auto const fixture{(directory / "career.bin").string()};
+    corncob::tests::reference_reader careers{fixture.c_str(), "CORNCRR1"};
+    unsigned int const cases{careers.dword()};
+    for(unsigned int i{0}; i != cases; ++i) {
+      std::array<uint8_t, 623> before, expected;
+      std::array<uint8_t, corncob::game::sortie_statistics::native_bytes> sortie;
+      for(auto &byte : before) byte = careers.byte();
+      for(auto &byte : sortie) byte = careers.byte();
+      for(auto &byte : expected) byte = careers.byte();
+      corncob::game::pilot_record actual{before};
+      actual.finish_sortie(corncob::game::sortie_statistics::decode(sortie));
+      for(unsigned int field{24}; field != 564; ++field)
+        if(actual.native_data()[field] != expected[field]) throw std::runtime_error{"native career case " + std::to_string(i) + " byte " + std::to_string(field)};
+    }
+  }
   corncob::game::pilot_record pilot{"Native test"};
   corncob::game::sortie_statistics result{
     .objectives_completed{7},

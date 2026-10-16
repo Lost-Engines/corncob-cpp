@@ -239,10 +239,12 @@ void front_end::command(interface_command const command) {
     else selection = (selection + 1) % count;
     break;
   case interface_command::page_down:
-    if(page == interface_page::briefing) { scroll += 17; clamp_scroll(); }
+    if(page == interface_page::records) records = static_cast<record_view>((std::to_underlying(records) + 1) % 4);
+    else if(page == interface_page::briefing) { scroll += 17; clamp_scroll(); }
     break;
   case interface_command::page_up:
-    scroll = scroll > 17 ? scroll - 17 : 0;
+    if(page == interface_page::records) records = static_cast<record_view>((std::to_underlying(records) + 3) % 4);
+    else scroll = scroll > 17 ? scroll - 17 : 0;
     break;
   case interface_command::previous:
     if(page == interface_page::medals) page = interface_page::records;
@@ -487,15 +489,23 @@ void front_end::render(render::framebuffer &target) const {
   } else if(page == interface_page::records || page == interface_page::sortie_summary || page == interface_page::current_score) {
     draw_menu(canvas, page == interface_page::records ? "Pilot records" : "Sortie report", {});
     pilot_record const *pilot{page == interface_page::records ? &campaign.pilots()[pilot_index] : campaign.active_pilot()};
-    auto const result{page == interface_page::records ? pilot->career() : *latest_result};
+    bool const record_page{page == interface_page::records};
+    auto const result{!record_page ? *latest_result : records == record_view::latest ? pilot->last_sortie()
+      : records == record_view::best ? pilot->best_sortie() : records == record_view::individual ? pilot->individual_records() : pilot->career()};
+    if(record_page) {
+      static std::array<std::string_view, 4> constexpr labels{"Career totals", "Latest sortie", "Best sortie", "Individual records"};
+      canvas.text(72, 88, labels[std::to_underlying(records)], yellow);
+    }
     canvas.text(72, 120, pilot ? pilot->name() + " - " + std::string{rank_name(pilot->rank())} : "Trainee", yellow);
-    canvas.text(72, 152, "Score: " + std::to_string(page == interface_page::records ? pilot->career_score() : calculate_score(result)), grey);
+    int32_t const score{!record_page ? calculate_score(result) : records == record_view::latest ? pilot->last_sortie_score()
+      : records == record_view::best ? pilot->best_sortie_score() : pilot->career_score()};
+    if(!record_page || records != record_view::individual) canvas.text(72, 152, "Score: " + std::to_string(score), grey);
     canvas.text(72, 176, "Objectives completed: " + std::to_string(result.objectives_completed), grey);
     canvas.text(72, 200, "Aircraft lost: " + std::to_string(result.aircraft_lost), grey);
     canvas.text(72, 224, "Friendly losses: " + std::to_string(result.friendly_destroyed), grey);
-    canvas.text(72, 248, "Maximum damage: " + std::to_string(result.maximum_damage), grey);
+    canvas.text(72, 248, std::string{record_page && records == record_view::career ? "Accumulated damage: " : "Maximum damage: "} + std::to_string(result.maximum_damage), grey);
     if(pilot) canvas.text(72, 272, "Career sorties: " + std::to_string(pilot->sorties()), grey);
-    canvas.text(72, 304, page == interface_page::records ? "Left/Right: medals   Up/Down: pilot   Enter: roster" : "Press Enter to continue", yellow);
+    canvas.text(72, 304, page == interface_page::records ? "PgUp/PgDn: records  Left/Right: medals  Enter: roster" : "Press Enter to continue", yellow);
   } else if(page == interface_page::medals) {
     draw_menu(canvas, "Pilot medals", {});
     auto const &pilot{campaign.pilots()[pilot_index]};

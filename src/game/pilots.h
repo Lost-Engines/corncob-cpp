@@ -128,8 +128,12 @@ public:
   uint16_t resurrections() const;
   uint8_t awards(medal kind) const;
   int32_t career_score() const;
+  int32_t last_sortie_score() const;
+  int32_t best_sortie_score() const;
   sortie_statistics last_sortie() const;
   sortie_statistics career() const;
+  sortie_statistics best_sortie() const;
+  sortie_statistics individual_records() const;
   std::span<uint8_t const> native_data() const noexcept;
   void finish_sortie(sortie_statistics const &result);
   void award(medal kind);

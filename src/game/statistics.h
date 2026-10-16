@@ -19,6 +19,7 @@ enum class sortie_status : uint16_t {
   earth_saved = 0x0400,
   invincible = 0x2000,
   aborted = 0x4000,
+  suicide_objective = 0x8000,
 };
 using quality_counts = std::array<uint16_t, 8>;
 
@@ -47,6 +48,11 @@ struct sortie_statistics {
   static sortie_statistics decode(std::span<uint8_t const> source);
 };
 
-int32_t calculate_score(sortie_statistics const &statistics);
+enum class score_context {
+  flight_report,
+  campaign,
+};
+
+int32_t calculate_score(sortie_statistics const &statistics, score_context context = score_context::flight_report);
 
 } // namespace corncob::game
