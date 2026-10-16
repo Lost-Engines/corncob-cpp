@@ -4,8 +4,42 @@
 #include <bit>
 #include <cstdlib>
 #include "graphics/disc_tables.h"
+#include "maths/fixed.h"
 
 namespace corncob::graphics {
+
+bool clip_wire_line(screen_point &start, screen_point &end, clip_rectangle const &bounds) noexcept {
+  /// OCLIP accepts the viewport's final row/column, clips both X endpoints first and then recomputes the Y intersections
+  auto region{[&bounds](screen_point const &point){
+    return (point.x < bounds.left ? 1u : point.x > bounds.right ? 4u : 0u)
+      | (point.y < bounds.top ? 2u : point.y > bounds.bottom ? 8u : 0u);
+  }};
+  auto first{region(start)}, last{region(end)};
+  if((first & last) != 0) return false;
+  if((first | last) == 0) return true;
+  auto clip_x{[&](screen_point &point, unsigned int const code){
+    if((code & 5u) == 0) return;
+    int const x{(code & 1u) != 0 ? bounds.left : bounds.right};
+    int const dx{end.x - start.x}, dy{end.y - start.y};
+    point.y = start.y + static_cast<int>(static_cast<int64_t>(x - start.x) * dy / dx);
+    point.x = x;
+  }};
+  clip_x(start, first);
+  clip_x(end, last);
+  first = region(start);
+  last = region(end);
+  if((first & last) != 0) return false;
+  auto clip_y{[&](screen_point &point, unsigned int const code){
+    if((code & 10u) == 0) return;
+    int const y{(code & 2u) != 0 ? bounds.top : bounds.bottom};
+    int const dx{end.x - start.x}, dy{end.y - start.y};
+    point.x = start.x + static_cast<int>(static_cast<int64_t>(y - start.y) * dx / dy);
+    point.y = y;
+  }};
+  clip_y(start, first);
+  clip_y(end, last);
+  return true;
+}
 
 void raster::raw_pixel(int const x, int const y, colour_index const colour) noexcept {
   /// Hardware disc masks can extend beyond their centre-tested view, but never beyond our framebuffer
@@ -43,8 +77,8 @@ void raster::point(screen_point const &position, colour_index const colour) noex
   raw_pixel(position.x, position.y, colour);
 }
 
-void raster::line(screen_point start, screen_point end, colour_index const colour) noexcept {
-  /// Clip before stepping so projected off-screen lines cannot turn into huge raster loops
+bool raster::clip_line(screen_point &start, screen_point &end) const noexcept {
+  /// Bound projected lines before stepping, including very distant fixed-point projections
   auto region{[this](screen_point const &point){
     unsigned int code{0};
     if(point.x < bounds.left) code |= 1u;
@@ -55,22 +89,33 @@ void raster::line(screen_point start, screen_point end, colour_index const colou
   }};
   for(unsigned int attempt{0}; attempt != 8; ++attempt) {
     auto const first{region(start)}, last{region(end)};
-    if((first & last) != 0) return;
-    if((first | last) == 0) break;
+    if((first & last) != 0) return false;
+    if((first | last) == 0) return true;
     auto const outside{first != 0 ? first : last};
     screen_point clipped{0, 0};
     if((outside & (4u | 8u)) != 0) {
-      if(start.y == end.y) return;
+      if(start.y == end.y) return false;
       clipped.y = (outside & 4u) != 0 ? bounds.top : bounds.bottom - 1;
       clipped.x = start.x + static_cast<int>(static_cast<int64_t>(end.x - start.x) * (clipped.y - start.y) / (end.y - start.y));
     } else {
-      if(start.x == end.x) return;
+      if(start.x == end.x) return false;
       clipped.x = (outside & 1u) != 0 ? bounds.left : bounds.right - 1;
       clipped.y = start.y + static_cast<int>(static_cast<int64_t>(end.y - start.y) * (clipped.x - start.x) / (end.x - start.x));
     }
     if(first != 0) start = clipped;
     else end = clipped;
   }
+  return false;
+}
+
+void raster::line(screen_point start, screen_point end, colour_index const colour) noexcept {
+  /// EGALINE orders endpoints by X before its decision ties; reversing a segment must not move its half-step pixels
+  if(start.x > end.x) {
+    screen_point const temporary{start};
+    start = end;
+    end = temporary;
+  }
+  if(!clip_line(start, end)) return;
   int const dx{std::abs(end.x - start.x)}, dy{-std::abs(end.y - start.y)};
   int const step_x{start.x < end.x ? 1 : -1}, step_y{start.y < end.y ? 1 : -1};
   int error{dx + dy};
@@ -86,6 +131,46 @@ void raster::line(screen_point start, screen_point end, colour_index const colou
       error += dx;
       start.y += step_y;
     }
+  }
+}
+
+void raster::wire(screen_point start, screen_point end, colour_index const colour) noexcept {
+  /// KLINE emits horizontal runs for long shallow wire segments; gauges retain EGALINE's single-pixel decision rule
+  if(!clip_wire_line(start, end, bounds)) return;
+  if(start.x > end.x) {
+    screen_point const temporary{start};
+    start = end;
+    end = temporary;
+  }
+  int const dx{end.x - start.x}, dy{std::abs(end.y - start.y)};
+  int constexpr shallow_line_minimum_width{30};
+  if(dy == 0) {
+    // KLINE's horizontal span excludes its right endpoint; a zero-length horizontal segment emits nothing
+    for(int x{start.x}; x < end.x; ++x) raw_pixel(x, start.y, colour);
+    return;
+  }
+  if(dx < shallow_line_minimum_width || dy >= dx) {
+    raster{target, {
+      .left{bounds.left},
+      .top{bounds.top},
+      .right{bounds.right + 1},
+      .bottom{bounds.bottom + 1},
+    }, random, operation}.line(screen_point{start}, screen_point{end}, colour);
+    return;
+  }
+  int const length{dx / dy};
+  // native SAR halves the remainder before its 16.16 divide; retain that lost low bit and signed half-unit accumulator
+  int const fraction{((dx % dy) >> 1) * 65'536 / dy};
+  int16_t decision{0};
+  int x{start.x}, y{start.y};
+  int const vertical_step{start.y < end.y ? 1 : -1};
+  for(int row{0}; row != dy; ++row) {
+    bool const longer{decision >= 0};
+    int const pixels{length + static_cast<int>(longer)};
+    for(int n{0}; n != pixels; ++n) raw_pixel(x + n, y, colour);
+    x += pixels;
+    y += vertical_step;
+    decision = maths::word(decision + fraction - (longer ? 32'768 : 0));
   }
 }
 

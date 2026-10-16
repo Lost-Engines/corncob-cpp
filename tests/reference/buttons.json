@@ -1,0 +1,9 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "c32029a272e877209edc4cfc85659180e1c079013431188734751f386ea26e13",
+  "cases": 56,
+  "routine": "0xcc91 DRAWBUTTON with native RAWHLINEBIT",
+  "stubs": [],
+  "adapter": "EGA read-mode 1 colour comparison; write modes, latches, masks, sequencer map mask and original two-page writes",
+  "scope": "All fourteen original button rectangles, four colour substitutions each, full-frame indexed-pixel checksums and matching second-page pixels."
+}

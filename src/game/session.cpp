@@ -634,12 +634,12 @@ void session::advance(input_state const &input) {
     .remote{remote},
     .crashed{landing.crash_landing},
   }, fast_ticks, step);
+  bool const was_low{low_altitude};
+  low_altitude = mode == player_mode::in_aircraft && !aircraft.on_ground && aircraft.position.z >= 0 && aircraft.position.z < (was_low ? 5000 : 4500);
   if(messages && !finished()) {
     if(frame == 7 && aircraft.throttle == 20) radio = theatre.training ? resources::radio_notice::training : resources::radio_notice::choose_mission;
     if(weapons.stats().objectives_completed > previous_objectives) radio = damage.total >= 16 ? resources::radio_notice::objective_damaged : resources::radio_notice::objective_complete;
-    bool const low{mode == player_mode::in_aircraft && !aircraft.on_ground && aircraft.position.z >= 0 && aircraft.position.z < (low_altitude ? 5000 : 4500)};
-    if(low && !low_altitude && aircraft.position.z >= 2000 && !at_home()) radio = resources::radio_notice::low_altitude;
-    low_altitude = low;
+    if(low_altitude && !was_low && aircraft.position.z >= 2000 && !at_home()) radio = resources::radio_notice::low_altitude;
     if(!steering_warned && mode == player_mode::in_aircraft && aircraft.on_ground && input.stick.roll != 0 && input.stick.rudder == 0) {
       radio = resources::radio_notice::ground_steering;
       steering_warned = true;
@@ -727,6 +727,14 @@ combat_statistics const &session::statistics() const noexcept {
 sound_cues const &session::sounds() const noexcept {
   /// Audio observes successful gameplay events without consuming or mutating them
   return weapons.sounds();
+}
+bool session::low_altitude_warning() const noexcept {
+  /// The panel warning retains hysteresis independently of whether explanatory radio boxes are enabled
+  return low_altitude;
+}
+unsigned int session::bomb_supply() const noexcept {
+  /// Cockpit annunciators follow the same finite supply and recharge timer as actual bomb releases
+  return weapons.bomb_supply();
 }
 bool session::remote_control() const noexcept {
   /// Remote operation retains engine sound and control while the pilot remains on foot

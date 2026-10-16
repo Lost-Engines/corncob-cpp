@@ -1,0 +1,11 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "3361011a9b74daa054b9f0ea0888c8f9da0273bf457244537177e8c4544bea4b",
+  "cases": 512,
+  "routines": [
+    "0x5421/0x5458 outcodes",
+    "0x558a OCclip"
+  ],
+  "stubs": [],
+  "scope": "Original inclusive wire viewport, rejection, X-first endpoint adjustment, recalculated slopes and subsequent Y clipping. Both directions and corner cases."
+}

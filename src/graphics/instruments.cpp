@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <utility>
 
 namespace corncob::graphics {
 
@@ -14,6 +15,103 @@ screen_point needle(screen_point const &centre, screen_point const &diameter, ma
 }
 
 } // anonymous namespace
+
+void recolour_button(indexed_framebuffer &target, cockpit_button const button, colour_index const source, colour_index const destination) {
+  /// DRAWBUTTON searches all four colour planes, with an exclusive right edge and inclusive final row
+  static std::array<clip_rectangle, 14> constexpr regions{
+    clip_rectangle{
+      .left{205},
+      .top{209},
+      .right{248},
+      .bottom{218},
+    },
+    clip_rectangle{
+      .left{205},
+      .top{219},
+      .right{248},
+      .bottom{228},
+    },
+    clip_rectangle{
+      .left{205},
+      .top{229},
+      .right{248},
+      .bottom{241},
+    },
+    clip_rectangle{
+      .left{443},
+      .top{209},
+      .right{484},
+      .bottom{219},
+    },
+    clip_rectangle{
+      .left{443},
+      .top{220},
+      .right{484},
+      .bottom{230},
+    },
+    clip_rectangle{
+      .left{443},
+      .top{231},
+      .right{484},
+      .bottom{241},
+    },
+    clip_rectangle{
+      .left{492},
+      .top{209},
+      .right{517},
+      .bottom{218},
+    },
+    clip_rectangle{
+      .left{492},
+      .top{219},
+      .right{517},
+      .bottom{228},
+    },
+    clip_rectangle{
+      .left{492},
+      .top{229},
+      .right{517},
+      .bottom{238},
+    },
+    clip_rectangle{
+      .left{279},
+      .top{216},
+      .right{324},
+      .bottom{229},
+    },
+    clip_rectangle{
+      .left{52},
+      .top{251},
+      .right{61},
+      .bottom{262},
+    },
+    clip_rectangle{
+      .left{59},
+      .top{256},
+      .right{68},
+      .bottom{267},
+    },
+    clip_rectangle{
+      .left{267},
+      .top{231},
+      .right{336},
+      .bottom{241},
+    },
+    clip_rectangle{
+      .left{524},
+      .top{208},
+      .right{629},
+      .bottom{238},
+    },
+  };
+  auto const &region{regions.at(std::to_underlying(button))};
+  for(int y{region.top}; y <= region.bottom; ++y) {
+    for(int x{region.left}; x < region.right; ++x) {
+      auto &pixel{target.pixels[static_cast<unsigned int>(y) * 640 + static_cast<unsigned int>(x)]};
+      if(pixel == source) pixel = destination;
+    }
+  }
+}
 
 void instrument_panel::draw(indexed_framebuffer &target, random_source &random, instrument_telemetry const &telemetry, unsigned int const frame) {
   /// Recreate INST's gauges and control marks while preserving the lower three planes of the cockpit artwork
@@ -62,7 +160,8 @@ void instrument_panel::draw(indexed_framebuffer &target, random_source &random, 
   horizon({174, 224}, {30, 21}, pitch);
   auto const pitch_end{needle({174, 224}, {30, 21}, static_cast<maths::angle>(pitch + 16'384))};
   gauge(pitch_end, {10, 7}, pitch);
-  solid.line({79, 224}, needle({79, 224}, {20, 14}, static_cast<maths::angle>((aircraft.oil_pressure / 3) * 4 - (32'767 - 5400))), 13);
+  uint8_t const rocket_colour{static_cast<uint8_t>(aircraft.rocket ? 12 : aircraft.rocket_ticks >= 2184 ? 10 : 1)};
+  solid.line({79, 224}, needle({79, 224}, {20, 14}, static_cast<maths::angle>((aircraft.oil_pressure / 3) * 4 - (32'767 - 5400))), rocket_colour);
   solid.line({43, 267}, needle({43, 267}, {28, 20}, static_cast<maths::angle>(altitude_phase / 10)), 9);
   solid.line({43, 267}, needle({43, 267}, {24, 16}, static_cast<maths::angle>(altitude_phase / 100)), 7);
   high.disc({static_cast<int>(aircraft.throttle) * 148 / 200 + 478, 246}, 5, 8);
@@ -86,19 +185,27 @@ void instrument_panel::draw(indexed_framebuffer &target, random_source &random, 
       }
     }
   }
-  auto button{[&](clip_rectangle const region, uint8_t const foreground, uint8_t const background){
-    for(int y{region.top}; y <= region.bottom; ++y) {
-      for(int x{region.left}; x < region.right; ++x) {
-        auto &pixel{target.pixels[static_cast<unsigned int>(y) * 640 + static_cast<unsigned int>(x)]};
-        pixel = pixel == 7 ? foreground : pixel == 0 ? background : pixel;
-      }
-    }
+  auto button{[&](cockpit_button const control, uint8_t const foreground, uint8_t const background){
+    recolour_button(target, control, 7, foreground);
+    recolour_button(target, control, 0, background);
   }};
-  button({205, 209, 248, 218}, telemetry.autopilot ? 15 : 7, telemetry.autopilot ? 2 : 0);
-  button({205, 219, 248, 228}, telemetry.paused ? 15 : 7, telemetry.paused ? 5 : 0);
-  button({205, 229, 248, 241}, aircraft.flaps ? 15 : 7, aircraft.flaps ? 6 : 0);
-  button({443, 209, 484, 219}, aircraft.stalled ? 14 : 7, aircraft.stalled ? 12 : 0);
-  button({443, 231, 484, 241}, telemetry.completed ? 15 : 7, telemetry.completed ? 2 : 0);
+  button(cockpit_button::autopilot, telemetry.autopilot ? 15 : 7, telemetry.autopilot ? 1 : 0);
+  button(cockpit_button::hold, telemetry.paused ? 15 : 7, telemetry.paused ? 5 : 0);
+  button(cockpit_button::flaps, aircraft.flaps ? 15 : 7, aircraft.flaps ? 6 : 0);
+  button(cockpit_button::stall, aircraft.stalled ? 14 : 7, aircraft.stalled ? 12 : 0);
+  button(cockpit_button::complete, telemetry.completed ? 15 : 7, telemetry.completed ? 9 : 0);
+  if(telemetry.damage && telemetry.damage->total >= 50) {
+    bool const flash{(telemetry.timer & 512u) != 0};
+    button(cockpit_button::eject, flash ? 15 : 7, flash ? 0 : 4);
+  }
+  bool const low_flash{telemetry.low_altitude && (telemetry.timer & 128u) != 0};
+  button(cockpit_button::low_altitude, low_flash ? 14 : 7, telemetry.low_altitude && !low_flash ? 15 : 0);
+  for(unsigned int bomb{0}; bomb != std::min(telemetry.bombs, 3u); ++bomb)
+    recolour_button(target, static_cast<cockpit_button>(std::to_underlying(cockpit_button::first_bomb) + bomb), 7, 8);
+  int32_t constexpr centimetres_per_foot{30}; // original coarse scale for the ten/twenty-thousand-foot annunciators
+  if(aircraft.position.z >= 10'000 * centimetres_per_foot) recolour_button(target, cockpit_button::ten_thousand_feet, 7, 5);
+  if(aircraft.position.z >= 20'000 * centimetres_per_foot) recolour_button(target, cockpit_button::twenty_thousand_feet, 7, 5);
+  if(telemetry.damage && telemetry.damage->invincible) recolour_button(target, cockpit_button::damage, 0, 7);
 }
 
 } // namespace corncob::graphics

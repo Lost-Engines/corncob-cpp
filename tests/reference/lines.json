@@ -1,0 +1,12 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "011b5a3cc0ad5f4a0a1117c20b292e6e1906c539f4b7112d18e719d50ea697af",
+  "cases": 304,
+  "routines": [
+    "0x9d15 EGALINE",
+    "0x98c4 KLINE"
+  ],
+  "stubs": [],
+  "adapter": "Original EGA latches/masks/write modes",
+  "scope": "Complete indexed frames for all octants, reversed endpoints, zero-length lines, axis-aligned lines and exact decision ties. Endpoints are within the viewport; clipping is excluded from these references."
+}

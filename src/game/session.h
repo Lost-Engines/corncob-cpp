@@ -158,6 +158,8 @@ public:
   combat_statistics const &statistics() const noexcept;
   sound_cues const &sounds() const noexcept;
   bool remote_control() const noexcept;
+  bool low_altitude_warning() const noexcept;
+  unsigned int bomb_supply() const noexcept;
   void relocate(world::mission_start const &start);
   void set_invincible(bool value) noexcept;
   void set_beginner_flight(bool enabled) noexcept;

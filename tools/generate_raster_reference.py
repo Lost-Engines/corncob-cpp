@@ -18,10 +18,16 @@ class Ega:
         self.registers = [0] * 9
         self.registers[8] = 255
         self.index = 0
+        self.sequencer_index = 0
+        self.map_mask = 15
         self.writes = 0
 
     def out(self, port, size, value):
-        if port == 0x3ce:
+        if port == 0x3c4:
+            self.sequencer_index = value & 255
+            if size == 2 and self.sequencer_index == 2:self.map_mask = (value >> 8) & 15
+        elif port == 0x3c5 and self.sequencer_index == 2:self.map_mask = value & 15
+        elif port == 0x3ce:
             self.index = value & 255
             if size == 2 and self.index < len(self.registers):
                 self.registers[self.index] = (value >> 8) & 255
@@ -33,7 +39,13 @@ class Ega:
         for i in range(size):
             offset = address + i - 0xa0000
             self.latches = [plane[offset] for plane in self.planes]
-            values.append(self.latches[self.registers[4] & 3])
+            if self.registers[5] & 8:
+                matches = 255
+                for plane in range(4):
+                    if self.registers[7] & (1 << plane):
+                        matches &= self.latches[plane] if self.registers[2] & (1 << plane) else self.latches[plane] ^ 255
+                values.append(matches)
+            else:values.append(self.latches[self.registers[4] & 3])
         native.mem_write(address, bytes(values))
 
     def write(self, address, size, value):
@@ -44,6 +56,7 @@ class Ega:
             rotate = self.registers[3] & 7
             rotated = ((byte >> rotate) | (byte << (8 - rotate))) & 255
             for plane in range(4):
+                if not self.map_mask & (1 << plane):continue
                 mask = self.registers[8]
                 if mode == 3:
                     mask &= rotated

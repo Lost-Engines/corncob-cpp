@@ -61,6 +61,21 @@ int main(int const argc, char const *const argv[]) {
   auto const objects_before{flight.world().objects.size()};
   flight.advance({});
   if(flight.world().objects.size() != objects_before) throw std::runtime_error{"mission start recreated the live world"};
+  flight.press(corncob::game::action::toggle_messages);
+  flight.relocate({
+    .title{"Low-altitude warning without radio boxes"},
+    .position{0, 0, 4000},
+    .heading{0},
+  });
+  flight.advance({});
+  if(!flight.low_altitude_warning()) throw std::runtime_error{"disabling radio messages also disabled the low-altitude panel warning"};
+  flight.relocate({
+    .title{"Clear low-altitude warning"},
+    .position{0, 0, 6000},
+    .heading{0},
+  });
+  flight.advance({});
+  if(flight.low_altitude_warning()) throw std::runtime_error{"low-altitude warning did not clear above its hysteresis range"};
   std::cout << objects << " generated placements match 32 original INITPERMS worlds" << std::endl;
   return EXIT_SUCCESS;
 }

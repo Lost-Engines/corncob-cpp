@@ -158,10 +158,20 @@ eligible for the original resurrection operation; living pilots do not.
 
 The software renderer retains 640 x 350 indexed EGA output, three distance/detail
 tiers, authored octant painter lists, fixed-point projection and focal-plane
-clipping. OpenGL only presents the CPU framebuffer. Floating window sizing fits
+clipping. Gauge lines use EGALINE's direction-normalised pixel decisions; model
+wires use KLINE's horizontal spans and long shallow-line runs. Both paths match
+304 complete native indexed frames. Wire viewport clipping retains the original
+inclusive borders and X-first/Y-second order, verified against 512 native cases. OpenGL only presents the CPU framebuffer. Floating window sizing fits
 available desktop space and preserves the intended 4:3 CRT shape. VGA presentations
 use 320 x 200; menus use 640 x 400 BIOS text. Nearest-neighbour sampling preserves
 pixel boundaries. The original cockpit mask's stray diagonal is retained.
+
+Cockpit buttons retain all fourteen native search masks and colour substitutions;
+56 complete native frames cover their exact bounds. Bomb-supply annunciators,
+flashing low-altitude/eject warnings, high-altitude marks and the rocket needle's
+charging/ready/firing colours follow live state. Low-altitude hysteresis remains
+active when explanatory message boxes are disabled. Autopilot and objective lamps
+retain their original blue and bright-blue backgrounds.
 
 Original instruments, propeller, ground points, stars, sun directives, radar,
 homing pointer and animated model geometry are connected. Wire forcefields pulse
@@ -224,9 +234,9 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Joystick | 512 SPKE/JOYTD response cases, plus keyboard/button/head-view integration |
 | Person | 512 free-fall damping and 512 parachute swing cases |
 | Motion/collision | 512 generic movement, 512 strict boxes, 512 fast and 512 ordinary projectile contacts |
-| Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools; 768 orb/objective/mindbender passes without stubs |
+| Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools; 768 orb/objective/mindbender passes without stubs; 256 mortar passes and 104 complete emitted particles |
 | Debris/training | 530 particles from 64 constructor runs; 2,157 generated placements from 32 training runs |
-| Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks and 12 polygon hashes; four original definition round trips; one 252-object plain saved world |
+| Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks, 12 polygon hashes, 304 line frames and 512 wire-clip cases; four original definition round trips; one 252-object plain saved world |
 | Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
 | Title | 1,024 original animation-state/PRNG passes and 6,144 VGA letter-mask pixels |
@@ -243,10 +253,12 @@ far-model crash before interactive playtesting.
 
 Private GLFW/X11 checks traversed pilot creation, mission selection, radio boxes,
 map, boss screen, help, score, abort/report, tower intelligence, repair/resume and
-Escape warnings, followed by both story fades and the animated title/credits.
+Escape warnings, followed by both story fades and the animated title/credits. A further window
+traversal checked the saved training defaults, live bomb-supply indicators, flap
+state and cockpit warning colours.
 Captures were inspected without changing supplied DOS installs.
-The complete 38-check Debug, Release and sanitizer suites pass, including the
-longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title. Wire rasterisation, complete frame ordering,
+The complete 40-check Debug, Release and sanitizer suites pass, including the
+longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title. Complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.
 
@@ -265,8 +277,8 @@ match without stubs; the connected rescue scenario still passes.
   original configuration comparisons.
 - Verify remaining special-site handlers against
   full native executions, and broaden complete campaign comparisons.
-- Finish remaining auxiliary instrument states; compare wire rasterisation and
-  whole scene painter/collision ordering.
+- Broaden complete cockpit/gauge-frame comparisons and whole scene painter/
+  collision ordering.
 - Check portal placement and other connected special transitions
   against longer DOS sessions. Scripted coverage is not proof of every transition.
 - Reconcile rendering's separate visual random stream with original complete-frame

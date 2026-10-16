@@ -18,6 +18,8 @@ struct clip_rectangle {
   int bottom;
 };
 
+bool clip_wire_line(screen_point &start, screen_point &end, clip_rectangle const &bounds) noexcept;
+
 struct indexed_framebuffer {
   std::array<colour_index, render::screen_layout::pixel_count> pixels;
 };
@@ -36,6 +38,7 @@ private:
   random_source &random;
   pixel_operation operation;
 
+  bool clip_line(screen_point &start, screen_point &end) const noexcept;
   void raw_pixel(int x, int y, colour_index colour) noexcept;
   void span(int y, int left, int right, colour_index colour, uint8_t mask = 0xff) noexcept;
 
@@ -43,6 +46,7 @@ public:
   raster(indexed_framebuffer &target, clip_rectangle bounds, random_source &random, pixel_operation operation = pixel_operation::replace);
   void point(screen_point const &position, colour_index colour) noexcept;
   void line(screen_point start, screen_point end, colour_index colour) noexcept;
+  void wire(screen_point start, screen_point end, colour_index colour) noexcept;
   void polygon(std::span<screen_point const> vertices, colour_index colour) noexcept;
   void disc(screen_point const &centre, int diameter, colour_index colour) noexcept;
 };

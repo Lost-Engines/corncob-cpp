@@ -284,7 +284,7 @@ void scene_renderer::draw_model(resources::model_address const address, unsigned
               else if(b.x <= view.focal_x) b = intersection(b, a, view.focal_x);
               auto const first{project(a, view)}, last{project(b, view)};
               if(first && last) {
-                draw.line(screen_point{*first}, screen_point{*last}, geometry.colour(line.colour));
+                draw.wire(screen_point{*first}, screen_point{*last}, geometry.colour(line.colour));
                 ++statistics.lines;
               }
             }
