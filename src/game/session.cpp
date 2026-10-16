@@ -550,7 +550,7 @@ void session::advance(input_state const &input, std::optional<std::function_ref<
   auto const previous_objectives{weapons.stats().objectives_completed};
   // the original proximity channels consume the previous object pass before rebuilding their distances
   audible_proximity = enemies.proximity();
-  weapons.move(observer, step);
+  weapons.move(observer, step, mode == player_mode::on_foot, fast_ticks);
   auto const &effects{enemies.advance({
     .observer{observer},
     .target{controlled_aircraft ? aircraft.position : person.position},
@@ -746,7 +746,7 @@ flight::damage_state const &session::aircraft_damage() const noexcept {
   /// Report individual native damage channels for the instrument panel
   return damage;
 }
-combat_statistics const &session::statistics() const noexcept {
+sortie_statistics const &session::statistics() const noexcept {
   /// Expose earned totals without permitting the presentation layer to edit gameplay state
   return weapons.stats();
 }

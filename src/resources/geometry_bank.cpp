@@ -164,6 +164,11 @@ geometry_bank::geometry_bank(std::span<uint8_t const> const source) :
       .hit_points{input.byte(address + 27)},
       .initial_timer{input.word(address + 52)},
       .initial_altitude{input.signed_dword(address + 8)},
+      .initial_attitude{
+        .heading{input.word(address + 12)},
+        .pitch{input.word(address + 14)},
+        .roll{input.word(address + 16)},
+      },
       .initial_velocity{input.vector(address + 46)},
       .motion{
         .spin{input.vector(address + 54)},
@@ -202,6 +207,8 @@ model_levels geometry_bank::appearance(world::placed_object const &object) const
   case world::model_pose::yellow_explosion: return {0x3d64, 0x3d64, 0x3d64};
   case world::model_pose::red_explosion: return {0x3d3c, 0x3d3c, 0x3d3c};
   case world::model_pose::radar_wreck: return {0x406a, 0x4132, 0x4132};
+  case world::model_pose::fuel_wreck: return {0x3521, 0x3569, 0x3569};
+  case world::model_pose::blast_crater: return {0x72c6, 0x72c6, 0x72c6};
   case world::model_pose::distant_hidden:
     {
       auto result{definition(object.type).models};
@@ -307,6 +314,10 @@ void geometry_bank::prepare_colours(world::placed_object const &object, unsigned
       break;
     }
     colours[rule.address] = static_cast<uint8_t>(value);
+  }
+  if(object.shard_colour && (object.type == world::object_type::shard || object.type == world::object_type::shard_2)) {
+    model_address constexpr shard_colour_address{0x71cf};
+    colours[shard_colour_address] = *object.shard_colour;
   }
   if(object.type == world::object_type::portal && object.portal_colour) {
     model_address constexpr portal_colour_address{0x2dd3};

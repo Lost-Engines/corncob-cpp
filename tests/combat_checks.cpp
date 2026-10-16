@@ -48,7 +48,7 @@ int main() {
     for(unsigned int frame{0}; frame != 6; ++frame) combat.advance(position, {});
   }
   require(world.objects.front().type == world::object_type::destroyed_fuel_dump, "guns failed to destroy a fuel dump through native fast contacts");
-  require(combat.stats().resources_destroyed == 1, "fuel destruction credit incorrect");
+  require(combat.stats().resource_kills == 1, "fuel destruction credit incorrect");
   auto const orb{combat.spawn(world::object_type::generator_orb, {0, 0, 50000})};
   require(orb.has_value(), "effect pool unexpectedly exhausted");
   world.objects[*orb].flags |= 0x4000;

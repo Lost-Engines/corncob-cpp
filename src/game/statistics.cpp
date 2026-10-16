@@ -26,7 +26,7 @@ std::array<uint8_t, sortie_statistics::native_bytes> sortie_statistics::encode()
     result[offset++] = static_cast<uint8_t>(value);
     result[offset++] = static_cast<uint8_t>(value >> 8);
   }};
-  for(auto const value : {status, contacting_type, aircraft_lost, fuel_tet_kills}) word(value);
+  for(auto const value : {status, contacting_type, aircraft_lost, resource_kills}) word(value);
   for(auto const *counts : {&kla_kills, &aaa_kills, &vehicle_kills, &site_kills}) for(auto const value : *counts) word(value);
   for(auto const value : {objectives_completed, friendly_destroyed, maximum_damage}) word(value);
   for(auto const *counts : {&peak_aaa, &peak_kla}) for(auto const value : *counts) word(value);
@@ -45,7 +45,7 @@ sortie_statistics sortie_statistics::decode(std::span<uint8_t const> const sourc
   result.status = word();
   result.contacting_type = word();
   result.aircraft_lost = word();
-  result.fuel_tet_kills = word();
+  result.resource_kills = word();
   for(auto *counts : {&result.kla_kills, &result.aaa_kills, &result.vehicle_kills, &result.site_kills}) for(auto &value : *counts) value = word();
   result.objectives_completed = word();
   result.friendly_destroyed = word();
@@ -67,7 +67,7 @@ int32_t calculate_score(sortie_statistics const &statistics, score_context const
     : statistics.has(sortie_status::rescued) ? 4 : suicide ? 2 : 1};
   int const sortie_factor{statistics.has(sortie_status::crashed_away) || (!campaign && statistics.has(sortie_status::ejected)) ? 1
     : statistics.has(sortie_status::crashed_home) ? 3 : statistics.has(sortie_status::landed) || suicide ? 5 : 1};
-  int32_t primary{maths::word(statistics.objectives_completed * 15u + statistics.fuel_tet_kills)};
+  int32_t primary{maths::word(statistics.objectives_completed * 15u + statistics.resource_kills)};
   int16_t danger{10};
   for(unsigned int q{0}; q != 8; ++q) {
     primary = maths::dword(static_cast<int64_t>(primary) + maths::word(statistics.aaa_kills[q] + statistics.site_kills[q] + statistics.orb_kills[q]));

@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include "game/combat.h"
+#include "game/vehicle.h"
 #include "maths/random.h"
 
 namespace corncob::game {
@@ -22,12 +23,7 @@ struct proximity_sound {
   uint8_t saucer_frequency{255};
 };
 
-struct actor_effects {
-  bool capture_pending{false};
-  bool captured{false};
-  bool capture_closing{false};
-  maths::world_position approach_target{0, 0, 0};
-  bool rescued{false};
+struct actor_effects : vehicle_effects {
   uint16_t hallucination{0};
   uint16_t orb_distortion{0};
   maths::fixed_vector attraction{0, 0, 0};

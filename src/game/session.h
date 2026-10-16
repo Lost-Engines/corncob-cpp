@@ -172,7 +172,7 @@ public:
   bool take_tower();
   void resume_from_tower();
   flight::damage_state const &aircraft_damage() const noexcept;
-  combat_statistics const &statistics() const noexcept;
+  sortie_statistics const &statistics() const noexcept;
   sound_cues const &sounds() const noexcept;
   proximity_sound const &proximity_sounds() const noexcept;
   bool remote_control() const noexcept;

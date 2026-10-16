@@ -46,6 +46,24 @@ concealed sites, orbiting/swaying enemies, forcefields, generator attraction and
 mindbender palette effects. Aircraft damage retains its separate engine, wing,
 rudder and stability channels rather than generic hit points.
 
+Destruction retains each target's own wreck, fragments, weapon restrictions and
+score credit. Surviving saucers tilt when struck; launch sites reset their rest
+intervals and vehicles retain the same pursuit reset used by ordinary movement.
+Shards retain their authored initial tilt, 6,200-frame lifetime and original
+per-slot red/yellow flicker, becoming black on the ground. Explosions retain their
+random drift. Anti-aircraft shells use the original nine-fragment damaging burst;
+bombs preserve the native crater transition and time-adjusted lifetime.
+
+All 704 independent hit callbacks and 128 paired SLAM contacts match unchanged
+native executions: both object records/models, all 130 score bytes, 3,772 emitted
+effects and complete PRNG continuation. A second collision callback sees the
+first object's changed state. TETTIM also leaves its scratch pointer at a harmless
+fragment, so SLAM can skip the original projectile's second callback; this quirk
+is explicit rather than accidentally depending on a C++ reference. The fixture
+supplies effect allocation only. Separate comparisons cover 192 debris/shard/
+explosion constructors and 512 shard colour passes. These checks do not establish
+identical ordering of all contacts within a complete moving scene.
+
 Aircraft damage/ejection, actors, weapon constructors and scene drawing share one
 random stream. Each simulation pass draws once, after nearby handlers and before
 portal transfer/player physics; additional host refreshes reuse the retained
@@ -328,7 +346,9 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Person | 512 free-fall damping and 512 parachute swing cases |
 | Motion/collision | 512 generic movement, 512 strict boxes, 512 fast and 512 ordinary projectile contacts |
 | Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools; 768 orb/objective/mindbender passes without stubs; 256 mortar passes and 104 complete emitted particles |
-| Debris/training | 530 particles from 64 constructor runs; 2,157 generated placements from 32 training runs |
+| Destruction | 704 hit callbacks and 128 paired contacts; complete object/models, 130 score bytes, 3,772 emitted effects and PRNG continuation |
+| Scenery | 576 complete permanent handlers, 512 local interaction ranges and connected tower/boarding/contact checks |
+| Debris/training | 192 complete debris/shard/explosion constructor runs; 512 shard colour/PRNG cases; 2,157 generated placements from 32 training runs |
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks, 12 polygon hashes, 304 line frames and 512 wire-clip cases; four original definition round trips; one 252-object plain saved world |
 | Ground/stars | 512 point regenerations, 256 stars and 64 complete three-bank initialisations with PRNG continuation |
 | Particles | 512 complete 35-disc/shared-colour frame blocks and PRNG continuations, plus resource bindings across the original models |
@@ -346,7 +366,7 @@ persistent objectives, rescue/capture, damaged-aircraft tower visits, settings,
 career clearance and the ending. A sustained run exercises 32 original-theatre
 starts with mixed controls/weapons/ejection, more than 31,000 updates and 250
 rendered frames, then round-trips resulting worlds/results. An additional
-`endurance_checks --draw-every-frame` run completed 31,803 full simulation/render
+`endurance_checks --draw-every-frame` run completed 31,802 full simulation/render
 passes across the same 32 starts in Release and under AddressSanitizer/UBSan.
 The original sustained run exposed the hidden
 far-model crash before interactive playtesting.
@@ -360,9 +380,9 @@ and P/Escape return were also inspected in the actual window. A clean Release
 installation contains only the embedded executable and opens without the research
 workspace or external game assets.
 Captures were inspected without changing supplied DOS installs.
-The complete 49-check Debug, Release and sanitizer suites pass, including the
+The complete 51-check Debug, Release and sanitizer suites pass, including the
 longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title.
-A local MinGW GCC 16 Release build also passes all 49 checks under Wine; its actual
+A local MinGW GCC 16 Release build also passes all 51 checks under Wine; its actual
 window was inspected through menus, training, flight and stepping out on foot.
 It imports only Windows system DLLs. This does not replace testing on Windows
 hardware. Complete frame ordering, macOS runtime and interactive Wayland sizing
@@ -381,8 +401,8 @@ match without stubs; the connected rescue scenario still passes.
   the inspected presentation captures.
 - Complete remaining front-end/bookkeeping details: remaining theatre-header words and original configuration bits; broaden
   original configuration comparisons.
-- Verify remaining special-site handlers against
-  full native executions, and broaden complete campaign comparisons.
+- Broaden parked-aircraft placement/repair and complete campaign comparisons
+  against native executions.
 - Broaden complete cockpit/gauge-frame comparisons and whole scene painter/
   collision ordering.
 - Broaden connected special transitions against longer DOS sessions. Scripted

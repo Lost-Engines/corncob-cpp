@@ -28,7 +28,7 @@ struct sortie_statistics {
   uint16_t status{0};
   uint16_t contacting_type{0};
   uint16_t aircraft_lost{0};
-  uint16_t fuel_tet_kills{0};
+  uint16_t resource_kills{0};
   quality_counts kla_kills{};
   quality_counts aaa_kills{};
   quality_counts vehicle_kills{};

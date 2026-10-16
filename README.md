@@ -54,7 +54,7 @@ beginner or advanced flight model. Beginner gently assists the pitch toward leve
 flight and is the original launcher default. Control choice and each named pilot’s
 flight model are saved; `--flight-model advanced` overrides the model at startup. E leaves
 the aircraft; Space opens a parachute while falling. Caps Lock enables remote
-flight after ejection. A toggles the original autopilot. L toggles the cockpit, G ground detail, P pauses,
+flight after ejection. A toggles the original autopilot. L toggles the cockpit, G ground detail, P pauses.
 While paused, Space opens help; P or Escape resumes the flight. M opens the original overhead map; keypad arrows pan, keypad 9/3 changes height,
 Shift turns the view, Home recentres and Space returns. Num Lock or held Control
 switches the keypad to looking around. V calls a rescue van while stranded on

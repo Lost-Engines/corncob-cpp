@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "302659a0920cef618463bd5319ef16252cf8aecc5b4afc5d291eda2be2697ce9",
+  "cases": 512,
+  "routine": "0xa511 SHARDTIM",
+  "stubs": [],
+  "scope": "Original pool-slot modulo, low-word ground test, red/yellow airborne flicker, black settled shards and complete PRNG continuation. Generic movement is excluded."
+}

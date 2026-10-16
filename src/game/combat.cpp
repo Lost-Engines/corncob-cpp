@@ -93,7 +93,7 @@ std::optional<unsigned int> combat::spawn(world::object_type const type, maths::
   auto const &definition{geometry.definition(type)};
   theatre.objects[*index] = {
     .position{maths::world_position{position}},
-    .attitude{},
+    .attitude{definition.initial_attitude},
     .velocity{maths::fixed_vector{definition.initial_velocity}},
     .type{type},
     .flags{definition.flags},
@@ -110,8 +110,11 @@ void combat::explosion(maths::world_position const &position, uint16_t const dam
   if(auto const index{spawn(world::object_type::explosion, position)}) {
     auto &object{theatre.objects[*index]};
     ++cues.explosions;
+    object.velocity.x = maths::word(object.velocity.x + random.below(100) - 50);
+    object.velocity.y = maths::word(object.velocity.y + random.below(100) - 50);
+    object.velocity.z = maths::word(object.velocity.z + random.below(450));
     object.timer = 5;
-    object.flags = static_cast<uint16_t>((object.flags & ~0xe0u) | damaging_flags);
+    object.flags |= static_cast<uint16_t>(0x8000u | damaging_flags);
   }
 }
 bool combat::shoot(weapon_origin const &origin, bool const cannon, flight::time_step const step) {
@@ -226,19 +229,28 @@ maths::random_source &combat::random_stream() noexcept {
   /// Flight damage, active actors and effect constructors consume the same original gameplay stream
   return random;
 }
+void combat::observe_vehicle_site(uint16_t const rest) noexcept {
+  /// VESTTIM leaves the last visited quality's rest interval for its subsequent collision reset
+  vehicle_site_rest = rest;
+}
+vehicle_effects combat::take_vehicle_effects() {
+  /// Contacts discovered during collision processing feed the next retained actor pass
+  return std::exchange(hit_vehicle_effects, {});
+}
 void combat::impact_sound() noexcept {
   /// BIGBOOM requests impact audio without creating an additional geometric explosion
   ++cues.explosions;
 }
-void combat::scatter(world::placed_object const &source, unsigned int const requested, fragment_pattern const pattern, flight::time_step const step) {
-  /// STRTFLT randomizes the requested debris count; incendiaries and mortar barrages retain their fixed counts
-  bool const incendiary{pattern == fragment_pattern::incendiary}, mortar{pattern == fragment_pattern::mortar};
+unsigned int combat::scatter(world::placed_object const &source, unsigned int const requested, fragment_pattern const pattern, flight::time_step const step, uint8_t const collision_group) {
+  /// Emit original fragments and report template-selection attempts, retaining the scratch-pointer side effect needed by paired contacts
+  bool const incendiary{pattern == fragment_pattern::incendiary}, mortar{pattern == fragment_pattern::mortar || collision_group == 3};
   bool const outward{pattern == fragment_pattern::outward};
   unsigned int const count{incendiary || mortar ? requested : random.below(static_cast<uint16_t>(requested / 2)) + requested / 2 + 1};
   unsigned int const present{static_cast<unsigned int>(std::ranges::count_if(theatre.objects, [](auto const &object){
     return object.has(world::object_flag::present) && (object.type == world::object_type::flotsam_1 || object.type == world::object_type::flotsam_2);
   }))};
-  if(!incendiary && present + count >= 25) return;
+  if(!incendiary && present + count >= 25) return 0;
+  unsigned int attempted{0};
   for(unsigned int n{0}; n != count; ++n) {
     world::object_type type{world::object_type::incendiary_fragment};
     if(!incendiary) {
@@ -246,8 +258,9 @@ void combat::scatter(world::placed_object const &source, unsigned int const requ
       (void)random.below(4000);
       type = mortar || (random.next() & 0x8000u) == 0 ? world::object_type::flotsam_2 : world::object_type::flotsam_1;
     }
+    ++attempted;
     auto const index{spawn(type, source.position)};
-    if(!index) return;
+    if(!index) return attempted;
     auto &object{theatre.objects[*index]};
     // ADD touches only the altitude's low word; it deliberately does not propagate a carry
     object.position.z = maths::dword((static_cast<uint32_t>(source.position.z) & 0xffff0000u) | static_cast<uint16_t>(source.position.z + 750));
@@ -265,14 +278,35 @@ void combat::scatter(world::placed_object const &source, unsigned int const requ
       object.velocity.z = maths::word(object.velocity.z + random.below(outward ? 1500 : 5000) - (outward ? 750 : 0));
       auto const maximum{lifetime(outward ? 18 : 180, step)};
       object.timer = static_cast<uint16_t>(random.below(maximum) + maximum / 4);
-      object.collision_group = mortar ? 3 : 0;
+      object.collision_group = mortar ? 3 : collision_group;
       if(mortar) {
         object.flags |= 0x30u;
         object.motion.gravity = maths::word(static_cast<uint16_t>(object.motion.gravity) | 0x100u);
       }
     }
   }
+  return attempted;
 }
+
+void combat::shatter(world::placed_object const &source, unsigned int const requested, bool const outward) {
+  /// STRTSHARD leaves spinning fragments on the ground for 6,200 frames, independently of the short-lived flotsam cap
+  unsigned int const count{random.below(static_cast<uint16_t>(requested / 2)) + requested / 2 + 1};
+  for(unsigned int n{0}; n != count; ++n) {
+    auto const type{(random.next() & 0x8000u) == 0 ? world::object_type::shard_2 : world::object_type::shard};
+    auto const index{spawn(type, source.position)};
+    if(!index) return;
+    auto &object{theatre.objects[*index]};
+    object.position.z = maths::dword((static_cast<uint32_t>(source.position.z) & 0xffff0000u) | static_cast<uint16_t>(source.position.z + 750));
+    object.velocity = maths::fixed_vector{source.velocity};
+    object.velocity.x = maths::word(object.velocity.x + random.below(375) - 187);
+    object.velocity.y = maths::word(object.velocity.y + random.below(375) - 187);
+    object.velocity.z = maths::word(object.velocity.z + random.below(1500) - (outward ? 750 : 0));
+    object.timer = 6200;
+    object.flags |= 0x8000u;
+    object.motion.spin = maths::fixed_vector{static_cast<int16_t>(random.below(4000)), static_cast<int16_t>(random.below(4000)), static_cast<int16_t>(random.below(4000))};
+  }
+}
+
 void combat::detonate(unsigned int const index) {
   /// Bombs leave low-altitude craters and incendiaries; missiles produce a visual blast and three debris pieces
   auto &object{theatre.objects[index]};
@@ -282,21 +316,19 @@ void combat::detonate(unsigned int const index) {
     scatter(source, (source.flags & 2u) != 0 ? 5 : 15, fragment_pattern::incendiary, tick_step);
     object.flags = 0;
     if(source.position.z >= 0 && source.position.z <= 10'000) {
-      auto const &definition{geometry.definition(world::object_type::crater)};
       object = source;
       object.type = world::object_type::crater;
       object.position.z = 10;
       object.attitude = {};
-      object.velocity = maths::fixed_vector{0, 0, 0};
-      object.motion = {};
-      object.timer = (source.flags & 2u) != 0 ? 187 : 3000;
+      uint16_t const full_lifetime{lifetime(3000, tick_step)};
+      crater_arm_timer = static_cast<uint16_t>(full_lifetime - 100u);
+      object.timer = (source.flags & 2u) != 0 ? static_cast<uint16_t>(full_lifetime >> 4) : full_lifetime;
       object.flags = source.flags & 0x911u;
-      object.collision_extents = maths::fixed_vector{definition.collision_extents};
-      object.pose = world::model_pose::normal;
+      object.pose = world::model_pose::blast_crater;
     }
   } else {
-    explosion(source.position, source.type == world::object_type::aa_shell ? 0 : 0x20);
-    scatter(source, 3, fragment_pattern::outward, tick_step);
+    explosion(source.position, 0x20);
+    scatter(source, source.type == world::object_type::aa_shell ? 9 : 3, fragment_pattern::outward, tick_step);
     object.flags = 0;
   }
 }
@@ -311,8 +343,9 @@ void combat::complete(world::placed_object &object) {
   ++statistics.objectives_completed;
   if(object.type == world::object_type::destroyed_generator_orb && object.quality() == 4) statistics.mark(sortie_status::suicide_objective);
 }
-void combat::damage(unsigned int const index, world::placed_object const &attacker, bool const aircraft_impact) {
+contact_continuation combat::damage(unsigned int const index, world::placed_object const &attacker, bool const aircraft_impact) {
   /// Type handlers retain their weapon restrictions and wreck states before applying common hit-point damage
+  using enum contact_continuation;
   auto &object{theatre.objects.at(index)};
   if((geometry.definition(object.type).properties & std::to_underlying(world::object_property::forcefield)) != 0) {
     if(object.type == world::object_type::forcefield_x || object.type == world::object_type::forcefield_y
@@ -320,22 +353,23 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
       object.timer = 32'000;
       object.pose = world::model_pose::normal;
     }
-    return;
+    return original_partner;
   }
   if(object.type == world::object_type::barrage_balloon || object.type == world::object_type::bee_swarm) {
     object.timer = 32'000;
-    return;
+    return original_partner;
   }
-  if(!object.has(world::object_flag::collision_callback)) return;
+  if(!object.has(world::object_flag::collision_callback)) return original_partner;
   using enum world::object_type;
+  if(object.type == radar_dish) object.attitude.heading = static_cast<maths::angle>(current_tick * 4u);
   if(object.type == bomb || object.type == missile || object.type == aa_shell) {
     detonate(index);
-    return;
+    return original_partner;
   }
   if(object.type == bullets) {
-    scatter(object, 2, fragment_pattern::outward, tick_step);
+    scatter(object, 2, fragment_pattern::outward, tick_step, attacker.collision_group & 3u);
     object.flags = 0;
-    return;
+    return original_partner;
   }
   if(object.type == shell) {
     auto const source{object};
@@ -347,23 +381,47 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
       replacement.position.z = maths::dword((static_cast<uint32_t>(source.position.z) & 0xffff0000u) | static_cast<uint16_t>(geometry.definition(type).initial_altitude));
     }
     object.flags = 0;
-    return;
+    return original_partner;
   }
   if(object.type == mindbender && ((attacker.type != bomb && attacker.type != crater)
-    || (object.has(world::object_flag::special) && !attacker.has(world::object_flag::special)))) return;
-  if(object.type == ground_crew && (geometry.definition(attacker.type).properties & std::to_underlying(world::object_property::forcefield)) != 0) return;
-  if(object.type == alien && attacker.type != bullets) return;
-  if(object.type == generator_orb && object.quality() == 4 && !aircraft_impact) return;
+    || (object.has(world::object_flag::special) && !attacker.has(world::object_flag::special)))) return original_partner;
+  if(object.type == ground_crew && (object.flags & 0x1000u) != 0) return original_partner;
+  if(object.type == aircraft && !aircraft_impact && (geometry.definition(attacker.type).properties & std::to_underlying(world::object_property::runway)) != 0) return original_partner;
+  if(object.type == ground_vehicle) object.position.z = 0;
+  auto const react_vehicle{[&]{reset_vehicle(object, current_observer, vehicle_tier(object, current_observer), observer_on_foot, random, hit_vehicle_effects);}};
+  if(object.type == ground_crew && (geometry.definition(attacker.type).properties & std::to_underlying(world::object_property::forcefield)) != 0) return original_partner;
+  if(object.type == alien && attacker.type != bullets) return original_partner;
+  if(object.type == generator_orb && object.quality() == 4 && !aircraft_impact) return original_partner;
   if(object.type == ground_vehicle && object.has(world::object_flag::special)
-    && attacker.type != bullets && attacker.type != missile && attacker.type != explosion) return;
+    && attacker.type != bullets && attacker.type != missile && attacker.type != explosion) {
+    react_vehicle();
+    return original_partner;
+  }
+  if(object.type == kla) {
+    this->explosion(object.position);
+    scatter(object, 9, fragment_pattern::outward, tick_step);
+    ++statistics.kla_kills[object.quality()];
+    object.flags = 0;
+    return original_partner;
+  }
   unsigned int const hits{aircraft_impact ? 255u : attacker.has(world::object_flag::heavy_attack) ? 25u
     : attacker.has(world::object_flag::six_hit_attack) ? 6u : 1u};
   uint8_t const remaining{static_cast<uint8_t>(object.health - hits)};
   if(!aircraft_impact && remaining != 0 && (remaining & 0x80u) == 0) {
     object.health = remaining;
-    if(object.type == kla_site) object.timer = 400;
-    return;
+    if(object.type == kla_site) object.timer = resources::kla_site_qualities[object.quality()].launch_reset;
+    if(object.type == saucer_site) object.timer = resources::saucer_site_qualities[object.quality()].launch_reset;
+    if(object.type == vehicle_site) object.timer = static_cast<uint16_t>(vehicle_site_rest * 3u);
+    if(object.type == ground_vehicle) react_vehicle();
+    if(object.type == generator_orb && hits >= 6) shatter(object, 2, false);
+    if(object.type == tet) {
+      // TETTIM leaves DI pointing at a harmless fragment; SLAM consequently skips the original projectile's callback
+      return scatter(object, 2, fragment_pattern::outward, tick_step) != 0 ? fragment_partner : original_partner;
+    }
+    if(object.type == saucer || object.type == objective_saucer) object.attitude.roll += static_cast<maths::angle>(hits * 400);
+    return original_partner;
   }
+  uint8_t const old_health{object.health};
   object.health = 0;
   unsigned int const quality{object.quality()};
   bool const friendly_credit{aircraft_impact || (attacker.collision_group == 0 && (attacker.type == bullets || attacker.type == missile
@@ -373,67 +431,72 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
   case kla: ++statistics.kla_kills[quality]; break;
   case ground_vehicle: ++statistics.vehicle_kills[quality]; break;
   case aaa_site: ++statistics.aaa_kills[quality]; break;
-  case kla_site: case vehicle_site: case saucer_site: case mortar: ++statistics.site_kills[quality]; break;
-  case fuel_dump: case tet: ++statistics.fuel_tet_kills; break;
+  case kla_site: case mortar: ++statistics.site_kills[0]; break;
+  case vehicle_site: case saucer_site: ++statistics.site_kills[quality]; break;
+  case fuel_dump: case tet: case saucer: case objective_saucer: case alien: ++statistics.resource_kills; break;
   default: break;
   }
   switch(object.type) {
   case generator_orb:
     object.type = destroyed_generator_orb;
     object.flags = static_cast<uint16_t>((object.flags & 0xff00u) | 0x11u);
-    ++statistics.orbs_destroyed;
-    scatter(object, 12, fragment_pattern::outward, tick_step);
+    scatter(object, 12, fragment_pattern::upward, tick_step);
+    shatter(object, 10, false);
+    impact_sound();
     break;
   case ground_crew:
     object.flags = static_cast<uint16_t>((object.flags | 0x1000u) & ~8u);
-    object.pose = world::model_pose::shot;
+    object.health = old_health;
     if(friendly_credit) ++statistics.friendly_destroyed;
-    return;
+    return original_partner;
   case aircraft:
+  case radar_dish:
+  case control_tower:
+    object.pose = world::model_pose::radar_wreck;
+    object.type = destroyed_fuel_dump;
+    object.position.z = 3100;
+    object.attitude.heading = random.next();
+    object.flags = 0x11;
+    if(friendly_credit) ++statistics.friendly_destroyed;
+    scatter(object, 12, fragment_pattern::upward, tick_step);
+    shatter(object, 5, false);
+    break;
   case internal_aircraft:
     object.pose = world::model_pose::damaged;
     object.position.z = 0;
     object.velocity = maths::fixed_vector{0, 0, 0};
     object.flags = 1;
     if(friendly_credit) ++statistics.friendly_destroyed;
-    scatter(object, 15, fragment_pattern::outward, tick_step);
-    break;
-  case radar_dish:
-  case control_tower:
-    object.pose = world::model_pose::radar_wreck;
-    object.type = destroyed_fuel_dump;
-    object.position.z = 0;
-    object.attitude.heading = random.next();
-    object.flags = 0x11;
-    if(friendly_credit) ++statistics.friendly_destroyed;
-    scatter(object, 12, fragment_pattern::outward, tick_step);
+    scatter(object, 15, fragment_pattern::upward, tick_step);
+    shatter(object, 15, false);
     break;
   case fuel_dump:
+    object.pose = world::model_pose::fuel_wreck;
     object.type = destroyed_fuel_dump;
     object.flags = 0x11;
-    ++statistics.resources_destroyed;
-    scatter(object, 12, fragment_pattern::outward, tick_step);
+    scatter(object, 12, fragment_pattern::upward, tick_step);
+    impact_sound();
     break;
   case ground_vehicle:
-    object.position.z = 2000;
-    object.attitude.pitch = 2400;
-    object.attitude.roll = 20'000;
-    object.flags = static_cast<uint16_t>((object.flags & 0xff00u) | 0x71u);
-    object.velocity = maths::fixed_vector{0, 0, 0};
-    object.motion = {};
-    object.timer = static_cast<uint16_t>(object.timer / 4 + 300);
-    object.health = 255;
-    object.collision_extents = maths::fixed_vector{0, 0, 0};
-    ++statistics.resources_destroyed;
-    this->explosion(object.position);
-    scatter(object, 9, fragment_pattern::outward, tick_step);
+    {
+      int32_t constexpr wreck_height{428};
+      object.health = 255;
+      this->explosion(object.position);
+      scatter(object, 9, fragment_pattern::outward, tick_step);
+      object.position.z = wreck_height;
+      object.attitude.pitch = 2400;
+      object.attitude.roll = 20'000;
+      object.flags = static_cast<uint16_t>((object.flags & 0xff00u) | 0x71u);
+      object.velocity = maths::fixed_vector{0, 0, 0};
+      object.timer = static_cast<uint16_t>(lifetime(800, tick_step) / 4 + 300);
+      object.collision_extents = maths::fixed_vector{0, 0, 0};
+    }
     break;
   case objective_saucer:
     complete(object);
     [[fallthrough]];
   case saucer:
     object.flags &= static_cast<uint16_t>(~8u);
-    ++statistics.resources_destroyed;
     this->explosion(object.position);
     scatter(object, 9, fragment_pattern::outward, tick_step);
     object.motion.spin = maths::fixed_vector{static_cast<int16_t>(random.below(4000)), static_cast<int16_t>(random.below(4000)),
@@ -443,33 +506,35 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     object.position.z = 0;
     object.attitude.pitch = 16'384;
     object.flags &= static_cast<uint16_t>(~0xcu);
-    object.motion.gravity = 0;
+    object.motion.gravity = maths::word(static_cast<uint16_t>(object.motion.gravity) & 0xff00u);
     object.velocity.z = 100;
-    ++statistics.resources_destroyed;
     break;
   case mindbender:
   case tet:
-  case kla:
+    this->explosion(object.position, 0x20);
+    shatter(object, 3, true);
+    object.flags = 0;
+    if(object.type == tet) return scatter(object, 2, fragment_pattern::outward, tick_step) != 0 ? fragment_partner : original_partner;
+    break;
   case kla_site:
   case vehicle_site:
   case aaa_site:
   case saucer_site:
   case mortar:
+    this->explosion(object.position);
+    scatter(object, object.type == aaa_site ? 4 : 9, object.type == aaa_site ? fragment_pattern::upward : fragment_pattern::outward, tick_step);
     object.flags = 0;
-    ++statistics.resources_destroyed;
-    this->explosion(object.position, 0x20);
-    scatter(object, 3, fragment_pattern::outward, tick_step);
     break;
   default:
-    return;
+    return original_partner;
   }
+  return original_partner;
 }
+
 void combat::collide(unsigned int const a, unsigned int const b) {
   /// SLAM calls both type handlers in order, even when the first contact changes the first object's flags
   if(!objects_overlap(theatre.objects[a], theatre.objects[b])) return;
-  auto const attacker_a{theatre.objects[a]}, attacker_b{theatre.objects[b]};
-  damage(a, attacker_b);
-  damage(b, attacker_a);
+  if(damage(a, theatre.objects[b]) == contact_continuation::original_partner) damage(b, theatre.objects[a]);
 }
 void combat::update_projectile(unsigned int const index, maths::world_position const &observer, flight::time_step const step) {
   /// Timed handlers alter live velocity and model state before the next generic movement pass
@@ -506,7 +571,7 @@ void combat::update_projectile(unsigned int const index, maths::world_position c
     if(object.has(world::object_flag::special)) {
       ++object.timer;
       object.flags |= 0xe0u;
-    } else if(object.timer <= 2900) object.flags |= 0xe0u;
+    } else if(object.timer <= crater_arm_timer) object.flags |= 0xe0u;
     break;
   case incendiary_fragment:
     if(static_cast<uint16_t>(object.position.z) == 0) {
@@ -525,9 +590,12 @@ void combat::update_projectile(unsigned int const index, maths::world_position c
   }
   (void)step;
 }
-void combat::move(maths::world_position const &observer, flight::time_step const step) {
+void combat::move(maths::world_position const &observer, flight::time_step const step, bool const on_foot, uint32_t const fast_ticks) {
   /// Advance independent effect/bullet lifetimes and retain fixed pool indices for collisions and later saves
   tick_step = step;
+  current_observer = maths::world_position{observer};
+  observer_on_foot = on_foot;
+  current_tick = fast_ticks;
   for(unsigned int i{scenery_count}; i != scenery_count + effect_capacity; ++i) {
     auto &object{theatre.objects[i]};
     if(object.flags == 0) continue;
@@ -595,7 +663,7 @@ void combat::rearm() noexcept {
   /// Boarding resets the aircraft's three-bomb supply, leaving carried pistol ammunition separate
   bombs = bomb_capacity;
 }
-combat_statistics const &combat::stats() const noexcept {
+sortie_statistics const &combat::stats() const noexcept {
   /// Present shared destruction and objective totals to the campaign/scoring owner
   return statistics;
 }

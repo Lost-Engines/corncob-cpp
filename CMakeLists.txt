@@ -78,6 +78,8 @@ endfunction()
 add_library(corncob_core STATIC
   src/game/actors.cpp
   src/game/actors.h
+  src/game/vehicle.cpp
+  src/game/vehicle.h
   src/game/joystick.cpp
   src/game/joystick.h
   src/game/vision.cpp
@@ -265,6 +267,8 @@ if(BUILD_TESTING)
   corncob_check(launcher_checks native_launchers "${PROJECT_SOURCE_DIR}/tests/reference/launchers.bin")
   corncob_check(title_checks native_title "${PROJECT_SOURCE_DIR}/tests/reference/title.bin")
   corncob_check(vision_checks native_visual_feedback "${PROJECT_SOURCE_DIR}/tests/reference/vision.bin")
+  corncob_check(shard_checks native_shards "${PROJECT_SOURCE_DIR}/tests/reference/shards.bin")
+  corncob_check(impact_checks native_impacts "${PROJECT_SOURCE_DIR}/tests/reference/impacts.bin")
   corncob_check(scenery_checks native_scenery "${PROJECT_SOURCE_DIR}/tests/reference/scenery.bin")
   corncob_check(proximity_checks native_proximity "${PROJECT_SOURCE_DIR}/tests/reference/proximity.bin")
   corncob_check(soundscape_checks native_soundscape "${PROJECT_SOURCE_DIR}/tests/reference/soundscape.bin")

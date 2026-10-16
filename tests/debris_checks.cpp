@@ -6,6 +6,7 @@
 #include "game/combat.h"
 #include "resources/assets.h"
 #include "resources/binary_reader.h"
+#include "tests/actor_record.h"
 
 int main(int const argc, char const *const argv[]) {
   /// Compare constructor output rather than an approximate visual or a chosen particle count
@@ -33,24 +34,22 @@ int main(int const argc, char const *const argv[]) {
     offset += 74;
     unsigned int const count{data.dword(offset)};
     offset += 4;
-    weapons.scatter(source, requested, pattern, step);
+    if(std::to_underlying(pattern) == 6) weapons.explosion(source.position, static_cast<uint16_t>(requested));
+    else if(std::to_underlying(pattern) >= 4) weapons.shatter(source, requested, std::to_underlying(pattern) == 4);
+    else weapons.scatter(source, requested, pattern, step);
     unsigned int actual{0};
     for(auto const &object : theatre.objects) {
       if(!object.has(corncob::world::object_flag::present)) continue;
       if(actual++ >= count) throw std::runtime_error{"too many debris particles"};
-      for(unsigned int axis{0}; axis != 3; ++axis) {
-        if(object.position[axis] != data.signed_dword(offset + axis * 4) || object.velocity[axis] != data.signed_word(offset + 46 + axis * 2)
-          || object.motion.spin[axis] != data.signed_word(offset + 54 + axis * 2)) throw std::runtime_error{"debris position/velocity/spin differs in case " + std::to_string(trial)};
-      }
-      if(std::to_underlying(object.type) != data.word(offset + 72) || object.timer != data.word(offset + 52)
-        || object.flags != data.word(offset + 24) || object.collision_group != data.byte(offset + 19) || object.motion.gravity != data.signed_word(offset + 64))
-        throw std::runtime_error{"debris type/flags/timer/gravity differs in case " + std::to_string(trial)};
+      corncob::tests::compare_actor(object, corncob::tests::read_actor(data, offset), trial, "debris");
       offset += 74;
       ++particles;
     }
     if(actual != count) throw std::runtime_error{"debris count differs"};
+    if(weapons.random_stream().seed() != data.dword(offset)) throw std::runtime_error{"debris random continuation differs"};
+    offset += 4;
   }
   if(offset != bytes.size()) throw std::runtime_error{"unconsumed debris reference bytes"};
-  std::cout << particles << " particles match 64 original debris/incendiary constructor runs" << std::endl;
+  std::cout << particles << " particles match 192 original debris/shard/explosion constructor runs" << std::endl;
   return EXIT_SUCCESS;
 }

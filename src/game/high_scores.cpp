@@ -27,7 +27,7 @@ void write_theatre(mission_score &entry, std::string_view const text) {
 }
 int16_t ground_kills(sortie_statistics const &value) {
   /// MOAG's displayed ground sum includes AAA, launch sites and generators, with its original word wrapping
-  int32_t sum{value.fuel_tet_kills + value.objectives_completed};
+  int32_t sum{value.resource_kills + value.objectives_completed};
   for(auto const *counts : {&value.aaa_kills, &value.site_kills, &value.orb_kills}) for(auto const count : *counts) sum += count;
   return maths::word(sum);
 }

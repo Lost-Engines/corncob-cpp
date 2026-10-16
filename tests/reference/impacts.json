@@ -1,0 +1,42 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "172723464946e4f96b3433dc4b96f726c0a619337fe630b5313f7c9a576791a4",
+  "cases": 832,
+  "single_callbacks": 704,
+  "paired_contacts": 128,
+  "object_types": [
+    0,
+    1,
+    2,
+    3,
+    6,
+    7,
+    11,
+    12,
+    13,
+    20,
+    21,
+    22,
+    23,
+    24,
+    27,
+    30,
+    42,
+    50,
+    51,
+    52,
+    53,
+    57
+  ],
+  "constructed_effects": 3772,
+  "routines": [
+    "Original type callback table at DS:0x2c50",
+    "Full radar/tower callbacks and shared FDEST hit path",
+    "0x755d SLAM paired contact callbacks",
+    "Original STRTFLT, STRTSHARD, STRTBOOM, RAND_W and quality-score helpers"
+  ],
+  "stubs": [
+    "0x9fdb EXPSTRT supplies independent empty slots and copies the requested native template"
+  ],
+  "scope": "Complete hit callbacks with accepted/rejected weapons, surviving and fatal health, full object state/models, all 130 score bytes, every constructed effect and complete random continuation. Paired SLAM cases retain mutations from the first callback as inputs to the second; radar heading uses the supplied fast tick word. No collision detection, painter dispatch or player-aircraft impact sentinel is supplied."
+}

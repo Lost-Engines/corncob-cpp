@@ -77,6 +77,7 @@ void actors::update_launcher(world::placed_object &object, actor_context const &
   unsigned int const sites{population(object.type)};
   if(object.type == vehicle_site) {
     unsigned int const rest{resources::vehicle_site_qualities[quality].launch_reset};
+    weapons.observe_vehicle_site(static_cast<uint16_t>(rest));
     if(object.timer >= rest) return;
     object.timer = static_cast<uint16_t>(rest * 3);
     if(present >= std::max(sites, 4u)) return;
@@ -315,66 +316,22 @@ void actors::update_vehicle(world::placed_object &object, actor_context const &c
     if(object.timer == 0) object.flags = 0;
     return;
   }
-  auto const displacement{vec3<int64_t>{object.position} - vec3<int64_t>{context.observer}};
-  int64_t const maximum{std::max({std::abs(displacement.x), std::abs(displacement.y), std::abs(displacement.z)})};
-  unsigned int const tier{maximum < 32'768 ? 0u : maximum < 524'288 ? 1u : maximum < 8'388'608 ? 2u : 3u};
+  auto const tier{vehicle_tier(object, context.observer)};
   object.position.z = 0;
   auto const &parameters{resources::vehicle_qualities[object.quality()]};
   if(object.has(world::object_flag::special)) ++object.timer;
-  auto follow_angles{[&]{
-    unsigned int speed{tier == 0 ? parameters.near_speed : parameters.far_speed};
-    if(tier == 0 && (object.flags & 2u) != 0) {
-      speed /= 4;
-      if((object.flags & 4u) != 0) speed = 0;
-    }
-    object.velocity = maths::transform(maths::make_inverse_rotation(object.attitude), {maths::word(speed), 0, 0});
-  }};
-  auto reset_direction{[&]{
-    if((object.flags & 4u) == 0) {
-      object.attitude.pitch = object.attitude.roll = 0;
-      object.attitude.heading = random.next();
-    }
-    if(tier == 3) {
-      object.flags = 0;
-      return;
-    }
-    unsigned int const pursuit{tier == 1 ? parameters.near_pursuit_threshold : parameters.far_pursuit_threshold};
-    if(tier == 0 || random.next() <= pursuit) {
-      if(auto const target{relative_target(object.position, context.observer)}) {
-        if((object.flags & 4u) == 0) object.attitude.heading = target->bearing.heading;
-        if(context.on_foot && target->distance <= 256) {
-          if(!effects.capture_pending) {
-            effects.capture_pending = true;
-            object.flags |= 2u;
-          }
-          if(target->distance <= 100) {
-            effects.capture_closing = true;
-            object.flags |= 4u;
-            if(object.collision_group == 1) {
-              effects.capture_pending = effects.capture_closing = false;
-              if(target->distance <= 32) effects.rescued = true;
-            }
-          }
-          effects.approach_target = maths::world_position{object.position};
-          return;
-        }
-      }
-    }
-    object.flags &= static_cast<uint16_t>(~6u);
-    follow_angles();
-  }};
   uint16_t threshold{static_cast<uint16_t>(timed(maths::word(parameters.change_direction_threshold), step))};
   bool const stopped_nearby{tier == 0 && (object.flags & 4u) != 0};
   if(tier == 0 && !stopped_nearby) threshold = static_cast<uint16_t>(threshold * 4);
-  if(stopped_nearby || random.next() <= threshold) reset_direction();
+  if(stopped_nearby || random.next() <= threshold) reset_vehicle(object, context.observer, tier, context.on_foot, random, effects);
   if((object.flags & 4u) != 0) {
     object.velocity = maths::fixed_vector{0, 0, 0};
-    if(object.collision_group != 1) follow_angles();
+    if(object.collision_group != 1) follow_vehicle(object, tier);
     return;
   }
   auto const phase{static_cast<maths::angle>(context.timer * parameters.weave_frequency)};
   object.attitude.heading += static_cast<maths::angle>(maths::sine(phase) / parameters.weave_divisor);
-  follow_angles();
+  follow_vehicle(object, tier);
 }
 
 void actors::update_alien(world::placed_object &object, actor_context const &context, flight::time_step const /*step*/) {
@@ -501,6 +458,7 @@ void actors::refresh_census(maths::world_position const &observer) {
 actor_effects const &actors::advance(actor_context const &context, flight::time_step const step) {
   /// Run the original nearby object handlers and rebuild the census for the following pass
   effects = {};
+  static_cast<vehicle_effects &>(effects) = weapons.take_vehicle_effects();
   effects.sound.kla_quality = last_kla_quality;
   if(!census_ready) refresh_census(context.observer);
   quality_counts aaa{}, kla{};
@@ -539,6 +497,11 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
       } else if(16'000 - object.timer > std::max(2, 5 * step.normal / step.elapsed)) object.timer = 32'000;
       break;
     case aa_shell: update_shell(i, context, step); break;
+    case shard:
+    case shard_2:
+      object.shard_colour = static_cast<uint16_t>(object.position.z) != 0 && ((i - weapons.stored_objects()) & 3u) == 0
+        ? static_cast<uint8_t>(random.below(2) * 2 + 12) : 0;
+      break;
     case saucer:
     case objective_saucer: update_saucer(object, context, step); break;
     case ground_vehicle:

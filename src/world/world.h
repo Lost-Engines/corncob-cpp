@@ -62,6 +62,8 @@ enum class model_pose {
   yellow_explosion,
   red_explosion,
   radar_wreck,
+  fuel_wreck,
+  blast_crater,
   distant_hidden,
 };
 
@@ -84,6 +86,7 @@ struct placed_object {
   motion_profile motion{};
   model_pose pose{model_pose::normal};
   std::optional<uint8_t> portal_colour{};
+  std::optional<uint8_t> shard_colour{};
   maths::fixed_vector collision_extents{0, 0, 0};
 
   unsigned int quality() const noexcept {
