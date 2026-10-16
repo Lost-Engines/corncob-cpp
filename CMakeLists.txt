@@ -122,6 +122,8 @@ add_library(corncob_core STATIC
   src/graphics/map_projection.h
   src/graphics/scene.cpp
   src/graphics/scene.h
+  src/graphics/title_sequence.cpp
+  src/graphics/title_sequence.h
   src/graphics/space_sequence.cpp
   src/graphics/space_sequence.h
   src/maths/fixed.cpp
@@ -221,7 +223,7 @@ if(BUILD_TESTING)
   corncob_check(damage_checks native_damage "${PROJECT_SOURCE_DIR}/tests/reference/damage.bin")
   corncob_check(actor_checks native_actors "${PROJECT_SOURCE_DIR}/tests/reference/actors.bin")
   corncob_check(scenario_checks scripted_scenarios)
-  corncob_check(interface_checks native_interface)
+  corncob_check(interface_checks native_interface "${PROJECT_BINARY_DIR}/interface-checks")
   corncob_check(score_checks native_score "${PROJECT_SOURCE_DIR}/tests/reference/score.bin")
   corncob_check(pilot_checks native_pilots "${PROJECT_SOURCE_DIR}/tests/reference/pilots.bin")
   corncob_check(campaign_checks persistent_campaign "${PROJECT_BINARY_DIR}/campaign-checks" "${PROJECT_SOURCE_DIR}/tests/reference")
@@ -240,6 +242,7 @@ if(BUILD_TESTING)
   corncob_check(endurance_checks sustained_gameplay)
   corncob_check(joystick_checks native_joystick "${PROJECT_SOURCE_DIR}/tests/reference/joystick.bin")
   corncob_check(vehicle_checks native_vehicles "${PROJECT_SOURCE_DIR}/tests/reference/vehicles.bin")
+  corncob_check(title_checks native_title "${PROJECT_SOURCE_DIR}/tests/reference/title.bin")
   corncob_check(vision_checks native_visual_feedback "${PROJECT_SOURCE_DIR}/tests/reference/vision.bin")
   target_link_libraries(audio_checks PRIVATE corncob_audio)
 endif()

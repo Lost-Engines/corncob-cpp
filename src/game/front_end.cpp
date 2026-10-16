@@ -35,7 +35,7 @@ front_end::front_end(resources::collection const &assets, campaign_store &campai
   stories{assets.story()},
   outcomes{assets.outcomes()} {
   /// One state machine replaces the original title, menu, help and outcome helper processes
-  page = start_in_flight ? interface_page::flight : skip_intro ? interface_page::menu : interface_page::title;
+  page = start_in_flight ? interface_page::flight : skip_intro ? interface_page::menu : interface_page::story;
   for(auto const name : {"img/3d2.img", "img/3d3.img", "img/3d4.img", "img/3d5.img", "img/3d6.img",
     "img/3d7.img", "img/3d8.img", "img/3d9.img", "img/3d10.img", "img/3d13.img"}) help_screens.push_back(resources::decode_cockpit_mask(assets.file(name)));
 }
@@ -51,11 +51,12 @@ void front_end::accept() {
     ending->toggle_warp();
     break;
   case interface_page::title:
-    page = interface_page::story;
-    story_index = 0;
+    title.reset();
+    page = interface_page::menu;
+    selection = 0;
     break;
   case interface_page::story:
-    if(++story_index == stories.size()) page = interface_page::menu;
+    advancing_story = true;
     break;
   case interface_page::menu:
     feedback.clear();
@@ -78,7 +79,7 @@ void front_end::accept() {
       break;
     case 4: page = interface_page::high_scores; score_list = 0; break;
     case 5: page = interface_page::control_setup; break;
-    case 6: page = interface_page::story; story_index = 0; break;
+    case 6: page = interface_page::story; story_index = 0; story_intensity = 0.0; advancing_story = false; break;
     default: page = interface_page::quit_confirmation; break;
     }
     selection = 0;
@@ -267,7 +268,7 @@ void front_end::command(interface_command const command) {
     else if(session_running && (page == interface_page::briefing || page == interface_page::missions || page == interface_page::current_score || page == interface_page::boss)) page = interface_page::flight;
     else if(page == interface_page::quit_confirmation) page = session_running ? interface_page::flight : interface_page::menu;
     else if(page == interface_page::pilots || page == interface_page::pilot_name || page == interface_page::pilot_delete || page == interface_page::records || page == interface_page::medals) { page = interface_page::roster; selection = 0; feedback.clear(); }
-    else if(page == interface_page::title || page == interface_page::story) page = interface_page::menu;
+    else if(page == interface_page::title || page == interface_page::story) { title.reset(); page = interface_page::menu; }
     else if(page == interface_page::menu && session_running) page = interface_page::flight;
     else if(page == interface_page::menu) {
       page = interface_page::quit_confirmation;
@@ -291,6 +292,15 @@ void front_end::begin_ending(graphics::indexed_framebuffer const &backdrop, std:
 }
 void front_end::advance(double const seconds) {
   /// Helper animations continue on wall time while flight state remains stopped
+  if(page == interface_page::story) {
+    double constexpr palette_steps_per_second{40.0}, maximum_intensity{16.0};
+    story_intensity = std::clamp(story_intensity + seconds * palette_steps_per_second * (advancing_story ? -1.0 : 1.0), 0.0, maximum_intensity);
+    if(advancing_story && story_intensity == 0.0) {
+      advancing_story = false;
+      if(++story_index == stories.size()) { title.emplace(assets); page = interface_page::title; }
+    }
+  }
+  if(page == interface_page::title) title->advance(seconds);
   if(page == interface_page::ending) {
     ending->advance(seconds);
     if(ending->finished()) { ending.reset(); show_outcome(14); }
@@ -392,6 +402,18 @@ void front_end::render(render::framebuffer &target) const {
   }
   if(page == interface_page::story) {
     graphics::draw_presentation(target, assets, stories.at(story_index));
+    unsigned int const intensity{static_cast<unsigned int>(story_intensity)};
+    if(intensity < 16) {
+      auto channel{[intensity](uint8_t const value){
+        unsigned int const dac{(value >> 2) * intensity / 16};
+        return static_cast<uint8_t>((dac << 2) | (dac >> 4));
+      }};
+      for(auto &pixel : target.pixels) pixel = {
+        .red{channel(pixel.red)},
+        .green{channel(pixel.green)},
+        .blue{channel(pixel.blue)},
+      };
+    }
     return;
   }
   if(page == interface_page::outcome) {
@@ -405,12 +427,7 @@ void front_end::render(render::framebuffer &target) const {
     return;
   }
   if(page == interface_page::title) {
-    graphics::interface_canvas canvas{target, assets.file("font8.bin"), 8, 320, 200};
-    canvas.clear();
-    auto const top{assets.image("vga/tlogogr.vga")}, bottom{assets.image("vga/blogogr.vga")};
-    canvas.image(top, static_cast<int>((320 - top.width) / 2), 8);
-    canvas.image(bottom, static_cast<int>((320 - bottom.width) / 2), 200 - static_cast<int>(bottom.height) - 32);
-    canvas.text(40, 184, "Press Enter to continue", white);
+    title->render(target);
     return;
   }
   bool const intelligence{page == interface_page::briefing};

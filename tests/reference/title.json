@@ -1,0 +1,28 @@
+{
+  "reference_sha256": "825f10a41d5d2963d83b6ad346c02aa081fbe1ef098728ef4feaba8af506e426",
+  "fixture_sha256": "fda6fab2c0d0b1cb914383f6147ba9fd524a124b278e35397b1dfb8fc442988b",
+  "motion_cases": 1024,
+  "native_vga_rows": 48,
+  "routines": [
+    "CCTITLE file 0x52a8..0x57a9 flyby",
+    "0x58bd..0x5d79 lettering",
+    "0x60b4 masked VGA write",
+    "0x6120 thresholded masked VGA write"
+  ],
+  "scope": "Frame counters, motion, fades, credit scrolling, stage completion and complete Borland PRNG continuation. Drawing is not claimed pixel-equivalent by this fixture.",
+  "stubs": [
+    "0x3c41 RETF: drawing or sound port boundary",
+    "0x3ae4 RETF: drawing or sound port boundary",
+    "0x3ea3 RETF: drawing or sound port boundary",
+    "0x61ab RETF: drawing or sound port boundary",
+    "0x61ff RETF: drawing or sound port boundary",
+    "0x60b4 RETF: drawing or sound port boundary",
+    "0x6120 RETF: drawing or sound port boundary",
+    "0x6337 RETF: drawing or sound port boundary",
+    "0x62c0 RETF: drawing or sound port boundary",
+    "0x62e9 RETF: drawing or sound port boundary",
+    "0x213a keyboard availability: return zero"
+  ],
+  "vga_adapter": "Unchained VGA plane selection, per-plane latches and original GC write masks; full 128-pixel rows, actual original OUT/MOVSB instructions, no stubs in mask routines.",
+  "presentation_clock": "Original CRTC page change does not wait for retrace. Native implementation uses a stable 70 Hz presentation clock; motion values retain original per-frame meaning."
+}

@@ -6,7 +6,8 @@ One executable will join the original front end, flight, scoring and ending.
 **Work in progress:** the four original theatres now support walking, flight,
 ejection and remote control, player weapons, active enemies, persistent named
 pilots, their original medal artwork, three high-score tables and sortie reports. The original story, outcome artwork and flight help
-and interactive Earth-saved starfield are integrated into the same executable. Several original systems are still
+and interactive Earth-saved starfield are integrated into the same executable.
+The introduction includes its original animated flyby, cloud-filled logo and credits. Several original systems are still
 being completed and checked against the DOS game. Music is deferred.
 
 ## Build and run

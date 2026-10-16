@@ -30,27 +30,30 @@ int main(int const argc, char const *const argv[]) {
   auto const stories{assets.story()}, outcomes{assets.outcomes()};
   if(stories.size() != 2 || outcomes.size() != 15) throw std::runtime_error{"original presentation count changed"};
   corncob::render::framebuffer frame;
-  std::filesystem::path const scratch{std::filesystem::temp_directory_path() / "corncob-interface-checks"};
+  if(argc < 2 || argc > 3) throw std::invalid_argument{"interface_checks requires its dedicated scratch directory and optional capture directory"};
+  std::filesystem::path const scratch{argv[1]};
+  if(scratch.filename() != "interface-checks") throw std::invalid_argument{"interface check directory must be named interface-checks"};
   std::filesystem::remove_all(scratch);
   game::campaign_store career{scratch};
   game::front_end front{assets, career};
+  front.advance(0.4);
   front.render(frame);
   if(frame.width != 320 || frame.height != 200) throw std::runtime_error{"title lost its original VGA resolution"};
-  if(argc == 2) std::filesystem::create_directories(argv[1]);
-  if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / "title.ppm");
+  if(argc == 3) std::filesystem::create_directories(argv[2]);
+  if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / "title.ppm");
   for(unsigned int i{0}; i != stories.size(); ++i) {
     corncob::graphics::draw_presentation(frame, assets, stories[i]);
-    if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / ("story" + std::to_string(i) + ".ppm"));
+    if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / ("story" + std::to_string(i) + ".ppm"));
   }
   for(unsigned int i{0}; i != outcomes.size(); ++i) {
     front.show_outcome(i);
     front.render(frame);
-    if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / ("outcome" + std::to_string(i) + ".ppm"));
+    if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / ("outcome" + std::to_string(i) + ".ppm"));
   }
   front.command(game::interface_command::accept);
   front.render(frame);
   if(frame.width != 640 || frame.height != 400) throw std::runtime_error{"menu lost its EGA text resolution"};
-  if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / "menu.ppm");
+  if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / "menu.ppm");
   front.command(game::interface_command::accept);
   front.command(game::interface_command::accept);
   for(unsigned int c : std::string{"Test Pilot"}) front.character(c);
@@ -62,7 +65,7 @@ int main(int const argc, char const *const argv[]) {
   front.command(game::interface_command::next);
   if(front.current_page() != game::interface_page::medals) throw std::runtime_error{"pilot medal view was not reachable"};
   front.render(frame);
-  if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / "medals.ppm");
+  if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / "medals.ppm");
   auto const menu_font{assets.menu_font()};
   auto const medals{assets.file("medal.fnc")};
   for(unsigned int offset{0}; offset != medals.size(); offset += 17)
@@ -76,7 +79,7 @@ int main(int const argc, char const *const argv[]) {
   front.command(game::interface_command::accept);
   front.command(game::interface_command::accept);
   front.render(frame);
-  if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / "briefing.ppm");
+  if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / "briefing.ppm");
   front.command(game::interface_command::accept);
   auto const launch{front.take_launch()};
   if(!launch || launch->theatre != "morning" || front.take_launch()) throw std::runtime_error{"menu launch request lost or repeated"};
@@ -84,7 +87,7 @@ int main(int const argc, char const *const argv[]) {
   front.show_flight_help();
   for(unsigned int page{0}; page != 10; ++page) {
     front.render(frame);
-    if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / ("help" + std::to_string(page) + ".ppm"));
+    if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / ("help" + std::to_string(page) + ".ppm"));
     front.command(game::interface_command::accept);
   }
   if(!front.in_flight()) throw std::runtime_error{"help sequence did not return to flight"};
@@ -94,7 +97,7 @@ int main(int const argc, char const *const argv[]) {
     if(message.lines.empty() || message.border.left < 0 || message.border.left + message.border.width > 640) throw std::runtime_error{"original radio message has invalid placement"};
     front.show_radio(type, frame, type == corncob::resources::radio_notice::map_instructions);
     front.render(frame);
-    if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / ("radio" + std::to_string(notice) + ".ppm"));
+    if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / ("radio" + std::to_string(notice) + ".ppm"));
     front.command(game::interface_command::accept);
     if(!front.in_flight() || front.take_map() != (type == corncob::resources::radio_notice::map_instructions)) throw std::runtime_error{"radio acknowledgement lost flight/map continuation"};
   }
@@ -115,7 +118,7 @@ int main(int const argc, char const *const argv[]) {
   setup.command(game::interface_command::next);
   if(setup.flight_controls().joystick_device != -2 || setup.flight_controls().beginner_flight) throw std::runtime_error{"control setup did not change keyboard selection and aerodynamic model"};
   setup.render(frame);
-  if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / "control-setup.ppm");
+  if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / "control-setup.ppm");
   setup.command(game::interface_command::down);
   setup.command(game::interface_command::accept);
   if(setup.current_page() != game::interface_page::help) throw std::runtime_error{"control setup lost the original help sequence"};
@@ -129,7 +132,7 @@ int main(int const argc, char const *const argv[]) {
   restored.command(game::interface_command::accept);
   restored.command(game::interface_command::accept);
   restored.render(frame);
-  if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / "delete-pilot.ppm");
+  if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / "delete-pilot.ppm");
   if(restored.current_page() != game::interface_page::pilot_delete) throw std::runtime_error{"pilot deletion confirmation was not reachable"};
   restored.command(game::interface_command::accept);
   if(reopened.pilots().size() != 1) throw std::runtime_error{"pilot deletion did not default to cancellation"};
@@ -139,6 +142,18 @@ int main(int const argc, char const *const argv[]) {
   restored.command(game::interface_command::up);
   restored.command(game::interface_command::accept);
   if(!reopened.pilots().empty()) throw std::runtime_error{"confirmed pilot deletion did not remove the pilot"};
+  game::front_end intro{assets, reopened};
+  for(unsigned int i{0}; i != 2; ++i) {
+    intro.advance(0.4);
+    intro.command(game::interface_command::accept);
+    intro.advance(0.4);
+  }
+  if(intro.current_page() != game::interface_page::title) throw std::runtime_error{"story fades did not lead to the animated title"};
+  intro.advance(4.0);
+  intro.render(frame);
+  if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / "animated-title.ppm");
+  intro.command(game::interface_command::accept);
+  if(intro.current_page() != game::interface_page::menu) throw std::runtime_error{"animated title could not continue to the menu"};
   std::filesystem::remove_all(scratch);
   std::cout << "Two story panels, fifteen outcomes, ten help pages and native menu navigation exercised" << std::endl;
   return EXIT_SUCCESS;

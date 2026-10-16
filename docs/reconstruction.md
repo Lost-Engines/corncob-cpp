@@ -143,8 +143,21 @@ uses the resulting original quantised palette rather than an RGB overlay.
 
 Original VGA/IMG data and presentation scripts supply two story panels, fifteen
 outcomes and ten help screens. MEDAL.FNC replaces sixteen BIOS glyphs; ten award
-entries use MOAG's original pair/colour table at file offset `0x1fa82`. Full animated
-title/reflection/fade playback remains unfinished; the current title is static.
+entries use MOAG's original pair/colour table at file offset `0x1fa82`.
+
+The story now precedes the animated CCTITLE sequence, with its sixteen-step DAC
+fades. The flyby retains reflected terrain scrolling, plane and saucer sprites,
+flak, muzzle flashes and the initial single pass. Later repeats retain the
+original three-pass continuation. Lettering keeps five moving cloud-detail bits
+and replaces the upper three index bits from the authored letter masks; its
+separate GRADSKY palette, threshold fade and scrolling credits are retained.
+The per-frame motion, state transitions and Borland PRNG continuation match
+1,024 unchanged native passes; 6,144 composited pixels match original VGA writes.
+The original CRTC page setter does not wait for retrace, so playback here uses a
+stable 70 Hz clock rather than depending on CPU or DOSBox cycle speed. Original
+presentation sound/music is not part of this visual reconstruction. Whole title
+frames, including sprite clipping and text rasterisation, are not yet claimed
+pixel-exact.
 
 The Earth-saved transition retains the indexed cockpit, shrinks the Earth in the
 rear window and fades only the sky before the SRATS starfield. Enter toggles warp
@@ -180,6 +193,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks and 12 polygon hashes; four original definition round trips; one 252-object plain saved world |
 | Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
+| Title | 1,024 original animation-state/PRNG passes and 6,144 VGA letter-mask pixels |
 | Ending | All 768 initial stars and 64 complete indexed native star frames |
 | Score/persistence | 512 score calculations; 16,384 original mask bytes; original control/model/new-pilot fixtures; exact native high-score retirement; roster/world restart, rename and deletion scenarios |
 | Sound | 512 engine/register-write cases and finite, non-silent PCM from the actual engine patch |
@@ -193,9 +207,10 @@ far-model crash before interactive playtesting.
 
 Private GLFW/X11 checks traversed pilot creation, mission selection, radio boxes,
 map, boss screen, help, score, abort/report, tower intelligence, repair/resume and
-Escape warnings. Captures were inspected without changing supplied DOS installs.
-The complete 32-check Release and sanitizer suites pass, including the longer
-scenarios. Subsequent checks verify the full ground-vehicle handler and visual feedback. Wire rasterisation, complete frame ordering,
+Escape warnings, followed by both story fades and the animated title/credits.
+Captures were inspected without changing supplied DOS installs.
+The complete 35-check Release and sanitizer suites pass, including the longer
+scenarios, ground-vehicle handler, visual feedback and animated title. Wire rasterisation, complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.
 
@@ -208,7 +223,8 @@ match without stubs; the connected rescue scenario still passes.
 
 ## Remaining fidelity work
 
-- Translate the animated title, palette transitions and reflection playback.
+- Extend whole-frame title comparisons beyond native motion, palette masking and
+  the inspected presentation captures.
 - Complete remaining front-end/bookkeeping details: scanner/award qualifications,
   theatre-header campaign words, training setup persistence and any remaining
   original configuration bits.

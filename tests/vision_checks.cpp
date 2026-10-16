@@ -53,6 +53,7 @@ int main(int const argc, char const *const argv[]) {
   corncob::graphics::scene_renderer renderer{geometry, cockpit};
   corncob::render::framebuffer image;
   corncob::graphics::camera observer{
+    .attitude{},
     .cockpit{false},
     .rear_view{false},
     .ground_detail{false},

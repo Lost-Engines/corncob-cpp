@@ -7,6 +7,7 @@
 #include "world/training.h"
 #include "graphics/interface.h"
 #include "graphics/space_sequence.h"
+#include "graphics/title_sequence.h"
 #include "resources/cockpit_mask.h"
 #include "resources/radio_messages.h"
 
@@ -70,6 +71,7 @@ private:
   unsigned int pilot_index{0};
   unsigned int score_list{0};
   std::optional<graphics::space_sequence> ending;
+  std::optional<graphics::title_sequence> title;
   render::framebuffer radio_backdrop;
   std::optional<resources::radio_message> radio;
   bool map_after_radio{false};
@@ -91,6 +93,8 @@ private:
   interface_page return_page{interface_page::menu};
   unsigned int selection{0};
   unsigned int story_index{0};
+  double story_intensity{0.0};
+  bool advancing_story{false};
   unsigned int help_index{0};
   unsigned int scroll{0};
   unsigned int outcome_index{0};
