@@ -461,6 +461,7 @@ auto main(int const argc, char const *const argv[])->int {
       .low_altitude{game->low_altitude_warning()},
       .timer{static_cast<uint16_t>(game->timer())},
       .bombs{game->bomb_supply()},
+      .rocket_colour{game->rocket_indicator_colour()},
       .damage{&game->aircraft_damage()},
     };
     auto const *const panel{!inspect && !game->in_map() && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};

@@ -24,6 +24,7 @@ struct atmosphere {
 };
 
 struct aircraft_state {
+  static int16_t constexpr rocket_capacity{2184};
   maths::world_position position{0, 0, 720};
   maths::angles attitude;
   maths::rotation world_to_body{maths::make_rotation({})};
@@ -45,7 +46,7 @@ struct aircraft_state {
   int16_t side_force{0};
   int16_t last_vertical_axis{0};
   uint16_t rolls{0};
-  int16_t rocket_ticks{2184};
+  int16_t rocket_ticks{rocket_capacity};
   bool rocket{false};
   bool flaps{false};
   bool on_ground{false};

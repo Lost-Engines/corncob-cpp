@@ -6,6 +6,7 @@
 #include "game/map_view.h"
 #include "game/pilot_motion.h"
 #include "game/vision.h"
+#include "game/rocket.h"
 #include "flight/damage.h"
 #include "game/combat.h"
 #include "game/actors.h"
@@ -111,6 +112,8 @@ private:
   uint16_t orb_distortion{0};
   vec3<uint16_t> palette_phase{0, 0, 0};
   uint32_t fast_ticks{0};
+  rocket_charge rocket_timer;
+  bool rocket_requested{false};
   unsigned int frame{0};
   std::string notice;
   bool messages{true};
@@ -160,6 +163,7 @@ public:
   bool remote_control() const noexcept;
   bool low_altitude_warning() const noexcept;
   unsigned int bomb_supply() const noexcept;
+  uint8_t rocket_indicator_colour() const noexcept;
   void relocate(world::mission_start const &start);
   void set_invincible(bool value) noexcept;
   void set_beginner_flight(bool enabled) noexcept;

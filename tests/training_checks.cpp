@@ -60,6 +60,7 @@ int main(int const argc, char const *const argv[]) {
      || flight.craft().on_ground || flight.craft().throttle != 200) throw std::runtime_error{"mission start did not reproduce DONEWMISS launch state"};
   auto const objects_before{flight.world().objects.size()};
   flight.advance({});
+  if(flight.craft().position == start.position) throw std::runtime_error{"airborne mission start retained the stopped-runway latch"};
   if(flight.world().objects.size() != objects_before) throw std::runtime_error{"mission start recreated the live world"};
   flight.press(corncob::game::action::toggle_messages);
   flight.relocate({

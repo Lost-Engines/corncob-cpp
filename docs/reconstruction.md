@@ -93,7 +93,8 @@ a claim of matching every original menu pixel.
 
 F1 retains BOSS.TXT's DOS-prompt disguise. F2 exposes intelligence and stored Sxyth
 airborne starts without rebuilding the world; damaged aircraft retain the original
-jump restriction and message. F3 reports the retained sortie without recording it.
+jump restriction and message. An airborne start explicitly releases the stopped
+runway latch so movement begins without another throttle input. F3 reports the retained sortie without recording it.
 F4 traverses ten original help pages. Eleven BLACKBOX records supply native warning
 rectangles, text and placements. Flight Escape warns once when messages are enabled
 and the pilot is beyond the tower's 5,200-unit range; a later Escape ends the sortie.
@@ -173,6 +174,13 @@ charging/ready/firing colours follow live state. Low-altitude hysteresis remains
 active when explanatory message boxes are disabled. Autopilot and objective lamps
 retain their original blue and bright-blue backgrounds.
 
+Rocket charge follows the original BIOS clock, including time-advance scaling and
+its overflow guard. The original leaves the stored charge unchanged when the
+next increment crosses the readiness threshold; the green lamp and ignition
+condition follow that branch. Discharged rockets recharge and cannot restart
+on a partial charge. Native comparisons cover 1,024 clock updates, with a full
+connected burn/recharge/reignition scenario.
+
 Original instruments, propeller, ground points, stars, sun directives, radar,
 homing pointer and animated model geometry are connected. Wire forcefields pulse
 with matching collision bounds; saucer discs pulse in opposition. Quality-zero
@@ -230,6 +238,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Fixed maths | All 65,536 sine inputs; 8,228 airflow angles; 512 forward/inverse rotation sets; 512 physics and fast vertex transforms each; 128 matrix compositions |
 | Landing maths | 1,024 magnitudes; 256 wheel clearances; 512 suspension/brake passes; 512 invulnerable bounce cases |
 | Flight | 256 force passes, including intermediate accumulators; 128 position integrations; 512 controls and attitude passes each |
+| Rocket recharge | 1,024 native BIOS-clock updates, including time advance, wrapping and readiness; connected discharge/recharge/reignition |
 | Autopilot/beginner | 512 feedback cases covering both models, stall state and engagement combinations |
 | Joystick | 512 SPKE/JOYTD response cases, plus keyboard/button/head-view integration |
 | Person | 512 free-fall damping and 512 parachute swing cases |

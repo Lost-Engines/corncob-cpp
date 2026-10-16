@@ -160,8 +160,7 @@ void instrument_panel::draw(indexed_framebuffer &target, random_source &random, 
   horizon({174, 224}, {30, 21}, pitch);
   auto const pitch_end{needle({174, 224}, {30, 21}, static_cast<maths::angle>(pitch + 16'384))};
   gauge(pitch_end, {10, 7}, pitch);
-  uint8_t const rocket_colour{static_cast<uint8_t>(aircraft.rocket ? 12 : aircraft.rocket_ticks >= 2184 ? 10 : 1)};
-  solid.line({79, 224}, needle({79, 224}, {20, 14}, static_cast<maths::angle>((aircraft.oil_pressure / 3) * 4 - (32'767 - 5400))), rocket_colour);
+  solid.line({79, 224}, needle({79, 224}, {20, 14}, static_cast<maths::angle>((aircraft.oil_pressure / 3) * 4 - (32'767 - 5400))), telemetry.rocket_colour);
   solid.line({43, 267}, needle({43, 267}, {28, 20}, static_cast<maths::angle>(altitude_phase / 10)), 9);
   solid.line({43, 267}, needle({43, 267}, {24, 16}, static_cast<maths::angle>(altitude_phase / 100)), 7);
   high.disc({static_cast<int>(aircraft.throttle) * 148 / 200 + 478, 246}, 5, 8);

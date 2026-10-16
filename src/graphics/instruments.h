@@ -24,6 +24,7 @@ struct instrument_telemetry {
   bool low_altitude{false};
   uint16_t timer{0};
   unsigned int bombs{3};
+  uint8_t rocket_colour{13};
   flight::damage_state const *damage{nullptr};
 };
 

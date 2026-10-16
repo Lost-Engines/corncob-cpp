@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "82ea45fa64c572d126c0e6f9f3245d40514624ec1c901632f4df032548243397",
+  "cases": 1024,
+  "routine": "0x45f5..0x4657 rocket recharge and readiness",
+  "stubs": [],
+  "scope": "Original BIOS tick wrapping, time-advance correction, division-overflow guard, stock wrapping, overshoot retention and needle colours. Native input helper also runs unchanged; no ignition key is supplied."
+}

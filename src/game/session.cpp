@@ -125,7 +125,7 @@ void session::press(action const command) {
     if(flying) aircraft.flaps = !aircraft.flaps;
     break;
   case action::rocket:
-    if(flying && aircraft.rocket_ticks > 0) aircraft.rocket = true;
+    if(flying) rocket_requested = true;
     break;
   case action::eject:
     if(mode == player_mode::in_aircraft) leave_aircraft();
@@ -286,6 +286,10 @@ void session::enter_aircraft(unsigned int const index) {
   weapons.rearm();
   controlled_aircraft = index;
   aircraft = flight::aircraft_state{};
+  rocket_timer = {
+    .previous_tick{static_cast<uint16_t>(fast_ticks >> 6)},
+  };
+  rocket_requested = false;
   aircraft.position = maths::world_position{object.position};
   aircraft.attitude = object.attitude;
   aircraft.variant = (object.flags & 0x2000u) != 0 ? flight::aircraft_variant::experimental
@@ -340,6 +344,7 @@ void session::retain_aircraft() {
 void session::leave_aircraft() {
   /// E steps onto the support surface when grounded and otherwise transfers flight velocity to the falling pilot
   if(!controlled_aircraft) return;
+  rocket_requested = false;
   weapons.rearm_person();
   person.position = maths::world_position{aircraft.position};
   person.attitude = aircraft.attitude;
@@ -623,6 +628,11 @@ void session::advance(input_state const &input) {
     update_person(flight_input, step);
     check_aircraft_entry();
   }
+  bool const rocket_ready{rocket_timer.advance(aircraft, static_cast<uint16_t>(fast_ticks >> 6), static_cast<uint16_t>(step.elapsed), static_cast<uint16_t>(step.normal))};
+  if(rocket_ready && rocket_requested && !airframe_destroyed && (mode == player_mode::in_aircraft || remote)) {
+    aircraft.rocket = true;
+    rocket_requested = false;
+  }
   bool const use_person{mode == player_mode::on_foot && !remote};
   auto const orientation{use_person ? maths::make_inverse_rotation(person.attitude) : aircraft.body_to_world};
   weapons.fire(input.weapons, {
@@ -728,6 +738,10 @@ sound_cues const &session::sounds() const noexcept {
   /// Audio observes successful gameplay events without consuming or mutating them
   return weapons.sounds();
 }
+uint8_t session::rocket_indicator_colour() const noexcept {
+  /// Native recharge makes the oil-pressure needle blue while charging, green when ready and red during ignition
+  return rocket_timer.colour;
+}
 bool session::low_altitude_warning() const noexcept {
   /// The panel warning retains hysteresis independently of whether explanatory radio boxes are enabled
   return low_altitude;
@@ -823,7 +837,9 @@ void session::relocate(world::mission_start const &start) {
   aircraft.velocity = maths::transform(aircraft.body_to_world, aircraft.body_velocity);
   aircraft.throttle = damage.maximum_throttle;
   aircraft.on_ground = false;
-  landing = {};
+  landing = {
+    .stopped{false},
+  };
   left_ground = true;
   retain_aircraft();
   enemies.refresh_census(aircraft.position);
@@ -860,7 +876,11 @@ void session::resume_from_tower() {
     aircraft.position.z = flight::landing_state::aircraft_height;
     aircraft.world_to_body = maths::make_rotation(aircraft.attitude);
     aircraft.body_to_world = maths::make_inverse_rotation(aircraft.attitude);
-    aircraft.rocket_ticks = 2184;
+    aircraft.rocket_ticks = rocket_charge::capacity;
+    rocket_timer = {
+      .previous_tick{static_cast<uint16_t>(fast_ticks >> 6)},
+    };
+    rocket_requested = false;
     landing.crash_landing = false;
     landing.stopped = true;
     retain_aircraft();
