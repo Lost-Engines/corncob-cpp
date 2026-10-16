@@ -119,7 +119,7 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
   if(!selected) { save_scores(theatre, result); return; }
   auto &pilot{roster.pilots[*selected]};
   pilot.finish_sortie(result);
-  if(required_theatre(theatre) && remaining_objectives(world) == 0) {
+  if(result.counts_for_career() && required_theatre(theatre) && remaining_objectives(world) == 0) {
     auto const previous{load_world(theatre)};
     if(!previous || remaining_objectives(*previous) != 0) {
       pilot.award(medal::theatre_combat);

@@ -412,3 +412,17 @@ models now correctly contribute no drawing commands. All 31 checks, including
 this longer run, pass under address and undefined-behaviour sanitizers.
 The renderer retains a separate visual random stream, and complete original
 frame ordering is still under comparison.
+
+## Medal records and uncounted flights
+
+The menu font now installs all sixteen original MEDAL.FNC glyph replacements.
+Pilot records expose the ten medal types with the original glyph pairs and EGA
+colours from MOAG's table at file offset 0x1fa82. Left/Right switches statistics
+and medals; Up/Down browses the roster. Interface checks verify every replacement
+font row and the navigation chain; the rendered medal page was inspected.
+
+MOAG's branches at 0x12eb8 (invulnerability) and 0x13168 (Control-C abort) bypass
+career accumulation. These flights now leave the complete pilot record and high
+score tables unchanged. World persistence remains separate from career credit.
+Pilot and campaign checks verify that even a killed/high-scoring uncounted result
+cannot change saved career bytes or enter the score lists.

@@ -88,6 +88,7 @@ std::array<uint8_t, score_tables::native_bytes> score_tables::encode() const {
 }
 void score_tables::record(std::string_view const theatre, sortie_statistics const &result, pilot_record const *const pilot) {
   /// Mission records are separate achievements; cumulative and fastest lists retain one current row per named career
+  if(!result.counts_for_career()) return;
   auto const name{name_bytes(pilot ? pilot->name() : "trainee")};
   int32_t const points{calculate_score(result)};
   if(points > missions.back().points) {

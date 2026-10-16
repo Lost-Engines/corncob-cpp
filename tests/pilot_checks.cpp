@@ -46,6 +46,14 @@ int main(int const argc, char const *const argv[]) {
   if(pilot.rank() != corncob::game::pilot_rank::captain || pilot.career().objectives_completed != 7)
     throw std::runtime_error{"normal captain promotion or cumulative objectives failed"};
   if(pilot.awards(corncob::game::medal::distinguished_service_cross) != 1) throw std::runtime_error{"five-objective medal failed"};
+  auto const eligible_record{std::vector<uint8_t>{pilot.native_data().begin(), pilot.native_data().end()}};
+  for(auto const excluded : {corncob::game::sortie_status::invincible, corncob::game::sortie_status::aborted}) {
+    auto practice{result};
+    practice.mark(excluded);
+    practice.mark(corncob::game::sortie_status::killed);
+    pilot.finish_sortie(practice);
+    if(!std::ranges::equal(pilot.native_data(), eligible_record)) throw std::runtime_error{"unrecorded sortie changed the career or killed its pilot"};
+  }
   std::cout << "16384 native pilot-mask bytes, both roster layouts and basic career progression exercised" << std::endl;
   return EXIT_SUCCESS;
 }

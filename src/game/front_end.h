@@ -36,6 +36,7 @@ enum class interface_page {
   pilots,
   pilot_name,
   records,
+  medals,
   sortie_summary,
   high_scores,
   current_score,
@@ -56,6 +57,7 @@ class front_end {
 private:
   resources::collection const &assets;
   campaign_store &campaign;
+  std::array<uint8_t, 4096> menu_font;
   enum class roster_action { activate, records, rename, resurrect };
   roster_action pilot_action{roster_action::activate};
   unsigned int pilot_index{0};

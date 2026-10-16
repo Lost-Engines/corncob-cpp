@@ -5,7 +5,7 @@ One executable will join the original front end, flight, scoring and ending.
 
 **Work in progress:** the four original theatres now support walking, flight,
 ejection and remote control, player weapons, active enemies, persistent named
-pilots, three high-score tables and sortie reports. The original story, outcome artwork and flight help
+pilots, their original medal artwork, three high-score tables and sortie reports. The original story, outcome artwork and flight help
 and interactive Earth-saved starfield are integrated into the same executable. Several original systems are still
 being completed and checked against the DOS game. Music is deferred.
 
@@ -49,7 +49,9 @@ toggles them. The homing pointer along the viewport border points back to base.
 Control-C aborts a sortie without awarding points.
 The experimental aircraft at White Sands requires campaign clearance before
 its throttle operates. Create or activate a pilot through the duty roster to save
-your career and changes to each theatre. The default trainee does not save progress.
+your career and changes to each theatre. Pilot records use Left/Right to switch
+between statistics and medals, and Up/Down to browse pilots. Invulnerable and
+Control-C-aborted flights do not count toward careers or high scores. The default trainee does not save progress.
 `--save-dir` overrides the platform user-data directory.
 
 The training menu generates the original practice world with selectable defence

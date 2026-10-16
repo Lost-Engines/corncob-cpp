@@ -57,6 +57,21 @@ int main(int const argc, char const *const argv[]) {
   front.command(game::interface_command::accept);
   if(!career.active_pilot() || career.active_pilot()->name() != "Test Pilot") throw std::runtime_error{"roster name entry failed"};
   front.command(game::interface_command::cancel);
+  for(unsigned int i{0}; i != 3; ++i) front.command(game::interface_command::down);
+  front.command(game::interface_command::accept);
+  front.command(game::interface_command::next);
+  if(front.current_page() != game::interface_page::medals) throw std::runtime_error{"pilot medal view was not reachable"};
+  front.render(frame);
+  if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / "medals.ppm");
+  auto const menu_font{assets.menu_font()};
+  auto const medals{assets.file("medal.fnc")};
+  for(unsigned int offset{0}; offset != medals.size(); offset += 17)
+    for(unsigned int row{0}; row != 16; ++row)
+      if(menu_font[medals[offset + 16] * 16u + row] != medals[offset + row]) throw std::runtime_error{"medal glyph differs from its original font record"};
+  front.command(game::interface_command::previous);
+  if(front.current_page() != game::interface_page::records) throw std::runtime_error{"medal view did not return to career records"};
+  front.command(game::interface_command::cancel);
+  front.command(game::interface_command::cancel);
   front.command(game::interface_command::down);
   front.command(game::interface_command::accept);
   front.command(game::interface_command::accept);

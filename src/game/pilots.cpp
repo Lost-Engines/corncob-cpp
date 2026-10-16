@@ -111,6 +111,7 @@ void pilot_record::award(medal const kind) {
 }
 void pilot_record::finish_sortie(sortie_statistics const &result) {
   /// Store the latest result and update normal-game promotion and sortie medal conditions
+  if(!result.counts_for_career()) return;
   auto const raw{result.encode()};
   std::ranges::copy(raw, data.begin() + latest_statistics_offset);
   int32_t const score{calculate_score(result)};

@@ -10,6 +10,10 @@ bool sortie_statistics::has(sortie_status const flag) const noexcept {
   /// Preserve priority-based outcome tests without conflating present and historical sortie state
   return (status & std::to_underlying(flag)) != 0;
 }
+bool sortie_statistics::counts_for_career() const noexcept {
+  /// MOAG's invulnerable and Control-C result branches return before career accumulation and awards
+  return !has(sortie_status::invincible) && !has(sortie_status::aborted);
+}
 void sortie_statistics::mark(sortie_status const flag) noexcept {
   /// A sortie can retain several historical flags; scoring decides their original priority
   status |= std::to_underlying(flag);

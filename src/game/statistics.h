@@ -41,6 +41,7 @@ struct sortie_statistics {
   quality_counts orb_kills{};
 
   bool has(sortie_status flag) const noexcept;
+  bool counts_for_career() const noexcept;
   void mark(sortie_status flag) noexcept;
   std::array<uint8_t, native_bytes> encode() const;
   static sortie_statistics decode(std::span<uint8_t const> source);

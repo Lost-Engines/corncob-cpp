@@ -1,4 +1,5 @@
 #include "front_end.h"
+#include "render/palette.h"
 #include <algorithm>
 #include <sstream>
 #include <format>
@@ -26,6 +27,7 @@ std::span<uint8_t const> briefing_data(std::string_view const name) {
 front_end::front_end(resources::collection const &assets, campaign_store &campaign, bool const skip_intro, bool const start_in_flight) :
   assets{assets},
   campaign{campaign},
+  menu_font{assets.menu_font()},
   stories{assets.story()},
   outcomes{assets.outcomes()} {
   /// One state machine replaces the original title, menu, help and outcome helper processes
@@ -129,6 +131,7 @@ void front_end::accept() {
     } catch(std::exception const &error) { feedback = error.what(); }
     break;
   case interface_page::records:
+  case interface_page::medals:
     page = interface_page::roster;
     selection = 0;
     break;
@@ -208,11 +211,13 @@ void front_end::command(interface_command const command) {
     break;
   case interface_command::accept: accept(); break;
   case interface_command::up:
-    if(page == interface_page::briefing) { if(scroll != 0) --scroll; }
+    if(page == interface_page::records || page == interface_page::medals) pilot_index = (pilot_index + static_cast<unsigned int>(campaign.pilots().size()) - 1) % static_cast<unsigned int>(campaign.pilots().size());
+    else if(page == interface_page::briefing) { if(scroll != 0) --scroll; }
     else selection = (selection + count - 1) % count;
     break;
   case interface_command::down:
-    if(page == interface_page::briefing) { ++scroll; clamp_scroll(); }
+    if(page == interface_page::records || page == interface_page::medals) pilot_index = (pilot_index + 1) % static_cast<unsigned int>(campaign.pilots().size());
+    else if(page == interface_page::briefing) { ++scroll; clamp_scroll(); }
     else selection = (selection + 1) % count;
     break;
   case interface_command::page_down:
@@ -222,11 +227,15 @@ void front_end::command(interface_command const command) {
     scroll = scroll > 17 ? scroll - 17 : 0;
     break;
   case interface_command::previous:
+    if(page == interface_page::medals) page = interface_page::records;
+    else if(page == interface_page::records) page = interface_page::medals;
     if(page == interface_page::high_scores) score_list = (score_list + 2) % 3;
     if(page == interface_page::training) adjust_training(-1);
     if(page == interface_page::help && help_index != 0) --help_index;
     break;
   case interface_command::next:
+    if(page == interface_page::medals) page = interface_page::records;
+    else if(page == interface_page::records) page = interface_page::medals;
     if(page == interface_page::high_scores) score_list = (score_list + 1) % 3;
     if(page == interface_page::training) adjust_training(1);
     if(page == interface_page::help || page == interface_page::story || page == interface_page::title) accept();
@@ -238,7 +247,7 @@ void front_end::command(interface_command const command) {
     else if(page == interface_page::help) page = return_page;
     else if(session_running && (page == interface_page::briefing || page == interface_page::missions || page == interface_page::current_score || page == interface_page::boss)) page = interface_page::flight;
     else if(page == interface_page::quit_confirmation) page = session_running ? interface_page::flight : interface_page::menu;
-    else if(page == interface_page::pilots || page == interface_page::pilot_name || page == interface_page::records) { page = interface_page::roster; selection = 0; feedback.clear(); }
+    else if(page == interface_page::pilots || page == interface_page::pilot_name || page == interface_page::records || page == interface_page::medals) { page = interface_page::roster; selection = 0; feedback.clear(); }
     else if(page == interface_page::title || page == interface_page::story) page = interface_page::menu;
     else if(page == interface_page::menu && session_running) page = interface_page::flight;
     else if(page == interface_page::menu) {
@@ -326,7 +335,7 @@ void front_end::draw_menu(graphics::interface_canvas &canvas, std::string_view c
   canvas.box(172, 4, 460, 72, white);
   canvas.text(272, 12, "Corncob 3D", white);
   canvas.text(316 - static_cast<int>(title.size()) * 4, 44, title, grey);
-  canvas.text(80, 92, "Use arrow keys and Enter to choose an action:", {85, 255, 255});
+  if(!choices.empty()) canvas.text(80, 92, "Use arrow keys and Enter to choose an action:", {85, 255, 255});
   unsigned int const first{selection < 8 ? 0 : selection - 7};
   for(unsigned int n{first}; n < choices.size() && n < first + 8; ++n) {
     int const y{112 + static_cast<int>(n - first) * 24};
@@ -381,7 +390,7 @@ void front_end::render(render::framebuffer &target) const {
     return;
   }
   bool const intelligence{page == interface_page::briefing};
-  graphics::interface_canvas canvas{target, assets.file(intelligence ? "font14.bin" : "font16.bin"), intelligence ? 14u : 16u, 640, intelligence ? 350u : 400u};
+  graphics::interface_canvas canvas{target, intelligence ? assets.file("font14.bin") : std::span<uint8_t const>{menu_font}, intelligence ? 14u : 16u, 640, intelligence ? 350u : 400u};
   if(page == interface_page::menu) {
     static std::array<std::string_view, 8> constexpr choices{"Duty roster", "Combat missions", "Training missions", "Pilot records", "High-score tables", "Flight controls and help", "Introduction", "Quit"};
     static std::array<std::string_view, 3> constexpr resume{"Resume flight", "Flight controls and help", "End current sortie"};
@@ -429,7 +438,21 @@ void front_end::render(render::framebuffer &target) const {
     canvas.text(72, 224, "Friendly losses: " + std::to_string(result.friendly_destroyed), grey);
     canvas.text(72, 248, "Maximum damage: " + std::to_string(result.maximum_damage), grey);
     if(pilot) canvas.text(72, 272, "Career sorties: " + std::to_string(pilot->sorties()), grey);
-    canvas.text(72, 304, "Press Enter to continue", yellow);
+    canvas.text(72, 304, page == interface_page::records ? "Left/Right: medals   Up/Down: pilot   Enter: roster" : "Press Enter to continue", yellow);
+  } else if(page == interface_page::medals) {
+    draw_menu(canvas, "Pilot medals", {});
+    auto const &pilot{campaign.pilots()[pilot_index]};
+    canvas.text(72, 88, pilot.name() + " - " + std::string{rank_name(pilot.rank())}, yellow);
+    for(unsigned int i{0}; i != medal_definitions.size(); ++i) {
+      auto const &award{medal_definitions[i]};
+      unsigned int const count{pilot.awards(award.kind)};
+      int const row{116 + static_cast<int>(i) * 18};
+      auto const colour{count == 0 ? render::ega_palette[8] : render::ega_palette[award.colour]};
+      canvas.text(80, row, std::string_view{award.glyphs.data(), award.glyphs.size()}, colour);
+      canvas.text(112, row, award.name, count == 0 ? grey : white);
+      canvas.text(496, row, std::to_string(count), count == 0 ? grey : yellow);
+    }
+    canvas.text(72, 316, "Left/Right: records  Up/Down: pilot  Enter: roster", yellow);
   } else if(page == interface_page::high_scores) {
     std::array<std::string_view, 3> constexpr titles{"Best missions", "Top careers", "Fastest careers"};
     draw_menu(canvas, titles[score_list], {});

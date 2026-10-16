@@ -36,6 +36,7 @@ public:
   explicit collection(std::span<uint8_t const> source);
   std::span<uint8_t const> file(std::string_view name) const;
   std::string_view text(std::string_view name) const;
+  std::array<uint8_t, 4096> menu_font() const;
   indexed_image image(std::string_view name) const;
   std::vector<presentation_panel> story() const;
   std::vector<presentation_panel> outcomes() const;

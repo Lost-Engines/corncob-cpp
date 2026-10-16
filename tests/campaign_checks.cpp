@@ -49,6 +49,18 @@ int main(int const argc, char const *const argv[]) {
     auto const loaded{campaign.load_world("morning")};
     require(loaded.has_value(), "changed theatre was not saved");
     require(std::ranges::any_of(loaded->objects, [](auto const &object){return object.type == world::object_type::destroyed_generator_orb && (object.flags & 0x200u) != 0;}), "destroyed objective reverted after loading");
+    auto const career_before{std::vector<uint8_t>{campaign.active_pilot()->native_data().begin(), campaign.active_pilot()->native_data().end()}};
+    auto const scores_before{campaign.high_scores().encode()};
+    for(auto const excluded : {game::sortie_status::invincible, game::sortie_status::aborted}) {
+      game::sortie_statistics unrecorded{
+        .objectives_completed{100},
+      };
+      unrecorded.mark(excluded);
+      unrecorded.mark(game::sortie_status::killed);
+      campaign.finish_sortie("morning", theatre, unrecorded);
+      require(std::ranges::equal(campaign.active_pilot()->native_data(), career_before), "unrecorded sortie changed a saved career");
+      require(campaign.high_scores().encode() == scores_before, "unrecorded sortie entered a high-score table");
+    }
     campaign.rename_pilot(0, "Renamed pilot");
     require(campaign.load_world("morning").has_value(), "renaming orphaned the pilot's theatre");
     campaign.create_pilot("Other pilot");

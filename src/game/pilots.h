@@ -31,6 +31,77 @@ enum class medal : uint16_t {
   theatre_combat,
 };
 
+struct medal_definition {
+  medal kind;
+  std::string_view name;
+  std::array<char, 2> glyphs;
+  uint8_t colour;
+};
+
+// original MOAG 3.42 award table at file offset 0x1fa82; artwork comes from MEDAL.FNC
+inline std::array<medal_definition, 10> constexpr medal_definitions{
+  medal_definition{
+    .kind{medal::purple_heart},
+    .name{"Purple Heart"},
+    .glyphs{static_cast<char>(0xd0), static_cast<char>(0xe0)},
+    .colour{13},
+  },
+  medal_definition{
+    .kind{medal::bronze_star},
+    .name{"Bronze Star"},
+    .glyphs{static_cast<char>(0xd1), static_cast<char>(0xe1)},
+    .colour{6},
+  },
+  medal_definition{
+    .kind{medal::silver_star},
+    .name{"Silver Star"},
+    .glyphs{static_cast<char>(0xd1), static_cast<char>(0xe1)},
+    .colour{7},
+  },
+  medal_definition{
+    .kind{medal::gold_star},
+    .name{"Gold Star"},
+    .glyphs{static_cast<char>(0xd1), static_cast<char>(0xe1)},
+    .colour{14},
+  },
+  medal_definition{
+    .kind{medal::distinguished_service_cross},
+    .name{"Distinguished Service Cross"},
+    .glyphs{static_cast<char>(0xd2), static_cast<char>(0xe2)},
+    .colour{6},
+  },
+  medal_definition{
+    .kind{medal::service_award},
+    .name{"Service Award"},
+    .glyphs{static_cast<char>(0xd3), static_cast<char>(0xe3)},
+    .colour{14},
+  },
+  medal_definition{
+    .kind{medal::stellar_cluster},
+    .name{"Stellar Cluster"},
+    .glyphs{static_cast<char>(0xd4), static_cast<char>(0xe4)},
+    .colour{15},
+  },
+  medal_definition{
+    .kind{medal::combat_master},
+    .name{"Combat Master"},
+    .glyphs{static_cast<char>(0xd5), static_cast<char>(0xe5)},
+    .colour{15},
+  },
+  medal_definition{
+    .kind{medal::distinguished_flying_cross},
+    .name{"Distinguished Flying Cross"},
+    .glyphs{static_cast<char>(0xd6), static_cast<char>(0xe6)},
+    .colour{14},
+  },
+  medal_definition{
+    .kind{medal::theatre_combat},
+    .name{"Theater Combat Medal"},
+    .glyphs{static_cast<char>(0xd7), static_cast<char>(0xe7)},
+    .colour{12},
+  },
+};
+
 class pilot_record {
 private:
   std::array<uint8_t, 623> data{};

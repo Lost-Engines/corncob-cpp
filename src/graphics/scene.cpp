@@ -1,4 +1,5 @@
 #include "scene.h"
+#include "render/palette.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -164,13 +165,7 @@ std::optional<visible_object> visibility(world::placed_object const &object, res
 
 void scene_renderer::set_palette(world::theatre const &theatre, maths::world_position const &position) {
   /// Restore EGA colours, then unpack the theatre's native six-bit sky and ground RGB values
-  static std::array<render::rgba_pixel, 16> constexpr ega{
-    render::rgba_pixel{0, 0, 0}, render::rgba_pixel{0, 0, 170}, render::rgba_pixel{0, 170, 0}, render::rgba_pixel{0, 170, 170},
-    render::rgba_pixel{170, 0, 0}, render::rgba_pixel{170, 0, 170}, render::rgba_pixel{170, 85, 0}, render::rgba_pixel{170, 170, 170},
-    render::rgba_pixel{85, 85, 85}, render::rgba_pixel{85, 85, 255}, render::rgba_pixel{85, 255, 85}, render::rgba_pixel{85, 255, 255},
-    render::rgba_pixel{255, 85, 85}, render::rgba_pixel{255, 85, 255}, render::rgba_pixel{255, 255, 85}, render::rgba_pixel{255, 255, 255},
-  };
-  palette = ega;
+  palette = render::ega_palette;
   int const tile_x{std::clamp((position.x - world::theatre::origin) / world::theatre::tile_size, 0, 7)};
   int const tile_y{std::clamp((position.y - world::theatre::origin) / world::theatre::tile_size, 0, 7)};
   uint64_t packed{0};

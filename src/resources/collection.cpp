@@ -61,6 +61,16 @@ std::string_view collection::text(std::string_view const name) const {
   auto const data{file(name)};
   return {reinterpret_cast<char const*>(data.data()), data.size()};
 }
+std::array<uint8_t, 4096> collection::menu_font() const {
+  /// MOAG installs the sixteen MEDAL.FNC replacements into its BIOS 8-by-16 font
+  std::array<uint8_t, 4096> result;
+  auto const base{file("font16.bin")}, medals{file("medal.fnc")};
+  if(base.size() != result.size() || medals.size() % 17 != 0) throw std::invalid_argument{"invalid original menu font"};
+  std::ranges::copy(base, result.begin());
+  for(unsigned int offset{0}; offset != medals.size(); offset += 17)
+    std::copy_n(medals.begin() + offset, 16, result.begin() + medals[offset + 16] * 16);
+  return result;
+}
 indexed_image collection::image(std::string_view const name) const {
   /// JVCC stores consecutive pixels followed by alignment padding, two extra bytes and an optional six-bit RGB palette
   auto const source{file(name)};
