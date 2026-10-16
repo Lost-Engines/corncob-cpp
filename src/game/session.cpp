@@ -30,7 +30,8 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
   geometry{geometry},
   theatre{std::move(theatre)},
   weapons{geometry, this->theatre},
-  enemies{geometry, this->theatre, weapons} {
+  enemies{geometry, this->theatre, weapons},
+  random{weapons.random_stream()} {
   /// READUNIV starts the pilot on foot three thousand centimetres south of the stored start
   atmosphere = {
     .gravity{this->theatre.environment.gravity},

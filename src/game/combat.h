@@ -70,6 +70,8 @@ public:
   static unsigned int constexpr bomb_capacity{3};
 
   combat(resources::geometry_bank const &geometry, world::theatre &theatre, uint32_t seed = 2'949'243u);
+  maths::random_source &random_stream() noexcept;
+  void impact_sound() noexcept;
   void scatter(world::placed_object const &source, unsigned int count, fragment_pattern pattern, flight::time_step step);
   void rearm_person() noexcept;
   std::optional<unsigned int> spawn(world::object_type type, maths::world_position const &position);

@@ -59,11 +59,11 @@ bool objective_in_range(world::placed_object const &object, resources::object_de
 
 } // anonymous namespace
 
-actors::actors(resources::geometry_bank const &geometry, world::theatre &theatre, combat &weapons, uint32_t const seed) :
+actors::actors(resources::geometry_bank const &geometry, world::theatre &theatre, combat &weapons) :
   geometry{geometry},
   theatre{theatre},
   weapons{weapons},
-  random{seed} {
+  random{weapons.random_stream()} {
   /// Keep the preceding active census separate from this pass's live actor updates
 }
 void actors::update_launcher(world::placed_object &object, actor_context const &context, flight::time_step const step) {
@@ -171,8 +171,10 @@ void actors::update_saucer(world::placed_object &object, actor_context const &co
     object.motion.dispersion = 20;
     object.motion.drag_divisor = 18'000;
     if(object.position.z < 1000) {
-      weapons.explosion(object.position);
+      weapons.scatter(object, 12, fragment_pattern::upward, step);
+      weapons.scatter(object, 15, fragment_pattern::incendiary, step);
       object.flags = 0;
+      weapons.impact_sound();
     }
     return;
   }

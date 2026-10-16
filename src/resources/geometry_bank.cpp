@@ -210,6 +210,7 @@ model_levels geometry_bank::appearance(world::placed_object const &object) const
 
 std::span<draw_command const> geometry_bank::commands(model_address const address, unsigned int const octant) const {
   /// Expose the selected painter list without copying or sorting its primitives
+  if(address == 0) return {};
   return models.at(address).octants.at(octant);
 }
 primitive const &geometry_bank::drawing(unsigned int const index) const {

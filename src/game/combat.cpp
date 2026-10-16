@@ -222,6 +222,14 @@ void combat::fire(weapon_controls const &controls, weapon_origin const &origin, 
   }
 }
 
+maths::random_source &combat::random_stream() noexcept {
+  /// Flight damage, active actors and effect constructors consume the same original gameplay stream
+  return random;
+}
+void combat::impact_sound() noexcept {
+  /// BIGBOOM requests impact audio without creating an additional geometric explosion
+  ++cues.explosions;
+}
 void combat::scatter(world::placed_object const &source, unsigned int const requested, fragment_pattern const pattern, flight::time_step const step) {
   /// STRTFLT randomizes the requested debris count; incendiaries and mortar barrages retain their fixed counts
   bool const incendiary{pattern == fragment_pattern::incendiary}, mortar{pattern == fragment_pattern::mortar};
@@ -424,11 +432,11 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     [[fallthrough]];
   case saucer:
     object.flags &= static_cast<uint16_t>(~8u);
-    object.motion.spin = maths::fixed_vector{static_cast<int16_t>(random.below(4000)), static_cast<int16_t>(random.below(4000)),
-      static_cast<int16_t>(random.below(4000))};
     ++statistics.resources_destroyed;
     this->explosion(object.position);
     scatter(object, 9, fragment_pattern::outward, tick_step);
+    object.motion.spin = maths::fixed_vector{static_cast<int16_t>(random.below(4000)), static_cast<int16_t>(random.below(4000)),
+      static_cast<int16_t>(random.below(4000))};
     break;
   case alien:
     object.position.z = 0;

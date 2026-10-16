@@ -23,8 +23,8 @@ int main(int const argc, char const *const argv[]) {
   unsigned int offset{12}, shells{0};
   for(unsigned int i{0}; i != 1536; ++i, offset += 248) {
     world::theatre theatre;
-    game::combat weapons{geometry, theatre};
-    game::actors actors{geometry, theatre, weapons, data.dword(offset + 95)};
+    game::combat weapons{geometry, theatre, data.dword(offset + 95)};
+    game::actors actors{geometry, theatre, weapons};
     auto const index{*weapons.spawn(static_cast<world::object_type>(data.word(offset + 72)), {0, 0, 0})};
     auto &object{theatre.objects[index]};
     object.position = maths::world_position{data.signed_dword(offset), data.signed_dword(offset + 4), data.signed_dword(offset + 8)};

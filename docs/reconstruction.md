@@ -396,3 +396,19 @@ movement, angle math, relative vectors and random arithmetic execute unchanged.
 An initial complete run of the existing 29 checks passed with both address and
 undefined-behaviour sanitizers, including the all-theatre rendering sweep. This
 is memory/arithmetic coverage, not a claim of full game equivalence.
+
+## Shared gameplay stream and sustained inspection
+
+Aircraft damage/ejection, actors and weapon/effect constructors now consume one
+shared native random stream instead of restarting separate streams. Saucer death
+uses the original debris-before-spin random order; ground impact emits upward
+fragments and fifteen incendiaries rather than a placeholder explosion.
+
+A sustained check runs 32 original-theatre starts with mixed flight controls,
+guns, missiles, bombs, ejection, parachuting and remote control, rendering along
+the way and round-tripping the resulting worlds/results. It exposed a crash
+when a hidden far-tier barrier supplied the original null model pointer; null
+models now correctly contribute no drawing commands. All 31 checks, including
+this longer run, pass under address and undefined-behaviour sanitizers.
+The renderer retains a separate visual random stream, and complete original
+frame ordering is still under comparison.

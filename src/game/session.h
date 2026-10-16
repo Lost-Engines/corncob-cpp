@@ -79,7 +79,7 @@ private:
   actors enemies;
   flight::aircraft_state aircraft;
   flight::damage_state damage;
-  maths::random_source random;
+  maths::random_source &random;
   uint32_t last_wall_damage{0};
   uint16_t sortie_flags{0};
   uint16_t aircraft_losses{0};
