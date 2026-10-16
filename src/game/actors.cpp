@@ -296,51 +296,73 @@ void actors::update_shell(unsigned int const index, actor_context const &context
   object.collision_extents = maths::fixed_vector{6000, 6000, 6000};
 }
 void actors::update_vehicle(world::placed_object &object, actor_context const &context, flight::time_step const step) {
-  /// Ground vehicles alternate wandering and pursuit, then slow and halt around an exposed pilot
-  if((object.flags & 255u) == 0x71u) return;
+  /// VECHTIM distinguishes the renderer's distance tiers from actual capture distance, and preserves RESETVECH's random/follow ordering
+  if((object.flags & 255u) == 0x71u) {
+    if(object.timer == 0) object.flags = 0;
+    return;
+  }
+  auto const displacement{vec3<int64_t>{object.position} - vec3<int64_t>{context.observer}};
+  int64_t const maximum{std::max({std::abs(displacement.x), std::abs(displacement.y), std::abs(displacement.z)})};
+  unsigned int const tier{maximum < 32'768 ? 0u : maximum < 524'288 ? 1u : maximum < 8'388'608 ? 2u : 3u};
   object.position.z = 0;
   auto const &parameters{resources::vehicle_qualities[object.quality()]};
-  auto const target{relative_target(object.position, context.observer)};
-  bool const near{target && target->distance < 512};
-  unsigned int threshold{static_cast<unsigned int>(timed(maths::word(parameters.change_direction_threshold), step))};
-  if(near && (object.flags & 4u) == 0) threshold *= 4;
-  if((object.flags & 4u) != 0 || random.next() <= threshold) {
-    if((object.flags & 4u) == 0) {
-      object.attitude.heading = random.next();
-      object.attitude.pitch = object.attitude.roll = 0;
+  if(object.has(world::object_flag::special)) ++object.timer;
+  auto follow_angles{[&]{
+    unsigned int speed{tier == 0 ? parameters.near_speed : parameters.far_speed};
+    if(tier == 0 && (object.flags & 2u) != 0) {
+      speed /= 4;
+      if((object.flags & 4u) != 0) speed = 0;
     }
-    unsigned int const pursuit{near ? parameters.near_pursuit_threshold : parameters.far_pursuit_threshold};
-    if(target && (near || random.next() <= pursuit)) {
-      if((object.flags & 4u) == 0) object.attitude.heading = target->bearing.heading;
-      if(context.on_foot && target->distance <= 256) {
-        object.flags |= 2u;
-        effects.capture_pending = true;
-        effects.approach_target = maths::world_position{object.position};
-        if(target->distance <= 100) {
-          object.flags |= 4u;
-          effects.capture_closing = true;
-        }
-        if(object.collision_group == 1) {
-          effects.captured = false;
-          if(target->distance <= 100) effects.capture_pending = false;
-          effects.capture_closing = false;
-          if(target->distance <= 32) effects.rescued = true;
+    object.velocity = maths::transform(maths::make_inverse_rotation(object.attitude), {maths::word(speed), 0, 0});
+  }};
+  auto reset_direction{[&]{
+    if((object.flags & 4u) == 0) {
+      object.attitude.pitch = object.attitude.roll = 0;
+      object.attitude.heading = random.next();
+    }
+    if(tier == 3) {
+      object.flags = 0;
+      return;
+    }
+    unsigned int const pursuit{tier == 1 ? parameters.near_pursuit_threshold : parameters.far_pursuit_threshold};
+    if(tier == 0 || random.next() <= pursuit) {
+      if(auto const target{relative_target(object.position, context.observer)}) {
+        if((object.flags & 4u) == 0) object.attitude.heading = target->bearing.heading;
+        if(context.on_foot && target->distance <= 256) {
+          if(!effects.capture_pending) {
+            effects.capture_pending = true;
+            object.flags |= 2u;
+          }
+          if(target->distance <= 100) {
+            effects.capture_closing = true;
+            object.flags |= 4u;
+            if(object.collision_group == 1) {
+              effects.capture_pending = effects.capture_closing = false;
+              if(target->distance <= 32) effects.rescued = true;
+            }
+          }
+          effects.approach_target = maths::world_position{object.position};
+          return;
         }
       }
-    } else object.flags &= static_cast<uint16_t>(~6u);
+    }
+    object.flags &= static_cast<uint16_t>(~6u);
+    follow_angles();
+  }};
+  uint16_t threshold{static_cast<uint16_t>(timed(maths::word(parameters.change_direction_threshold), step))};
+  bool const stopped_nearby{tier == 0 && (object.flags & 4u) != 0};
+  if(tier == 0 && !stopped_nearby) threshold = static_cast<uint16_t>(threshold * 4);
+  if(stopped_nearby || random.next() <= threshold) reset_direction();
+  if((object.flags & 4u) != 0) {
+    object.velocity = maths::fixed_vector{0, 0, 0};
+    if(object.collision_group != 1) follow_angles();
+    return;
   }
-  if(object.has(world::object_flag::special)) ++object.timer;
-  if((object.flags & 4u) == 0) {
-    auto const phase{static_cast<maths::angle>(context.timer * parameters.weave_frequency)};
-    object.attitude.heading += static_cast<maths::angle>(maths::sine(phase) / parameters.weave_divisor);
-  }
-  int speed{near ? parameters.near_speed : parameters.far_speed};
-  if(near && (object.flags & 2u) != 0) {
-    speed /= 4;
-    if((object.flags & 4u) != 0) speed = 0;
-  }
-  object.velocity = maths::transform(maths::make_inverse_rotation(object.attitude), {maths::word(speed), 0, 0});
+  auto const phase{static_cast<maths::angle>(context.timer * parameters.weave_frequency)};
+  object.attitude.heading += static_cast<maths::angle>(maths::sine(phase) / parameters.weave_divisor);
+  follow_angles();
 }
+
 void actors::update_alien(world::placed_object &object, actor_context const &context, flight::time_step const /*step*/) {
   /// Aliens activate around the on-foot pilot and hop with quality-specific gravity and horizontal drift
   ++object.timer;

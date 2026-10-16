@@ -162,7 +162,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Joystick | 512 SPKE/JOYTD response cases, plus keyboard/button/head-view integration |
 | Person | 512 free-fall damping and 512 parachute swing cases |
 | Motion/collision | 512 generic movement, 512 strict boxes, 512 fast and 512 ordinary projectile contacts |
-| Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 1,536 AAA/balloon/bee/alien updates, including shell initialization |
+| Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization |
 | Debris/training | 530 particles from 64 constructor runs; 2,157 generated placements from 32 training runs |
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks and 12 polygon hashes; four original definition round trips; one 252-object plain saved world |
 | Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
@@ -180,11 +180,17 @@ far-model crash before interactive playtesting.
 Private GLFW/X11 checks traversed pilot creation, mission selection, radio boxes,
 map, boss screen, help, score, abort/report, tower intelligence, repair/resume and
 Escape warnings. Captures were inspected without changing supplied DOS installs.
-The complete 32-check suite passes under address and undefined-behaviour
-sanitizers, including the longer scenarios. The preceding 31-check Release
-suite also passed; optimized coverage is repeated as implementation changes. Wire rasterisation, complete frame ordering,
+The complete 32-check Release and sanitizer suites pass, including the longer
+scenarios. A subsequent 33rd check verifies the full ground-vehicle handler. Wire rasterisation, complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.
+
+Ground vehicles use the original renderer distance tiers for speed/pursuit, with
+actual distance checked separately for capture. Near stopped vehicles bypass the
+random reset draw; other resets preserve the original follow/random ordering.
+Friendly and hostile stopped vehicles have distinct paths, and expired wrecks
+are removed. All 512 native movement, capture/rescue and PRNG-continuation cases
+match without stubs; the connected rescue scenario still passes.
 
 ## Remaining fidelity work
 
@@ -192,7 +198,7 @@ established.
 - Complete original front-end/bookkeeping details: pilot deletion, high-score
   retirement/renaming, original configuration bytes, scanner/award qualifications
   and automatic saved-world naming.
-- Verify remaining ground-vehicle, launcher and special-site handlers against
+- Verify remaining launcher and special-site handlers against
   full native executions, and broaden complete campaign comparisons.
 - Finish unconnected cockpit/visual feedback, including the full high-G fade and
   any remaining auxiliary instrument states; compare wire rasterisation and whole
