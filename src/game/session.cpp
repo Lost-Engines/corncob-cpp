@@ -256,6 +256,11 @@ void session::enter_aircraft(unsigned int const index) {
   damage.invincible = invincible;
   airframe_destroyed = false;
   left_ground = false;
+  if((object.flags & 0x104u) != 0) {
+    landing.crash_landing = true;
+    landing.stopped = true;
+    damage.maximum_throttle = 0;
+  }
   object.flags &= static_cast<uint16_t>(~std::to_underlying(world::object_flag::present));
   mode = player_mode::in_aircraft;
   remote = false;
@@ -289,6 +294,7 @@ void session::retain_aircraft() {
 void session::leave_aircraft() {
   /// E steps onto the support surface when grounded and otherwise transfers flight velocity to the falling pilot
   if(!controlled_aircraft) return;
+  weapons.rearm_person();
   person.position = maths::world_position{aircraft.position};
   person.attitude = aircraft.attitude;
   person.velocity = maths::fixed_vector{aircraft.velocity};
@@ -475,6 +481,14 @@ void session::advance(input_state const &input) {
     .on_foot{mode == player_mode::on_foot},
     .timer{fast_ticks},
   }, step)};
+  orb_distortion = effects.orb_distortion;
+  for(unsigned int axis{0}; axis != 3; ++axis) {
+    aircraft.velocity[axis] = maths::word(aircraft.velocity[axis] + effects.attraction[axis]);
+    std::array<int16_t, 3> constexpr rates{310, 186, 242};
+    palette_phase[axis] += static_cast<uint16_t>(maths::multiply(timed_word(rates[axis], step), maths::word(effects.hallucination)));
+  }
+  if(std::ranges::none_of(theatre.objects, [](auto const &object){return object.type == world::object_type::mindbender && object.has(world::object_flag::present);}))
+    palette_phase = vec3<uint16_t>{0, 0, 0};
   if(effects.rescued) {
     mode = player_mode::rescued;
     notice = "Rescued";
@@ -522,6 +536,8 @@ graphics::camera session::camera() const {
     .cockpit{!on_foot && cockpit},
     .rear_view{!on_foot && rear},
     .ground_detail{ground_detail},
+    .orb_distortion{orb_distortion},
+    .palette_phase{vec3<uint16_t>{palette_phase}},
   };
 }
 world::theatre const &session::world() const noexcept {
@@ -648,6 +664,7 @@ void session::relocate(world::mission_start const &start) {
   landing = {};
   left_ground = true;
   retain_aircraft();
+  enemies.refresh_census(aircraft.position);
   notice = start.title;
 }
 void session::set_invincible(bool const value) noexcept {

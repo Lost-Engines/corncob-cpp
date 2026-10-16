@@ -18,6 +18,8 @@ struct actor_effects {
   bool captured{false};
   bool rescued{false};
   uint16_t hallucination{0};
+  uint16_t orb_distortion{0};
+  maths::fixed_vector attraction{0, 0, 0};
 };
 
 class actors {
@@ -29,6 +31,7 @@ private:
   std::array<unsigned int, std::to_underlying(world::object_type::count)> previous_counts{};
   unsigned int observed_aliens{0};
   actor_effects effects;
+  bool census_ready{false};
 
   void update_launcher(world::placed_object &object, actor_context const &context, flight::time_step step);
   void update_kla(world::placed_object &object, actor_context const &context, flight::time_step step);
@@ -38,10 +41,12 @@ private:
   void update_vehicle(world::placed_object &object, actor_context const &context, flight::time_step step);
   void update_alien(world::placed_object &object, actor_context const &context, flight::time_step step);
   void update_balloon(world::placed_object &object, flight::time_step step);
-  void update_orb(world::placed_object &object, actor_context const &context);
+  void update_orb(world::placed_object &object, actor_context const &context, flight::time_step step);
+  void update_mortar(world::placed_object &object, actor_context const &context, flight::time_step step);
 
 public:
   actors(resources::geometry_bank const &geometry, world::theatre &theatre, combat &weapons);
+  void refresh_census(maths::world_position const &observer);
   actor_effects const &advance(actor_context const &context, flight::time_step step);
 };
 

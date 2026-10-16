@@ -23,6 +23,8 @@ struct weapon_origin {
   bool remote;
   bool crashed;
 };
+enum class fragment_pattern { outward, upward, mortar, incendiary };
+
 struct combat_statistics : sortie_statistics {
   unsigned int resources_destroyed{0};
   unsigned int orbs_destroyed{0};
@@ -34,6 +36,7 @@ private:
   resources::geometry_bank const &geometry;
   world::theatre &theatre;
   maths::random_source random;
+  flight::time_step tick_step;
   unsigned int scenery_count;
   unsigned int effect_cursor{0};
   unsigned int bullet_cursor{0};
@@ -50,7 +53,6 @@ private:
   combat_statistics statistics;
 
   std::optional<unsigned int> allocate(bool bullet = false);
-  void fragments(world::placed_object const &source, unsigned int count, bool incendiary);
   void detonate(unsigned int index);
   void collide(unsigned int a, unsigned int b);
   void update_projectile(unsigned int index, maths::world_position const &observer, flight::time_step step);
@@ -60,7 +62,9 @@ public:
   static unsigned int constexpr bullet_capacity{32};
   static unsigned int constexpr bomb_capacity{3};
 
-  combat(resources::geometry_bank const &geometry, world::theatre &theatre);
+  combat(resources::geometry_bank const &geometry, world::theatre &theatre, uint32_t seed = 2'949'243u);
+  void scatter(world::placed_object const &source, unsigned int count, fragment_pattern pattern, flight::time_step step);
+  void rearm_person() noexcept;
   std::optional<unsigned int> spawn(world::object_type type, maths::world_position const &position);
   void explosion(maths::world_position const &position, uint16_t damaging_flags = 0);
   bool shoot(weapon_origin const &origin, bool cannon, flight::time_step step);

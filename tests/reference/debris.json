@@ -1,0 +1,13 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "6add6a591f1697b577c4f1c26a7926690126b5d4edffa8f48888b179d5b32419",
+  "cases": 64,
+  "routines": [
+    "0xa204 STRTFLT",
+    "0xa356 STRTINCEND"
+  ],
+  "stubs": [
+    "0x9fdb EXPSTRT: copies the requested native template into a separate live slot"
+  ],
+  "scope": "Outward/upward debris, mortar barrages and incendiaries, with original PRNG draws, low-word altitude carry, velocities, lifetimes and flags"
+}

@@ -4,6 +4,7 @@
 #include <utility>
 #include "maths/integer.h"
 #include "world/motion.h"
+#include "resources/actor_tables.h"
 
 namespace corncob::game {
 
@@ -57,9 +58,10 @@ bool objects_overlap(world::placed_object const &a, world::placed_object const &
   return cosine >= 45'000 && (distance >> 1) <= speed;
 }
 
-combat::combat(resources::geometry_bank const &geometry, world::theatre &theatre) :
+combat::combat(resources::geometry_bank const &geometry, world::theatre &theatre, uint32_t const seed) :
   geometry{geometry},
   theatre{theatre},
+  random{seed},
   scenery_count{static_cast<unsigned int>(theatre.objects.size())} {
   /// Reserve the original independent effect and bullet pools without ever moving live object indices
   theatre.objects.resize(scenery_count + effect_capacity + bullet_capacity);
@@ -217,26 +219,46 @@ void combat::fire(weapon_controls const &controls, weapon_origin const &origin, 
   }
 }
 
-void combat::fragments(world::placed_object const &source, unsigned int const count, bool const incendiary) {
-  /// Blast fragments occupy normal effect slots and retain individual velocities and collisions
+void combat::scatter(world::placed_object const &source, unsigned int const requested, fragment_pattern const pattern, flight::time_step const step) {
+  /// STRTFLT randomizes the requested debris count; incendiaries and mortar barrages retain their fixed counts
+  bool const incendiary{pattern == fragment_pattern::incendiary}, mortar{pattern == fragment_pattern::mortar};
+  bool const outward{pattern == fragment_pattern::outward};
+  unsigned int const count{incendiary || mortar ? requested : random.below(static_cast<uint16_t>(requested / 2)) + requested / 2 + 1};
+  unsigned int const present{static_cast<unsigned int>(std::ranges::count_if(theatre.objects, [](auto const &object){
+    return object.has(world::object_flag::present) && (object.type == world::object_type::flotsam_1 || object.type == world::object_type::flotsam_2);
+  }))};
+  if(!incendiary && present + count >= 25) return;
   for(unsigned int n{0}; n != count; ++n) {
-    auto const type{incendiary ? world::object_type::incendiary_fragment
-      : random.next() & 0x8000u ? world::object_type::flotsam_1 : world::object_type::flotsam_2};
+    world::object_type type{world::object_type::incendiary_fragment};
+    if(!incendiary) {
+      // the native routine randomizes a template velocity before overwriting it; consume that draw too
+      (void)random.below(4000);
+      type = mortar || (random.next() & 0x8000u) == 0 ? world::object_type::flotsam_2 : world::object_type::flotsam_1;
+    }
     auto const index{spawn(type, source.position)};
     if(!index) return;
     auto &object{theatre.objects[*index]};
-    object.position.z += 750;
-    object.velocity = maths::fixed_vector{source.velocity};
+    // ADD touches only the altitude's low word; it deliberately does not propagate a carry
+    object.position.z = maths::dword((static_cast<uint32_t>(source.position.z) & 0xffff0000u) | static_cast<uint16_t>(source.position.z + 750));
+    object.flags |= 0x8000u;
     if(incendiary) {
       object.velocity = maths::fixed_vector{maths::word(random.below(300) - 150), maths::word(random.below(300) - 150),
         static_cast<int16_t>(random.below(1200))};
-      object.timer = 150;
+      object.timer = lifetime(150, step);
       object.motion.spin = maths::fixed_vector{static_cast<int16_t>(random.below(4000)), static_cast<int16_t>(random.below(4000)),
         static_cast<int16_t>(random.below(4000))};
     } else {
-      for(unsigned int axis{0}; axis != 3; ++axis) object.velocity[axis] = maths::word(object.velocity[axis] + random.below(1500) - 750);
-      object.timer = static_cast<uint16_t>(random.below(40) + 10);
-      object.collision_group = source.collision_group & 3u;
+      object.velocity = maths::fixed_vector{source.velocity};
+      object.velocity.x = maths::word(object.velocity.x + random.below(1500) - 750);
+      object.velocity.y = maths::word(object.velocity.y + random.below(1500) - 750);
+      object.velocity.z = maths::word(object.velocity.z + random.below(outward ? 1500 : 5000) - (outward ? 750 : 0));
+      auto const maximum{lifetime(outward ? 18 : 180, step)};
+      object.timer = static_cast<uint16_t>(random.below(maximum) + maximum / 4);
+      object.collision_group = mortar ? 3 : 0;
+      if(mortar) {
+        object.flags |= 0x30u;
+        object.motion.gravity = maths::word(static_cast<uint16_t>(object.motion.gravity) | 0x100u);
+      }
     }
   }
 }
@@ -246,7 +268,7 @@ void combat::detonate(unsigned int const index) {
   auto const source{object};
   if(source.type == world::object_type::bomb) {
     explosion(source.position, 0x60);
-    fragments(source, (source.flags & 2u) != 0 ? 5 : 15, true);
+    scatter(source, (source.flags & 2u) != 0 ? 5 : 15, fragment_pattern::incendiary, tick_step);
     object.flags = 0;
     if(source.position.z >= 0 && source.position.z <= 10'000) {
       auto const &definition{geometry.definition(world::object_type::crater)};
@@ -263,7 +285,7 @@ void combat::detonate(unsigned int const index) {
     }
   } else {
     explosion(source.position, source.type == world::object_type::aa_shell ? 0 : 0x20);
-    fragments(source, 3, false);
+    scatter(source, 3, fragment_pattern::outward, tick_step);
     object.flags = 0;
   }
 }
@@ -287,7 +309,19 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     return;
   }
   if(object.type == bullets) {
-    fragments(object, 2, false);
+    scatter(object, 2, fragment_pattern::outward, tick_step);
+    object.flags = 0;
+    return;
+  }
+  if(object.type == shell) {
+    auto const source{object};
+    auto const type{static_cast<world::object_type>(resources::shell_contents_qualities[object.quality()].spawn_type)};
+    if(auto const spawned{spawn(type, source.position)}) {
+      auto &replacement{theatre.objects[*spawned]};
+      replacement.flags |= 0xf000u;
+      replacement.attitude = source.attitude;
+      replacement.position.z = maths::dword((static_cast<uint32_t>(source.position.z) & 0xffff0000u) | static_cast<uint16_t>(geometry.definition(type).initial_altitude));
+    }
     object.flags = 0;
     return;
   }
@@ -324,7 +358,7 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     object.type = destroyed_generator_orb;
     object.flags = static_cast<uint16_t>((object.flags & 0xff00u) | 0x11u);
     ++statistics.orbs_destroyed;
-    fragments(object, 12, false);
+    scatter(object, 12, fragment_pattern::outward, tick_step);
     break;
   case ground_crew:
     object.flags = static_cast<uint16_t>((object.flags | 0x1000u) & ~8u);
@@ -338,7 +372,7 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     object.velocity = maths::fixed_vector{0, 0, 0};
     object.flags = 1;
     if(friendly_credit) ++statistics.friendly_destroyed;
-    fragments(object, 15, false);
+    scatter(object, 15, fragment_pattern::outward, tick_step);
     break;
   case radar_dish:
   case control_tower:
@@ -348,13 +382,13 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     object.attitude.heading = random.next();
     object.flags = 0x11;
     if(friendly_credit) ++statistics.friendly_destroyed;
-    fragments(object, 12, false);
+    scatter(object, 12, fragment_pattern::outward, tick_step);
     break;
   case fuel_dump:
     object.type = destroyed_fuel_dump;
     object.flags = 0x11;
     ++statistics.resources_destroyed;
-    fragments(object, 12, false);
+    scatter(object, 12, fragment_pattern::outward, tick_step);
     break;
   case ground_vehicle:
     object.position.z = 2000;
@@ -368,7 +402,7 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     object.collision_extents = maths::fixed_vector{0, 0, 0};
     ++statistics.resources_destroyed;
     this->explosion(object.position);
-    fragments(object, 9, false);
+    scatter(object, 9, fragment_pattern::outward, tick_step);
     break;
   case objective_saucer:
     complete(object);
@@ -379,7 +413,7 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
       static_cast<int16_t>(random.below(4000))};
     ++statistics.resources_destroyed;
     this->explosion(object.position);
-    fragments(object, 9, false);
+    scatter(object, 9, fragment_pattern::outward, tick_step);
     break;
   case alien:
     object.position.z = 0;
@@ -401,7 +435,7 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     object.flags = 0;
     ++statistics.resources_destroyed;
     this->explosion(object.position, 0x20);
-    fragments(object, 3, false);
+    scatter(object, 3, fragment_pattern::outward, tick_step);
     break;
   default:
     return;
@@ -451,6 +485,14 @@ void combat::update_projectile(unsigned int const index, maths::world_position c
       object.flags |= 0xe0u;
     } else if(object.timer <= 2900) object.flags |= 0xe0u;
     break;
+  case incendiary_fragment:
+    if(static_cast<uint16_t>(object.position.z) == 0) {
+      auto const source{object};
+      this->explosion(source.position, 0x20);
+      scatter(source, 3, fragment_pattern::upward, step);
+      object.flags = 0;
+    }
+    break;
   case flotsam_1:
   case flotsam_2:
     if(object.position.z == 0) object.flags = 0;
@@ -462,6 +504,7 @@ void combat::update_projectile(unsigned int const index, maths::world_position c
 }
 void combat::move(maths::world_position const &observer, flight::time_step const step) {
   /// Advance independent effect/bullet lifetimes and retain fixed pool indices for collisions and later saves
+  tick_step = step;
   for(unsigned int i{scenery_count}; i != scenery_count + effect_capacity; ++i) {
     auto &object{theatre.objects[i]};
     if(object.flags == 0) continue;
@@ -518,6 +561,11 @@ void combat::advance(maths::world_position const &observer, flight::time_step co
   /// Standalone weapon checks use the same movement/contact stages as the live session
   move(observer, step);
   collisions(observer);
+}
+void combat::rearm_person() noexcept {
+  /// Every ejection supplies the native twenty pistol rounds and one assassin charge
+  pistol_rounds = 20;
+  charge_available = true;
 }
 void combat::rearm() noexcept {
   /// Boarding resets the aircraft's three-bomb supply, leaving carried pistol ammunition separate

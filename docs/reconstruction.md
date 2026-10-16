@@ -216,3 +216,21 @@ The F2 selector relocates the retained aircraft rather than recreating a theatre
 DONEWMISS's aircraft/damage gate, forward airflow, full throttle and retained
 pitch/roll are preserved. F1 displays current airbase intelligence and F3
 inspects the current score without ending or recording a sortie.
+
+## Special sites and effects
+
+Mortars launch two dangerous upward fragments on their original recharge clock.
+Concealed shells reveal their quality-selected contents when struck. Generator
+orbs distort the projection nearby, with special orbs also attracting aircraft;
+mindbenders accumulate the original triangular palette cycling without changing
+the indexed artwork. Destroyed aircraft remain wrecks when saved/reloaded or
+entered, and ejection restores the original carried pistol/charge supply.
+
+Debris no longer uses provisional counts or velocities. Its constructors match
+530 particles from 64 original STRTFLT/STRTINCEND runs, covering outward/upward
+emissions, mortars, incendiaries, variable time steps and random seeds. This
+includes the otherwise surprising discarded random draw and low-word altitude
+addition without a carry. Special-site scenarios also verify first-visit census
+priming, protected objectives, attraction, barrages and shell conversion.
+The connected special effects still need broader full-session comparison with DOS;
+constructor equivalence alone does not establish whole-frame timing equivalence.

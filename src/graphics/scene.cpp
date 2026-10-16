@@ -327,7 +327,13 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
   if(observer.cockpit) {
     for(unsigned int i{0}; i != indexed.pixels.size(); ++i) indexed.pixels[i] = (cockpit[i / 8] & (0x80u >> (i & 7))) != 0 ? 7 : 0;
   }
-  std::array<view_parameters, 2> const view_storage{observer.cockpit ? cockpit_view : full_view, rear_view};
+  std::array<view_parameters, 2> view_storage{observer.cockpit ? cockpit_view : full_view, rear_view};
+  if(observer.orb_distortion != 0) {
+    int16_t const amount{maths::word(observer.orb_distortion)};
+    auto const horizontal_phase{static_cast<maths::angle>(maths::cosine(static_cast<maths::angle>(frame * 3111u)))};
+    view_storage[0].focal_x += maths::multiply(maths::sine(horizontal_phase), amount) - amount / 2;
+    view_storage[0].focal_y += maths::multiply(maths::sine(static_cast<maths::angle>(frame << 12)), amount) - amount / 2;
+  }
   std::span<view_parameters const> const views{view_storage.data(), observer.cockpit && observer.rear_view ? 2u : 1u};
   // EPAGE writes byte-wide frame strips before the scenery overwrites each view
   auto strip{[this](unsigned int const first_byte, unsigned int const bytes, unsigned int const rows){
@@ -413,6 +419,14 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
       sight.line({x + offset, y + 9}, {x + offset, y + 4}, 7);
     }
     if(observer.cockpit) instruments.draw(indexed, random, *telemetry, frame);
+  }
+  if(observer.palette_phase != vec3<uint16_t>{0, 0, 0}) {
+    for(auto &colour : palette) for(unsigned int axis{0}; axis != 3; ++axis) {
+      auto &channel{axis == 0 ? colour.red : axis == 1 ? colour.green : colour.blue};
+      uint8_t const phase{static_cast<uint8_t>((channel >> 2) + (observer.palette_phase[axis] >> 8))};
+      uint8_t const value{static_cast<uint8_t>((phase & 64u) != 0 ? 63u - (phase & 63u) : phase & 63u)};
+      channel = static_cast<uint8_t>((value << 2) | (value >> 4));
+    }
   }
   for(unsigned int i{0}; i != output.pixels.size(); ++i) output.pixels[i] = palette[indexed.pixels[i] & 15u];
   return statistics;

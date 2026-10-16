@@ -374,10 +374,24 @@ void actors::update_balloon(world::placed_object &object, flight::time_step cons
     .roll{random.next()},
   };
 }
-void actors::update_orb(world::placed_object &object, actor_context const &context) {
+void actors::update_orb(world::placed_object &object, actor_context const &context, flight::time_step const step) {
   /// Orb objectives consume the preceding active census; destruction leaves the objective anchor in place
   object.timer = 32'000;
   if(object.quality() == 4) object.health = 65;
+  if(object.type == world::object_type::generator_orb) {
+    auto const target{relative_target(object.position, context.observer)};
+    if(target && target->distance <= 2000) {
+      effects.orb_distortion = std::max<uint16_t>(effects.orb_distortion, static_cast<uint16_t>(std::min(35, 71 - target->distance * 70 / 2000)));
+      if(object.has(world::object_flag::special) && !context.on_foot) {
+        unsigned int const divisor{std::max(10u, static_cast<unsigned int>(target->distance) * target->distance / 5000u)};
+        for(unsigned int axis{0}; axis != 3; ++axis) {
+          int32_t const delta{maths::dword(static_cast<int64_t>(object.position[axis]) - context.observer[axis])};
+          auto const acceleration{maths::word((delta >> 3) / static_cast<int>(divisor))};
+          effects.attraction[axis] = maths::word(effects.attraction[axis] + timed(acceleration, step));
+        }
+      }
+    }
+  }
   if(!objective_in_range(object, geometry.definition(object.type), context.observer)) return;
   auto population{[&](world::object_type const type){return previous_counts[std::to_underlying(type)];}};
   using enum world::object_type;
@@ -394,9 +408,31 @@ void actors::update_orb(world::placed_object &object, actor_context const &conte
   }
   if(complete) weapons.complete(object);
 }
+void actors::update_mortar(world::placed_object &object, actor_context const &context, flight::time_step const step) {
+  /// MORTIM waits six frames between upward two-piece barrages and only fires in its near distance tier
+  unsigned int constexpr full_timer{10'000}, ready_timer{full_timer - 6};
+  if(object.timer > ready_timer) return;
+  object.timer = ready_timer;
+  auto const delta{vec3<int64_t>{object.position} - vec3<int64_t>{context.observer}};
+  if(std::max({std::abs(delta.x), std::abs(delta.y), std::abs(delta.z)}) >= 32'768) return;
+  if(std::abs(delta.x) + std::abs(delta.y) > 130'000'000) return;
+  object.timer = full_timer;
+  weapons.scatter(object, 2, fragment_pattern::mortar, step);
+}
+void actors::refresh_census(maths::world_position const &observer) {
+  /// Prime freshly loaded/relocated neighbourhoods before goals consume the preceding active-object counts
+  previous_counts.fill(0);
+  for(auto const &object : theatre.objects) {
+    if(object.has(world::object_flag::present) && object.has(world::object_flag::updates)
+      && world::in_active_neighbourhood(object.position, observer)) ++previous_counts[std::to_underlying(object.type)];
+  }
+  observed_aliens = std::max(observed_aliens, previous_counts[std::to_underlying(world::object_type::alien)]);
+  census_ready = true;
+}
 actor_effects const &actors::advance(actor_context const &context, flight::time_step const step) {
   /// Run the original nearby object handlers and rebuild the census for the following pass
   effects = {};
+  if(!census_ready) refresh_census(context.observer);
   quality_counts aaa{}, kla{};
   std::array<unsigned int, std::to_underlying(world::object_type::count)> counts{};
   for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
@@ -419,6 +455,12 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
     case saucer_site: update_launcher(object, context, step); break;
     case kla: update_kla(object, context, step); break;
     case aaa_site: update_aaa(object, context, step); break;
+    case mortar: update_mortar(object, context, step); break;
+    case shell:
+      if((object.timer & 16'384u) != 0) {
+        if(32'000 - object.timer > 30 * step.normal / step.elapsed) object.timer = 16'000;
+      } else if(16'000 - object.timer > std::max(2, 5 * step.normal / step.elapsed)) object.timer = 32'000;
+      break;
     case aa_shell: update_shell(i, context, step); break;
     case saucer:
     case objective_saucer: update_saucer(object, context, step); break;
@@ -428,7 +470,7 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
     case barrage_balloon:
     case bee_swarm: update_balloon(object, step); break;
     case generator_orb:
-    case destroyed_generator_orb: update_orb(object, context); break;
+    case destroyed_generator_orb: update_orb(object, context, step); break;
     case mindbender:
       ++object.timer;
       if(auto const target{relative_target(object.position, context.observer)}; target && target->distance <= 1000) {

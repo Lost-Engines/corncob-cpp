@@ -126,6 +126,7 @@ geometry_bank::geometry_bank(std::span<uint8_t const> const source) :
       .rotate_below_tier{input.byte(address + 26)},
       .hit_points{input.byte(address + 27)},
       .initial_timer{input.word(address + 52)},
+      .initial_altitude{input.signed_dword(address + 8)},
       .initial_velocity{input.vector(address + 46)},
       .motion{
         .spin{input.vector(address + 54)},
@@ -149,6 +150,7 @@ object_definition const &geometry_bank::definition(world::object_type const type
 }
 model_levels geometry_bank::appearance(world::placed_object const &object) const {
   /// Typed visual states retain the model-pointer switches authored in the original object handlers
+  if(object.type == world::object_type::aircraft && (object.flags & 0x100u) != 0) return {0x47a1, 0x47a1, 0x4ee3};
   switch(object.pose) {
   case world::model_pose::damaged:
     if(object.type == world::object_type::aircraft || object.type == world::object_type::internal_aircraft) return {0x47a1, 0x47a1, 0x4ee3};

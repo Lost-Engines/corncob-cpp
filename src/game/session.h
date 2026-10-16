@@ -94,6 +94,8 @@ private:
   bool paused{false};
   bool experimental_clearance{false};
   bool invincible{false};
+  uint16_t orb_distortion{0};
+  vec3<uint16_t> palette_phase{0, 0, 0};
   uint32_t fast_ticks{0};
   unsigned int frame{0};
   std::string notice;
