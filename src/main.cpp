@@ -295,6 +295,7 @@ auto main(int const argc, char const *const argv[])->int {
     double const now{glfwGetTime()};
     double const elapsed{std::min(now - previous_time, 0.1)};
     previous_time = now;
+    front.advance(elapsed);
 #ifndef NDEBUG
     if(seconds > 0.0 && now >= seconds) break;
     if(free_camera && glfwGetWindowAttrib(window.get(), GLFW_FOCUSED)) {
@@ -373,6 +374,7 @@ auto main(int const argc, char const *const argv[])->int {
       auto const result{game->results()};
       campaign->finish_sortie(theatre_name, game->snapshot(), result);
       front.finish_sortie(result);
+      if(result.has(corncob::game::sortie_status::earth_saved)) front.begin_ending(renderer->indexed_frame(), renderer->colours());
     }
     if(!front.in_flight() && !inspect) {
       accumulated_time = 0.0;

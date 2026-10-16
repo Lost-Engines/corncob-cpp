@@ -58,6 +58,8 @@ private:
 
 public:
   scene_renderer(resources::geometry_bank &geometry, resources::cockpit_mask const &cockpit);
+  indexed_framebuffer const &indexed_frame() const noexcept;
+  std::array<render::rgba_pixel, 16> const &colours() const noexcept;
   render_statistics render(world::theatre const &theatre, camera const &observer, unsigned int frame,
                            uint16_t timer, render::framebuffer &output, instrument_telemetry const *telemetry = nullptr);
 };

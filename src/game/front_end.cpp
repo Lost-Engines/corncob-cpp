@@ -36,6 +36,9 @@ front_end::front_end(resources::collection const &assets, campaign_store &campai
 void front_end::accept() {
   /// Advance coherent title/story/menu chains without launching DOS helpers
   switch(page) {
+  case interface_page::ending:
+    ending->toggle_warp();
+    break;
   case interface_page::title:
     page = interface_page::story;
     story_index = 0;
@@ -224,7 +227,8 @@ void front_end::command(interface_command const command) {
     if(page == interface_page::help || page == interface_page::story || page == interface_page::title) accept();
     break;
   case interface_command::cancel:
-    if(page == interface_page::flight) ask_to_end_sortie();
+    if(page == interface_page::ending) { ending.reset(); show_outcome(14); }
+    else if(page == interface_page::flight) ask_to_end_sortie();
     else if(page == interface_page::help) page = return_page;
     else if(session_running && (page == interface_page::briefing || page == interface_page::missions || page == interface_page::current_score || page == interface_page::boss)) page = interface_page::flight;
     else if(page == interface_page::quit_confirmation) page = session_running ? interface_page::flight : interface_page::menu;
@@ -244,6 +248,18 @@ void front_end::command(interface_command const command) {
     page = interface_page::help;
     help_index = 0;
     break;
+  }
+}
+void front_end::begin_ending(graphics::indexed_framebuffer const &backdrop, std::array<render::rgba_pixel, 16> const &colours) {
+  /// Preserve the final sortie page while the single executable performs the original SRATS handoff
+  ending.emplace(backdrop, colours);
+  page = interface_page::ending;
+}
+void front_end::advance(double const seconds) {
+  /// Helper animations continue on wall time while flight state remains stopped
+  if(page == interface_page::ending) {
+    ending->advance(seconds);
+    if(ending->finished()) { ending.reset(); show_outcome(14); }
   }
 }
 void front_end::show_menu() {
@@ -297,6 +313,7 @@ void front_end::draw_menu(graphics::interface_canvas &canvas, std::string_view c
 }
 void front_end::render(render::framebuffer &target) const {
   /// Menus and helper-program artwork share the native window but retain their original video-mode pixel sizes
+  if(page == interface_page::ending) { ending->render(target); return; }
   if(page == interface_page::boss) {
     graphics::interface_canvas canvas{target, assets.file("font16.bin"), 16, 640, 400};
     canvas.clear();

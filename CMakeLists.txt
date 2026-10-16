@@ -108,6 +108,8 @@ add_library(corncob_core STATIC
   src/graphics/raster.h
   src/graphics/scene.cpp
   src/graphics/scene.h
+  src/graphics/space_sequence.cpp
+  src/graphics/space_sequence.h
   src/maths/fixed.cpp
   src/maths/fixed.h
   src/render/framebuffer.cpp
@@ -206,5 +208,6 @@ if(BUILD_TESTING)
   corncob_check(autopilot_checks native_autopilot "${PROJECT_SOURCE_DIR}/tests/reference/autopilot.bin")
   corncob_check(audio_checks native_sound "${PROJECT_SOURCE_DIR}/tests/reference/audio.bin")
   corncob_check(high_score_checks native_high_scores)
+  corncob_check(space_checks native_ending "${PROJECT_SOURCE_DIR}/tests/reference/space.bin")
   target_link_libraries(audio_checks PRIVATE corncob_audio)
 endif()

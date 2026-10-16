@@ -6,6 +6,7 @@
 #include "game/campaign.h"
 #include "world/training.h"
 #include "graphics/interface.h"
+#include "graphics/space_sequence.h"
 #include "resources/cockpit_mask.h"
 
 namespace corncob::game {
@@ -24,6 +25,7 @@ enum class interface_command {
 };
 enum class interface_page {
   title,
+  ending,
   story,
   menu,
   theatres,
@@ -56,6 +58,7 @@ private:
   roster_action pilot_action{roster_action::activate};
   unsigned int pilot_index{0};
   unsigned int score_list{0};
+  std::optional<graphics::space_sequence> ending;
   std::string entered_name;
   std::string feedback;
   bool renaming{false};
@@ -87,6 +90,8 @@ private:
 
 public:
   front_end(resources::collection const &assets, campaign_store &campaign, bool skip_intro = false, bool start_in_flight = false);
+  void advance(double seconds);
+  void begin_ending(graphics::indexed_framebuffer const &backdrop, std::array<render::rgba_pixel, 16> const &colours);
   void character(uint32_t codepoint);
   bool editing_name() const noexcept;
   bool take_finish();

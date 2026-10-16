@@ -315,6 +315,14 @@ scene_renderer::scene_renderer(resources::geometry_bank &geometry, resources::co
   /// Keep immutable world resources outside the renderer and own only frame-local display state
 }
 
+indexed_framebuffer const &scene_renderer::indexed_frame() const noexcept {
+  /// The unified ending inherits the last indexed flight page without an RGBA quantization pass
+  return indexed;
+}
+std::array<render::rgba_pixel, 16> const &scene_renderer::colours() const noexcept {
+  /// Retain the actual flight palette, including theatre and mindbender changes, when handing off to SRATS
+  return palette;
+}
 render_statistics scene_renderer::render(world::theatre const &theatre, camera const &observer, unsigned int const frame,
                                         uint16_t const timer, render::framebuffer &output, instrument_telemetry const *const telemetry) {
   /// Render the original world through fixed-point transforms into a 640x350 indexed software surface

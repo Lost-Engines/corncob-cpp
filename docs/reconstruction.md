@@ -285,3 +285,19 @@ existing entry. All fixed-width name padding and opaque result fields survive
 loading and saving. The main menu exposes the three tables together. Codec and
 ranking checks cover round trips, eligibility, separate rankings and restart
 persistence; ranking is not yet independently compared with native MOAG execution.
+
+## Unified Earth-saved ending
+
+The experimental-aircraft altitude transition now enters the original SRATS
+starfield before the Earth-saved artwork and sortie report. It retains the
+indexed cockpit and current palette, shrinks the Earth in the rear window and
+fades only the sky colour over eight seconds. Enter toggles accumulating star
+trails; Escape continues to the outcome. The retained 3.42 executable flashes
+white after 270 warp ticks, then fades out, a path that differs from the later
+registered-build conditional in the published source. Both EGA pages retain
+their own trails. BIOS-tick animation is independent of stopped flight state.
+
+All 768 initial star coordinates and 64 complete indexed star frames match
+unchanged SRATS execution using the development EGA adapter. The combined
+window fills, fade and handoff also have scripted coverage; this does not claim
+a pixel comparison of the entire original ending with inherited instruments.
