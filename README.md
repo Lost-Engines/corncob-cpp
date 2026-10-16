@@ -50,7 +50,8 @@ A connected joystick is selected automatically for flight. Button 1 fires guns,
 button 2 fires missiles, and Space also fires missiles in joystick mode. Arrow
 keys override the stick unless used for head views. `--joystick none` keeps
 keyboard controls; `--list-joysticks` lists devices for `--joystick N`.
-The main menu's controls and sound setup selects keyboard/joystick input and the
+The original menus support arrow keys, Enter and the highlighted letter shortcuts.
+Keyboard/joystick setup selects the flight controls; Combat Missions selects the
 original beginner or advanced flight model. Beginner gently assists the pitch toward level
 flight and is the original launcher default. Control choice and each named pilot’s
 flight model are saved; `--flight-model advanced` overrides the model at startup. E leaves
@@ -61,7 +62,7 @@ While paused, Space opens help; P or Escape resumes the flight. M opens the orig
 Shift turns the view, Home recentres and Space returns. Num Lock or held Control
 switches the keypad to looking around. V calls a rescue van while stranded on
 foot. S toggles AdLib sound effects. `--no-sound` starts with effects disabled.
-Title and menu music has a saved toggle in Controls and sound setup;
+Title and menu music has its own saved Music toggle in the main menu;
 `--no-music` starts with music disabled.
 Original message boxes explain mission selection, map controls and warnings; O
 toggles them. The homing pointer along the viewport border points back to base.
@@ -70,9 +71,8 @@ The experimental aircraft at White Sands requires campaign clearance before
 its throttle operates. Create or activate a pilot through the duty roster to save
 your career and changes to each theatre. The duty roster also renames and deletes
 pilots; deleting a pilot removes their worlds and retires their high scores.
-Pilot records use Left/Right to switch
-between statistics and medals, Up/Down to browse pilots, and PgUp/PgDn for
-career totals, latest sortie, best sortie and individual records. Invulnerable and
+Pilot records use Insert to switch between decorations and the full statistics
+table, and Up/Down to browse pilots. Invulnerable and
 Control-C-aborted flights do not count toward careers or high scores. The default trainee does not save progress.
 `--save-dir` overrides the platform user-data directory.
 
@@ -81,7 +81,11 @@ counts and qualities, saved separately for each pilot. Combat theatres also reta
 briefings and airborne starts; mission jumps require an aircraft with less than
 16 damage and keep the current world intact.
 
-Choose a world in the menu, or start directly with `--theatre white_sands`, `morning`, `dusk` or `wasteland`.
+Open or activate a theatre under Combat Missions, then choose Fly mission.
+Training Missions has separate number and wickedness settings and a preflight
+briefing. The original documentation is available from the main menu; its Print
+entry saves `CORNCOB.DOC` in the save directory for printing with your usual tools.
+You can also start directly with `--theatre white_sands`, `morning`, `dusk` or `wasteland`.
 Debug and RelWithDebInfo also provide `--free-camera` for scenery inspection:
 WASD moves, arrow keys turn, Page Up/Down changes height, Shift moves faster and
 Home resets the camera. `--no-cockpit` uses the original full-screen view.

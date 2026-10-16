@@ -33,6 +33,7 @@ public:
   std::array<uint8_t, native_bytes> encode() const;
   void rename(std::string_view previous, std::string_view name);
   void retire(std::string_view name);
+  void clear(unsigned int list);
   void record(std::string_view theatre, sortie_statistics const &result, pilot_record const *pilot);
   std::span<mission_score const> best_missions() const noexcept;
   std::span<career_score const> best_careers() const noexcept;

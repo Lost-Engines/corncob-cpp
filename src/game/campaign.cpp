@@ -7,13 +7,14 @@
 #include "platform/storage.h"
 #include "resources/binary_reader.h"
 #include "maths/integer.h"
+#include "world/theatre_catalog.h"
 
 namespace corncob::game {
 
 namespace {
 
 unsigned int constexpr theatre_header_bytes{671}, embedded_pilot_offset{48};
-unsigned int constexpr remaining_objectives_offset{40}, completion_recorded_offset{46};
+unsigned int constexpr stored_aircraft_offset{38}, remaining_objectives_offset{40}, initial_theatre_state_offset{44}, completion_recorded_offset{46};
 int32_t wall_clock() {
   /// Native MOAG sentences use signed Unix seconds, independent of the flight simulation clock
   return maths::dword(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
@@ -25,19 +26,20 @@ void store_word(std::span<uint8_t> const bytes, unsigned int const offset, uint1
 }
 std::string definition_name(std::string_view const theatre) {
   /// Native THT headers store a definition stem, without its CCT extension
-  if(theatre == "morning" || theatre == "dusk") return std::string{theatre};
-  if(theatre == "white_sands") return "whtsands";
-  if(theatre == "wasteland") return "wastelnd";
+  for(auto const &entry : world::theatre_catalog) if(entry.name == theatre) return std::string{entry.dos_name};
   throw std::invalid_argument{"unknown saved theatre"};
 }
 std::string_view theatre_title(std::string_view const theatre) {
   /// Retain the original theatre titles in DOS-compatible saved headers
-  if(theatre == "morning") return "Atkinsville (easy)";
-  if(theatre == "dusk") return "Dusk (medium)";
-  if(theatre == "wasteland") return "Wasteland (medium)";
-  if(theatre == "white_sands") return "White Sands Testing Ground";
+  for(auto const &entry : world::theatre_catalog) if(entry.name == theatre) return entry.title;
   throw std::invalid_argument{"unknown saved theatre"};
 }
+unsigned int initial_stored_aircraft(std::string_view const theatre) {
+  /// The definition table initializes the separate reserve count in THT header word 38
+  for(auto const &entry : world::theatre_catalog) if(entry.name == theatre) return entry.reserve_aircraft;
+  throw std::invalid_argument{"unknown saved theatre"};
+}
+
 std::string stored_text(std::span<uint8_t const> const field) {
   /// Fixed native fields are bounded even when imported padding is not terminated
   auto const end{std::ranges::find(field, 0)};
@@ -107,7 +109,13 @@ campaign_store::campaign_store(std::filesystem::path directory) :
 std::filesystem::path campaign_store::theatre_path(std::string_view const theatre) const {
   /// Recover the original ownership arrangement and allocate a free numbered path only for a new theatre
   if(!selected) throw std::logic_error{"training pilot has no persistent theatre"};
-  for(auto const &path : owned_theatres(directory, roster.pilots[*selected])) {
+  auto const owned{owned_theatres(directory, roster.pilots[*selected])};
+  auto const active{roster.pilots[*selected].active_theatre()};
+  if(active && *active < owned.size()) {
+    auto const bytes{platform::read_binary(owned[*active])};
+    if(stored_definition(bytes) == definition_name(theatre)) return owned[*active];
+  }
+  for(auto const &path : owned) {
     auto const bytes{platform::read_binary(path)};
     if(stored_definition(bytes) == definition_name(theatre)) return path;
   }
@@ -134,13 +142,14 @@ bool campaign_store::can_fly() const {
   auto const *pilot{active_pilot()};
   return !pilot || (!pilot->unavailable() && pilot->suspended_until() <= wall_clock());
 }
-unsigned int campaign_store::create_pilot(std::string_view const name) {
+unsigned int campaign_store::create_pilot(std::string_view const name, bool const activate_created) {
   /// Pilot creation validates the bounded native name before changing saved state
   if(std::ranges::any_of(roster.pilots, [name](pilot_record const &pilot){return pilot.name() == name;}))
     throw std::invalid_argument{"a pilot with that name already exists"};
   roster.pilots.emplace_back(name);
   unsigned int const index{static_cast<unsigned int>(roster.pilots.size() - 1)};
-  activate(index);
+  if(activate_created) activate(index);
+  else save_roster();
   return index;
 }
 void campaign_store::activate(unsigned int const index) {
@@ -229,9 +238,130 @@ void campaign_store::training_settings(world::training_setup const &settings) {
   roster.pilots[*selected].training_settings(settings);
   save_roster();
 }
+std::vector<saved_theatre> campaign_store::theatres() const {
+  /// Menus inspect the same numbered THT files that flight resumes; opening a menu never changes a world
+  std::vector<saved_theatre> result;
+  if(!selected) {
+    for(auto const &entry : trainee_theatres) result.push_back({
+      .number{0},
+      .definition{entry.definition},
+      .title{theatre_title(entry.definition)},
+      .objectives_remaining{maths::word(remaining_objectives(entry.state))},
+      .pilot{},
+      .stored_aircraft{entry.reserve_aircraft},
+    });
+    return result;
+  }
+  for(auto const &path : owned_theatres(directory, roster.pilots[*selected])) {
+    auto const bytes{platform::read_binary(path)};
+    if(bytes.size() < theatre_header_bytes) throw std::invalid_argument{"saved theatre header is truncated: " + path.string()};
+    auto definition{stored_definition(bytes)};
+    if(definition == "wastelnd") definition = "wasteland";
+    if(definition == "whtsands") definition = "white_sands";
+    unsigned int const reserve{resources::binary_reader{bytes}.word(stored_aircraft_offset)};
+    result.push_back({
+      .number{path.parent_path() == directory / "THT" ? static_cast<uint8_t>(std::stoul(path.stem().string())) : uint8_t{0}},
+      .definition{std::move(definition)},
+      .title{stored_text(std::span{bytes}.first(28))},
+      .objectives_remaining{resources::binary_reader{bytes}.signed_word(remaining_objectives_offset)},
+      .pilot{std::span{bytes}.subspan(embedded_pilot_offset, 623)},
+      .stored_aircraft{reserve},
+    });
+  }
+  return result;
+}
+std::optional<unsigned int> campaign_store::active_theatre() const {
+  /// The active index is local to this pilot's list, not a globally numbered filename
+  return selected ? roster.pilots[*selected].active_theatre() : trainee_active_theatre;
+}
+void campaign_store::open_theatre(std::string_view const theatre, world::theatre const &world) {
+  /// Opening creates the native empty theatre record immediately, before the first sortie
+  if(!selected) {
+    if(trainee_theatres.size() >= 20) throw std::invalid_argument{"The trainee already has twenty open theaters"};
+    trainee_theatres.push_back({
+      .definition{theatre},
+      .state{world},
+      .reserve_aircraft{initial_stored_aircraft(theatre)},
+    });
+    trainee_active_theatre = static_cast<unsigned int>(trainee_theatres.size() - 1);
+    return;
+  }
+  auto &pilot{roster.pilots[*selected]};
+  if(pilot.theatres().size() >= 20) throw std::invalid_argument{"This pilot already has twenty open theaters"};
+  unsigned int number{1};
+  while(number <= 255 && std::filesystem::exists(directory / "THT" / (std::to_string(number) + ".THT"))) ++number;
+  if(number > 255) throw std::runtime_error{"no available saved-theatre filename"};
+  std::vector<uint8_t> bytes(theatre_header_bytes);
+  auto const title{theatre_title(theatre)};
+  auto const definition{definition_name(theatre)};
+  std::ranges::copy(title.substr(0, 27), bytes.begin());
+  std::ranges::copy(definition, bytes.begin() + 28);
+  store_word(bytes, stored_aircraft_offset, static_cast<uint16_t>(initial_stored_aircraft(theatre)));
+  store_word(bytes, remaining_objectives_offset, static_cast<uint16_t>(remaining_objectives(world)));
+  // Fresh native 3.42 base-theater files initialize this retained state word to one.
+  store_word(bytes, initial_theatre_state_offset, 1);
+  pilot_record empty{std::span<uint8_t const>{bytes}.subspan(embedded_pilot_offset, 623)};
+  empty.rename(pilot.name());
+  std::ranges::copy(empty.native_data(), bytes.begin() + embedded_pilot_offset);
+  auto const objects{world::encode_theatre(world)};
+  bytes.insert(bytes.end(), objects.begin(), objects.end());
+  platform::write_binary(directory / "THT" / (std::to_string(number) + ".THT"), bytes);
+  pilot.add_theatre(static_cast<uint8_t>(number));
+  save_roster();
+}
+void campaign_store::activate_theatre(unsigned int const index) {
+  /// Reuse the original numbered reference rather than copying or resetting its scenery
+  auto const worlds{theatres()};
+  if(index >= worlds.size()) throw std::invalid_argument{"No saved theater selected"};
+  if(!selected) { trainee_active_theatre = index; return; }
+  if(worlds[index].number == 0) throw std::invalid_argument{"Resume this older saved theater once before activating it here"};
+  roster.pilots[*selected].add_theatre(worlds[index].number);
+  save_roster();
+}
+void campaign_store::delete_theatre(unsigned int const index) {
+  /// Only the explicitly selected pilot's world is removed; career statistics and other worlds remain
+  auto const worlds{theatres()};
+  if(index >= worlds.size()) throw std::invalid_argument{"No saved theater selected"};
+  if(!selected) {
+    trainee_theatres.erase(trainee_theatres.begin() + index);
+    if(trainee_active_theatre) {
+      if(*trainee_active_theatre == index) trainee_active_theatre.reset();
+      else if(*trainee_active_theatre > index) --*trainee_active_theatre;
+    }
+    return;
+  }
+  auto const path{owned_theatres(directory, roster.pilots[*selected])[index]};
+  std::filesystem::remove(path);
+  roster.pilots[*selected].remove_theatre(worlds[index].number);
+  save_roster();
+}
+bool campaign_store::combat_invincible() const {
+  /// An unnamed trainee keeps its transient choices in the front end
+  return active_pilot() && active_pilot()->combat_invincible();
+}
+void campaign_store::combat_invincible(bool const value) {
+  /// Persist the original combat invulnerability option independently of training
+  if(selected) { roster.pilots[*selected].combat_invincible(value); save_roster(); }
+}
+bool campaign_store::inflight_comments() const {
+  /// Comments default to enabled for the disposable trainee
+  return !active_pilot() || active_pilot()->inflight_comments();
+}
+void campaign_store::inflight_comments(bool const value) {
+  /// Store the menu choice in the pilot's original setup byte
+  if(selected) { roster.pilots[*selected].inflight_comments(value); save_roster(); }
+}
+void campaign_store::clear_scores(unsigned int const list) {
+  /// Clearing one original score table preserves the other two
+  scores.clear(list);
+  platform::write_binary(directory / "PILOT.HSC", scores.encode());
+}
 std::optional<world::theatre> campaign_store::load_world(std::string_view const theatre) const {
   /// THT keeps the original 671-byte header and compact live world rather than resetting destroyed scenery each sortie
-  if(!selected) return std::nullopt;
+  if(!selected) {
+    if(trainee_active_theatre && trainee_theatres[*trainee_active_theatre].definition == theatre) return world::theatre{trainee_theatres[*trainee_active_theatre].state};
+    return std::nullopt;
+  }
   auto const path{theatre_path(theatre)};
   if(!std::filesystem::exists(path)) return std::nullopt;
   auto const data{platform::read_binary(path)};
@@ -242,7 +372,12 @@ std::optional<world::theatre> campaign_store::load_world(std::string_view const 
 }
 void campaign_store::finish_sortie(std::string_view const theatre, world::theatre const &world, sortie_statistics const &result) {
   /// Accumulate distinct global and per-theatre records, then run MOAG's original completion and award scan
-  if(!selected) { save_scores(theatre, result); return; }
+  if(!selected) {
+    if(theatre != "training" && trainee_active_theatre && trainee_theatres[*trainee_active_theatre].definition == theatre)
+      trainee_theatres[*trainee_active_theatre].state = world;
+    save_scores(theatre, result);
+    return;
+  }
   auto &pilot{roster.pilots[*selected]};
   pilot.finish_sortie(result);
   bool const training{theatre == "training"};
@@ -259,6 +394,8 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
     } else {
       // original theatre records start with a name and empty statistics, without the global pilot's setup defaults
       saved.resize(theatre_header_bytes);
+      store_word(saved, stored_aircraft_offset, static_cast<uint16_t>(initial_stored_aircraft(theatre)));
+      store_word(saved, initial_theatre_state_offset, 1);
       pilot_record blank{std::span<uint8_t const>{saved}.subspan(embedded_pilot_offset, 623)};
       blank.rename(pilot.name());
       std::ranges::copy(blank.native_data(), saved.begin() + embedded_pilot_offset);

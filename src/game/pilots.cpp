@@ -92,6 +92,37 @@ void pilot_record::add_theatre(uint8_t const number) {
   data[first_theatre_offset + entries.size()] = number;
   data[active_offset] = data[count_offset]++;
 }
+void pilot_record::remove_theatre(uint8_t const number) {
+  /// Remove a numbered world while retaining the identity of the active world after compaction
+  auto const entries{theatres()};
+  auto const found{std::ranges::find(entries, number)};
+  if(found == entries.end()) return;
+  unsigned int const index{static_cast<unsigned int>(found - entries.begin())};
+  auto const active{active_theatre()};
+  std::move(data.begin() + 0x23e + index + 1, data.begin() + 0x23e + entries.size(), data.begin() + 0x23e + index);
+  data[0x23e + --data[0x23c]] = 0;
+  if(active) data[0x23d] = *active == index ? 128 : static_cast<uint8_t>(*active - (*active > index));
+}
+std::optional<unsigned int> pilot_record::active_theatre() const {
+  /// Bit seven denotes training rather than an index into the twenty saved-theatre references
+  return data[0x23d] < theatres().size() ? std::optional<unsigned int>{data[0x23d]} : std::nullopt;
+}
+bool pilot_record::combat_invincible() const {
+  /// Combat and training retain separate invulnerability bits in the original setup byte
+  return (data[0x23b] & 1u) != 0;
+}
+void pilot_record::combat_invincible(bool const value) {
+  /// Preserve the independent training and flight-model choices
+  data[0x23b] = static_cast<uint8_t>(value ? data[0x23b] | 1u : data[0x23b] & ~1u);
+}
+bool pilot_record::inflight_comments() const {
+  /// The original setup byte stores suppression, so clear means comments enabled
+  return (data[0x23b] & 0x40u) == 0;
+}
+void pilot_record::inflight_comments(bool const value) {
+  /// Change only comment suppression, leaving the aircraft and training settings untouched
+  data[0x23b] = static_cast<uint8_t>(value ? data[0x23b] & ~0x40u : data[0x23b] | 0x40u);
+}
 world::training_setup pilot_record::training_settings() const {
   /// MOAG stores site counts in KLA/AAA/vehicle order, followed by one-based qualities with zero meaning random
   return {

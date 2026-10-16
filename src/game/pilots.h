@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -129,6 +130,12 @@ public:
   bool unavailable() const;
   std::span<uint8_t const> theatres() const;
   void add_theatre(uint8_t number);
+  void remove_theatre(uint8_t number);
+  std::optional<unsigned int> active_theatre() const;
+  bool combat_invincible() const;
+  void combat_invincible(bool value);
+  bool inflight_comments() const;
+  void inflight_comments(bool value);
   world::training_setup training_settings() const;
   void training_settings(world::training_setup const &settings);
   bool beginner_flight() const;

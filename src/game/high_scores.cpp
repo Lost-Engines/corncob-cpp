@@ -161,6 +161,13 @@ void score_tables::rename(std::string_view const previous, std::string_view cons
   for(auto *table : {&careers, &fastest}) for(auto &entry : *table)
     if(entry.retired == 0 && score_text(entry.name) == previous) replace(entry.name);
 }
+void score_tables::clear(unsigned int const list) {
+  /// Each of the original three score lists can be reset independently
+  if(list == 0) missions = {};
+  else if(list == 1) careers = {};
+  else if(list == 2) fastest = {};
+  else throw std::invalid_argument{"unknown high-score list"};
+}
 void score_tables::retire(std::string_view const name) {
   /// Preserve a deleted pilot's historical results while allowing a later pilot to reuse the same name
   for(auto &entry : missions) if(score_text(entry.name) == name) entry.retired = 1;

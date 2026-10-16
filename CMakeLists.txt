@@ -87,6 +87,9 @@ add_library(corncob_core STATIC
   src/game/combat.cpp
   src/game/combat.h
   src/game/front_end.cpp
+  src/game/front_end_menus.cpp
+  src/resources/airfield_survey.cpp
+  src/resources/airfield_survey.h
   src/game/front_end.h
   src/game/campaign.cpp
   src/game/campaign.h
@@ -149,6 +152,8 @@ add_library(corncob_core STATIC
   src/resources/collection.h
   src/resources/radio_messages.cpp
   src/resources/radio_messages.h
+  src/graphics/menu_canvas.cpp
+  src/graphics/menu_canvas.h
   src/graphics/interface.cpp
   src/graphics/interface.h
   src/resources/geometry_bank.cpp
@@ -246,6 +251,7 @@ if(BUILD_TESTING)
   corncob_check(actor_checks native_actors "${PROJECT_SOURCE_DIR}/tests/reference/actors.bin")
   corncob_check(scenario_checks scripted_scenarios)
   corncob_check(interface_checks native_interface "${PROJECT_BINARY_DIR}/interface-checks")
+  corncob_check(menu_checks native_menu_pixels "${PROJECT_SOURCE_DIR}/tests/reference/menus.txt" "${PROJECT_BINARY_DIR}/menu-checks")
   corncob_check(score_checks native_score "${PROJECT_SOURCE_DIR}/tests/reference/score.bin")
   corncob_check(pilot_checks native_pilots "${PROJECT_SOURCE_DIR}/tests/reference/pilots.bin")
   corncob_check(career_review_checks native_career_review "${PROJECT_SOURCE_DIR}/tests/reference/career_review.bin")

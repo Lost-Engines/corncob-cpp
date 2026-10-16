@@ -52,7 +52,7 @@ def main():
     assert font14 in dosbox and font16 in dosbox, "ROM fonts differ from the reference DOSBox build"
     ui_files = [(path.relative_to(install).as_posix().lower(), path.read_bytes()) for path in sorted((install / 'VGA').iterdir())]
     ui_files += [(path.relative_to(install).as_posix().lower(), path.read_bytes()) for path in sorted((install / 'IMG').iterdir()) if path.name.upper() != '3D.IMG']
-    ui_files += [(name.lower(), (install / name).read_bytes()) for name in ('PICT.DAT', 'TPICT.DAT', 'MOAG.INF', 'TOWERS.INF', 'MEDAL.FNC', '3.ADL', 'BOSS.TXT')]
+    ui_files += [(name.lower(), (install / name).read_bytes()) for name in ('PICT.DAT', 'TPICT.DAT', 'MOAG.INF', 'TOWERS.INF', 'MEDAL.FNC', '3.ADL', 'BOSS.TXT', 'CORNCOB.DOC')]
     ui_files += [('font8.bin', font8), ('font14.bin', font14), ('font16.bin', font16)]
     pack = bytearray(b'CORNUI01' + struct.pack('<H', len(ui_files)))
     for name, data in ui_files:

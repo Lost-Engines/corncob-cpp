@@ -65,8 +65,8 @@
     {
       "path": "front_end.dat",
       "source": "Unmodified VGA/IMG artwork, presentation scripts, help, sound patches and DOSBox BIOS fonts; see third_party/dosbox-fonts.txt",
-      "bytes": 502978,
-      "sha256": "791f0cf6a04e6420313257eeb1aa60029e9f49206a30563893911528a5d48ab4"
+      "bytes": 538950,
+      "sha256": "347be52883c6226838348624916cec655fdba62eb25c15596522cad6e0a8ec4a"
     },
     {
       "path": "music/destiny3.ogg",
@@ -300,8 +300,8 @@
     },
     {
       "name": "towers.inf",
-      "bytes": 12330,
-      "sha256": "0c50f3044e31dac0a8173f5f1f05a2ce9edccef3360f7d4f4facebf0acf12741"
+      "bytes": 1947,
+      "sha256": "04c83a91f1848d352be2d07b0ea982ae847e1031dd4182cb9db1edd07dabff0e"
     },
     {
       "name": "medal.fnc",
@@ -317,6 +317,11 @@
       "name": "boss.txt",
       "bytes": 55,
       "sha256": "91f1f33be697b468503d3faa9c693a2b00e550d3f06fd4846c3bdc70ff7489f1"
+    },
+    {
+      "name": "corncob.doc",
+      "bytes": 46339,
+      "sha256": "aefed1cb8102dc3324697a3b8c433041ffb1efd90601a086dcfe2bb73f342acd"
     },
     {
       "name": "font8.bin",

@@ -1,6 +1,7 @@
 #include "interface.h"
 #include <algorithm>
 #include <cassert>
+#include "render/palette.h"
 
 namespace corncob::graphics {
 
@@ -14,6 +15,16 @@ interface_canvas::interface_canvas(render::framebuffer &target, std::span<uint8_
   target.pixels.resize(width * height);
   target.width = width;
   target.height = height;
+}
+void interface_canvas::text_shadow(int const left, int const top, int const right, int const bottom) {
+  /// Original text-window shadows retain dim character ink on black rather than hiding the underlying text
+  auto const background{target.pixels[static_cast<unsigned int>(std::clamp(top, 0, static_cast<int>(target.height) - 1)) * target.width + static_cast<unsigned int>(std::clamp(left, 0, static_cast<int>(target.width) - 1))]};
+  for(int y{std::max(0, top)}; y < std::min(bottom, static_cast<int>(target.height)); ++y)
+    for(int x{std::max(0, left)}; x < std::min(right, static_cast<int>(target.width)); ++x) {
+      auto &pixel{target.pixels[static_cast<unsigned int>(y) * target.width + static_cast<unsigned int>(x)]};
+      bool const blank{(pixel.red == background.red && pixel.green == background.green && pixel.blue == background.blue) || (pixel.red == 0 && pixel.green == 0 && pixel.blue == 0)};
+      pixel = render::ega_palette[blank ? 0 : 8];
+    }
 }
 void interface_canvas::clear(render::rgba_pixel const colour) {
   /// Clear only the active video mode's pixel area

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <optional>
 #include <string>
 #include "audio/music_cue.h"
@@ -25,6 +26,9 @@ enum class interface_command {
   page_up,
   page_down,
   backspace,
+  details,
+  home,
+  end,
 };
 enum class interface_page {
   title,
@@ -32,9 +36,19 @@ enum class interface_page {
   story,
   menu,
   theatres,
+  new_theatre,
+  open_theatre,
+  theatre_records,
+  theatre_delete,
   training,
+  training_counts,
+  training_wickedness,
+  training_value,
   control_setup,
   missions,
+  mission_briefing,
+  starting_airfield,
+  airfield_information,
   roster,
   pilots,
   pilot_name,
@@ -43,6 +57,15 @@ enum class interface_page {
   medals,
   sortie_summary,
   high_scores,
+  high_score_menu,
+  score_delete,
+  score_delete_confirmation,
+  menu_information,
+  documentation,
+  registration,
+  notice,
+  pilot_activate,
+  pilot_resurrect,
   current_score,
   boss,
   radio,
@@ -55,6 +78,8 @@ enum class interface_page {
 struct launch_request {
   std::string theatre;
   std::optional<world::training_setup> training{};
+  bool invincible{false};
+  bool comments{true};
 };
 
 struct control_setup {
@@ -71,8 +96,6 @@ private:
   roster_action pilot_action{roster_action::activate};
   unsigned int pilot_index{0};
   unsigned int score_list{0};
-  enum class record_view { career, latest, best, individual };
-  record_view records{record_view::career};
   std::optional<graphics::space_sequence> ending;
   std::optional<graphics::title_sequence> title;
   render::framebuffer radio_backdrop;
@@ -94,7 +117,20 @@ private:
   std::vector<resources::cockpit_mask> help_screens;
   interface_page page{interface_page::title};
   interface_page return_page{interface_page::menu};
-  unsigned int selection{0};
+  unsigned int selection{2};
+  std::map<interface_page, unsigned int> remembered_selection;
+  unsigned int training_field{0};
+  interface_page training_editor{interface_page::training_counts};
+  interface_page information_return{interface_page::menu};
+  unsigned int information_section{1};
+  unsigned int document_chapter{0};
+  std::string numeric_input;
+  bool detailed_records{false};
+  bool combat_invulnerable{false};
+  bool comments_enabled{true};
+  bool automatic_centering{true};
+  bool force_centering{false};
+  std::vector<std::string> document_lines;
   unsigned int story_index{0};
   double story_intensity{0.0};
   bool advancing_story{false};
@@ -104,14 +140,22 @@ private:
   std::string selected_theatre;
   std::string briefing;
   std::optional<launch_request> pending_launch;
+  std::optional<launch_request> prepared_launch;
+  std::optional<world::theatre> prepared_world;
+  std::vector<saved_theatre> saved_theatres;
   bool quit_requested{false};
   bool session_running{false};
   bool music_on{true};
 
   void accept();
+  void navigate(interface_page destination);
+  void sync_pilot();
+  void information(unsigned int section);
+  void document(std::string_view text, unsigned int section);
+  void notice(std::string message);
+  void launch_combat();
+  void render_menus(render::framebuffer &target) const;
   unsigned int choice_count() const;
-  void adjust_training(int direction);
-  void adjust_controls();
   void draw_menu(graphics::interface_canvas &canvas, std::string_view title, std::span<std::string_view const> choices) const;
 
 public:

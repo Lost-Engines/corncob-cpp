@@ -110,8 +110,8 @@ The original autopilot includes pitch-by-speed feedback and altitude capture.
 Optional beginner aerodynamics adds the original weaker PITCHLOCK correction.
 When both are enabled, the two original calls remain. The standalone engine defaults to advanced; MOAG creates pilots with beginner
 aerodynamics. The unified launcher follows MOAG; `--flight-model advanced`
-overrides the saved pilot setting. The controls setup selects the same
-model and keyboard/joystick choice before a new flight. The global keyboard/joystick choice uses header byte two of PILOT.SCR; the
+overrides the saved pilot setting. Combat Missions selects the flight model;
+keyboard/joystick setup selects the input device before a new flight. The global keyboard/joystick choice uses header byte two of PILOT.SCR; the
 pilot’s model uses bit `0x20` at `0x23b` (set for advanced). New pilot setup
 bytes match an unchanged MOAG-created record. Explicit device indices remain
 startup choices because DOS only stores keyboard versus joystick.
@@ -139,8 +139,39 @@ has not been exercised during automated checks.
 
 The executable joins title/story, roster, theatre selection/intelligence, training,
 controls/help, flight, outcomes, reports and the interactive Earth-saved ending.
-The menu is a functional reconstruction of the missing C front end, rather than
-a claim of matching every original menu pixel.
+The missing C front end is reconstructed from unchanged MOAG 3.42 captures. Twenty
+complete 640 x 400 screens match the DOS RGB pixels exactly: main menu, empty and
+populated roster, both career reports, training and its number/wickedness menus,
+training information, keyboard/joystick setup, the score menu and all three empty
+score tables, documentation, Other Worlds information, combat selection, opening
+a theater and its career report. The renderer retains CP437 framing, original
+colours, shadows, highlighted letters and character-cell positions.
+
+Arrow keys and the original letter shortcuts follow the DOS hierarchy. Training
+counts and wickedness use separate numeric-entry dialogs with their original
+0–25 and 0–8 bounds. Pilot creation asks whether to activate the new pilot; Enter
+confirms deletion and another key cancels. Insert switches the career overview
+and its decorations to the four-column statistics table. Context help, all
+seventeen documentation chapters and the original Other Worlds notice are
+embedded. The Print entry exports the unmodified document into the save directory
+instead of using a DOS printer port.
+
+Theaters can be opened, activated, viewed and deleted without starting a sortie.
+Repeated definitions have separate numbered THT files. New theater headers match
+the original first 48 bytes, including the separate reserve-aircraft count at
+offset 38. Deleting one compacts its
+pilot's references and preserves any other active world. Trainee worlds remain
+available for the current run and are discarded when it closes. Cached menu
+summaries avoid reading and decoding every saved world on each rendered frame.
+Combat now shows the starting-airfield screen before launch, and training shows
+its original preflight briefing. The airfield detail survey is rebuilt from live
+objects rather than using the played-install TOWERS.INF; its numeric formatting
+and ordering have not yet had the complete native comparison given to the twenty
+reference screens. The analog-centering menu entries retain their original
+wording and session choices; GLFW supplies digital axes without DOS port timing
+or drift calibration. Conditional dialogs, populated score/medal pages and the
+remaining in-flight helper layouts need broader visual comparison before
+claiming every possible front-end screen is pixel-identical.
 
 F1 retains BOSS.TXT's DOS-prompt disguise. F2 exposes intelligence and stored Sxyth
 airborne starts without rebuilding the world; damaged aircraft retain the original
@@ -374,7 +405,7 @@ A small Vorbis player reads the embedded bytes using the decoder already supplie
 with the pinned miniaudio source. Decoders open before the callback starts; only
 an atomic cue crosses from the interface thread. Complete tracks and playlist
 transitions retain every sample across arbitrary callback sizes. Music uses the
-same PCM device as the existing live AdLib effects. The setup menu saves the
+same PCM device as the existing live AdLib effects. The main-menu music toggle saves the
 original global music flag at byte 21 of the decoded 24-byte PILOT.SCR header
 (`FF` on, `00` off). Older 23-byte rosters predate this flag and are upgraded only
 when the music preference is written, preserving their pilot count and records.
@@ -417,6 +448,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Animation clock | 512 native word-counter transitions and a connected 16,384-pass restart |
 | Sortie clock | 512 unchanged two-segment DOS-clock conversions, including pause boundaries and wrapping; connected flight/pause/map timing |
 | Score/persistence | 512 ISCORE calculations, 256 complete MOAG career updates and 512 complete promotion/medal decisions; 16,384 original mask bytes; original control/model/new-pilot fixtures; 96 full 5,040-byte native high-score insertion/tie/padding cases and exact retirement; roster/world restart, rename and deletion scenarios |
+| Menus | Twenty complete unchanged-DOS screen comparisons, original navigation and text readers, nested training editors, duplicate/transient/deleted theater ownership |
 | Music | Three native-driver recordings; complete title/menu repeats, arbitrary 1–512-frame callbacks, saved native music flags and older-roster import |
 | Sound | 512 engine/register-write cases; 10,535 proximity writes across 512 connected frames; 384 ordered actor-proximity passes; finite, non-silent PCM |
 
@@ -441,11 +473,14 @@ workspace or external game assets. An installed music-enabled executable was
 also checked through a private audio server containing only a null sink: music,
 a sustained digitally silent mute and resumed playback were captured from the
 actual window. The installed package still contains only `corncob`.
-Captures were inspected without changing supplied DOS installs.
-The complete 53-check Debug, Release and sanitizer suites pass, including the
-longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title.
-A local MinGW GCC 16 Release build also passes all 53 checks under Wine; its actual
-window was inspected through menus, training, flight and stepping out on foot.
+Captures were inspected without changing supplied DOS installs. The complete
+54-check Debug and Release suites pass, including twenty full-screen DOS menu
+references and the longer gameplay scenarios. The five affected menu, pilot,
+score and campaign checks also pass under AddressSanitizer/UBSan. The MinGW GCC 16
+Release build passes all 54 checks under Wine; its earlier window checks included
+menus, training, flight and stepping out on foot. A further Linux GLFW traversal
+checks the restored roster, nested training editors, combat/airfield screens,
+preflight briefing and entry into a live training flight.
 It imports only Windows system DLLs. This does not replace testing on Windows
 hardware. Complete frame ordering, macOS runtime and interactive Wayland sizing
 are not yet independently established.
@@ -464,8 +499,7 @@ match without stubs; the connected rescue scenario still passes.
   for the reporter; no cause or corrective gameplay change has been established.
 - Extend whole-frame title comparisons beyond native motion, palette masking and
   the inspected presentation captures.
-- Complete remaining front-end/bookkeeping details: remaining theatre-header words and original configuration bits; broaden
-  original configuration comparisons.
+- Broaden front-end/bookkeeping comparisons: remaining theatre-header words, reserve-aircraft accounting and original configuration bits; conditional dialogs, populated reports and live airfield survey grouping/ranges.
 - Broaden complete campaign comparisons against native executions.
 - Broaden complete cockpit/gauge-frame comparisons and whole scene painter/
   collision ordering.

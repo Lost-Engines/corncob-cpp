@@ -258,10 +258,18 @@ auto main(int const argc, char const *const argv[])->int {
       case GLFW_KEY_DOWN: front.command(down); break;
       case GLFW_KEY_LEFT: front.command(previous); break;
       case GLFW_KEY_RIGHT: front.command(next); break;
+      case GLFW_KEY_INSERT: front.command(details); break;
+      case GLFW_KEY_HOME: front.command(home); break;
+      case GLFW_KEY_END: front.command(end); break;
       case GLFW_KEY_PAGE_UP: front.command(page_up); break;
       case GLFW_KEY_PAGE_DOWN: front.command(page_down); break;
       case GLFW_KEY_ENTER: case GLFW_KEY_KP_ENTER: front.command(accept); break;
-      case GLFW_KEY_SPACE: if(!front.editing_name()) front.command(accept); break;
+
+      case GLFW_KEY_SPACE:
+        if(!front.editing_name() && (front.current_page() == corncob::game::interface_page::help
+            || front.current_page() == corncob::game::interface_page::title || front.current_page() == corncob::game::interface_page::story
+            || front.current_page() == corncob::game::interface_page::high_scores || front.current_page() == corncob::game::interface_page::notice)) front.command(accept);
+        break;
       case GLFW_KEY_BACKSPACE: front.command(backspace); break;
       case GLFW_KEY_ESCAPE: front.command(cancel); break;
       case GLFW_KEY_F4: front.command(help); break;
@@ -362,7 +370,8 @@ auto main(int const argc, char const *const argv[])->int {
       if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
       renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit);
       renderer->initialise(game->camera().position, game->random_stream());
-      if(launch->training) game->set_invincible(launch->training->invincible);
+      game->set_invincible(launch->invincible);
+      if(!launch->comments) game->press(corncob::game::action::toggle_messages);
       game->set_beginner_flight(front.flight_controls().beginner_flight);
       front.begin_flight();
       observer = game->camera();

@@ -1,26 +1,21 @@
 #include "front_end.h"
 #include "render/palette.h"
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 #include <format>
 #include <utility>
 #include "resources/assets.h"
+#include "resources/airfield_survey.h"
+#include "platform/storage.h"
 #include "world/world.h"
+#include "world/theatre_catalog.h"
 
 namespace corncob::game {
 
 namespace {
 
-std::array<std::string_view, 4> constexpr theatre_titles{"Atkinsville (easy)", "Dusk (medium)", "Wasteland (medium)", "White Sands Testing Ground"};
-std::array<std::string_view, 4> constexpr theatre_names{"morning", "dusk", "wasteland", "white_sands"};
 render::rgba_pixel constexpr white{255, 255, 255}, grey{170, 170, 170}, yellow{255, 255, 85}, blue{0, 0, 170};
-std::span<uint8_t const> briefing_data(std::string_view const name) {
-  /// Theatre descriptions and mission intelligence come from the original TWR text
-  if(name == "morning") return resources::morning_briefing_asset();
-  if(name == "dusk") return resources::dusk_briefing_asset();
-  if(name == "wasteland") return resources::wasteland_briefing_asset();
-  return resources::white_sands_briefing_asset();
-}
 
 } // anonymous namespace
 
@@ -38,256 +33,354 @@ front_end::front_end(resources::collection const &assets, campaign_store &campai
   music_on{music_enabled.value_or(campaign.music_enabled())} {
   /// One state machine replaces the original title, menu, help and outcome helper processes
   page = start_in_flight ? interface_page::flight : skip_intro ? interface_page::menu : interface_page::story;
+  saved_theatres = campaign.theatres();
+  combat_invulnerable = campaign.combat_invincible();
+  comments_enabled = campaign.inflight_comments();
   for(auto const name : {"img/3d2.img", "img/3d3.img", "img/3d4.img", "img/3d5.img", "img/3d6.img",
     "img/3d7.img", "img/3d8.img", "img/3d9.img", "img/3d10.img", "img/3d13.img"}) help_screens.push_back(resources::decode_cockpit_mask(assets.file(name)));
 }
-void front_end::accept() {
-  /// Advance coherent title/story/menu chains without launching DOS helpers
-  switch(page) {
-  case interface_page::radio:
-    radio.reset();
-    page = interface_page::flight;
-    pending_map = std::exchange(map_after_radio, false);
-    break;
-  case interface_page::ending:
-    ending->toggle_warp();
-    break;
-  case interface_page::title:
-    title.reset();
-    page = interface_page::menu;
-    selection = 0;
-    break;
-  case interface_page::story:
-    advancing_story = true;
-    break;
-  case interface_page::menu:
-    feedback.clear();
-    if(session_running) {
-      if(selection == 0) page = interface_page::flight;
-      else if(selection == 1) show_flight_help();
-      else ask_to_end_sortie();
-    } else if((selection == 1 || selection == 2) && !campaign.can_fly()) {
-      feedback = campaign.active_pilot()->unavailable() ? "Activate a living pilot or resurrect this pilot first"
-        : "Pilot suspended after friendly losses - select another pilot";
-    } else switch(selection) {
-    case 0: page = interface_page::roster; break;
-    case 1: page = interface_page::theatres; break;
-    case 2: page = interface_page::training; break;
-    case 3:
-      if(campaign.active_pilot()) {
-        auto const pilots{campaign.pilots()};
-        pilot_index = static_cast<unsigned int>(campaign.active_pilot() - pilots.data());
-        page = interface_page::records;
-      } else feedback = "Create or activate a pilot in the duty roster first";
-      break;
-    case 4: page = interface_page::high_scores; score_list = 0; break;
-    case 5: page = interface_page::control_setup; break;
-    case 6: page = interface_page::story; story_index = 0; story_intensity = 0.0; advancing_story = false; break;
-    default: page = interface_page::quit_confirmation; break;
-    }
-    selection = 0;
-    break;
-  case interface_page::roster:
-    feedback.clear();
-    if(selection == 0) {
-      renaming = false;
-      entered_name.clear();
-      page = interface_page::pilot_name;
-    } else if(selection <= 4 || selection == 6) {
-      if(campaign.pilots().empty()) feedback = "The duty roster is empty - create a pilot first";
-      else {
-        pilot_action = selection == 1 ? roster_action::activate : selection == 2 ? roster_action::records
-          : selection == 3 ? roster_action::rename : selection == 4 ? roster_action::resurrect : roster_action::remove;
-        page = interface_page::pilots;
-      }
-    } else if(selection == 5) {
-      campaign.deactivate();
-      feedback = "Trainee active - sorties will not be saved";
-    } else page = interface_page::menu;
-    selection = 0;
-    break;
-  case interface_page::pilots:
-    if(selection < campaign.pilots().size()) {
-      pilot_index = selection;
-      try {
-        switch(pilot_action) {
-        case roster_action::activate: campaign.activate(pilot_index); training = campaign.training_settings(); controls.beginner_flight = campaign.active_pilot()->beginner_flight(); page = interface_page::roster; break;
-        case roster_action::remove: page = interface_page::pilot_delete; break;
-        case roster_action::records: page = interface_page::records; break;
-        case roster_action::rename:
-          renaming = true;
-          entered_name = campaign.pilots()[pilot_index].name();
-          page = interface_page::pilot_name;
-          break;
-        case roster_action::resurrect: campaign.resurrect(pilot_index); page = interface_page::roster; break;
-        }
-        feedback.clear();
-      } catch(std::exception const &error) { feedback = error.what(); }
-    }
-    selection = page == interface_page::pilot_delete ? 1 : 0;
-    break;
-  case interface_page::pilot_delete:
-    if(selection == 0) {
-      try { campaign.delete_pilot(pilot_index); feedback = "Pilot deleted; achievements retained in high scores"; }
-      catch(std::exception const &error) { feedback = error.what(); }
-    }
-    page = interface_page::roster;
-    selection = 0;
-    break;
-  case interface_page::pilot_name:
-    try {
-      if(renaming) campaign.rename_pilot(pilot_index, entered_name);
-      else { campaign.create_pilot(entered_name); training = campaign.training_settings(); controls.beginner_flight = campaign.active_pilot()->beginner_flight(); }
-      feedback.clear();
-      page = interface_page::roster;
-      selection = 0;
-    } catch(std::exception const &error) { feedback = error.what(); }
-    break;
-  case interface_page::records:
-  case interface_page::medals:
-    page = interface_page::roster;
-    selection = 0;
-    break;
-  case interface_page::boss:
-  case interface_page::current_score:
-    page = interface_page::flight;
-    break;
-  case interface_page::high_scores:
-  case interface_page::sortie_summary:
-    page = interface_page::menu;
-    selection = 0;
-    break;
-  case interface_page::control_setup:
-    if(selection < 3) adjust_controls();
-    else if(selection == 3) {
-      return_page = page;
-      page = interface_page::help;
-      help_index = 0;
-    } else { page = interface_page::menu; selection = 0; }
-    break;
-  case interface_page::training:
-    if(selection == 7) pending_launch = launch_request{
-      .theatre{"training"},
-      .training{training},
-    };
-    else if(selection == 8) { page = interface_page::menu; selection = 0; }
-    else adjust_training(1);
-    break;
-  case interface_page::missions:
-    if(selection == 0) { scroll = 0; page = interface_page::briefing; }
-    else {
-      if(selection - 1 < mission_starts.size()) pending_relocation = mission_starts[selection - 1];
-      page = interface_page::flight;
-    }
-    break;
-  case interface_page::theatres:
-    {
-      selected_theatre = theatre_names[selection];
-      auto const data{briefing_data(selected_theatre)};
-      briefing.assign(reinterpret_cast<char const*>(data.data()), data.size());
-      if(!briefing.empty() && briefing.front() == 'X') briefing.erase(0, briefing.find('\n') + 1);
-      scroll = 0;
-      page = interface_page::briefing;
-    }
-    break;
-  case interface_page::briefing:
-    if(session_running) { page = interface_page::flight; break; }
-    pending_launch = launch_request{
-      .theatre{selected_theatre},
-    };
-    break;
-  case interface_page::help:
-    if(++help_index == help_screens.size()) page = return_page;
-    break;
-  case interface_page::quit_confirmation:
-    if(selection == 0) {
-      if(session_running) {
-        pending_finish = true;
-      } else quit_requested = true;
-    } else page = session_running ? interface_page::flight : interface_page::menu;
-    selection = 0;
-    break;
-  case interface_page::outcome:
-    page = latest_result ? interface_page::sortie_summary : interface_page::menu;
-    session_running = false;
-    selection = 0;
-    break;
-  case interface_page::flight:
-    break;
+void front_end::navigate(interface_page const destination) {
+  /// Each original menu remembers its highlighted entry when a child screen closes
+  remembered_selection[page] = selection;
+  page = destination;
+  auto const found{remembered_selection.find(page)};
+  selection = found == remembered_selection.end() ? (page == interface_page::menu ? 2u : 0u) : found->second;
+}
+void front_end::sync_pilot() {
+  /// Activating a different career restores that pilot's menu preferences
+  training = campaign.training_settings();
+  controls.beginner_flight = !campaign.active_pilot() || campaign.active_pilot()->beginner_flight();
+  saved_theatres = campaign.theatres();
+  combat_invulnerable = campaign.combat_invincible();
+  comments_enabled = campaign.inflight_comments();
+}
+void front_end::document(std::string_view text, unsigned int const section) {
+  /// Form feeds separate the original documentation chapters and context-sensitive menu help
+  for(unsigned int n{0}; n < section; ++n) {
+    auto const split{text.find('\f')};
+    if(split == std::string_view::npos) throw std::invalid_argument{"missing original documentation section"};
+    text.remove_prefix(split + 1);
   }
+  text = text.substr(0, text.find('\f'));
+  std::istringstream input{std::string{text}};
+  std::string line;
+  document_lines.clear();
+  while(std::getline(input, line)) {
+    if(!line.empty() && line.back() == '\r') line.pop_back();
+    document_lines.push_back(line);
+  }
+  scroll = 0;
+}
+void front_end::information(unsigned int const section) {
+  /// Menu information is separate from F4's original in-flight artwork
+  information_return = page;
+  information_section = section;
+  document(assets.text("moag.inf"), section);
+  if(!document_lines.empty()) document_lines.erase(document_lines.begin());
+  navigate(interface_page::menu_information);
+}
+void front_end::notice(std::string message) {
+  /// Report a failed operation inside the same menu without discarding its selection or saved state
+  information_return = page;
+  feedback = std::move(message);
+  navigate(interface_page::notice);
+}
+void front_end::launch_combat() {
+  /// A combat flight resumes the active saved theater; selecting a different definition alone does not reset it
+  auto const &worlds{saved_theatres};
+  auto const active{campaign.active_theatre()};
+  if(!active || *active >= worlds.size()) { notice("Sorry, there is no active theater-of-operation.\nOpen or activate a theater before choosing Fly mission."); return; }
+  prepared_world = campaign.load_world(worlds[*active].definition);
+  prepared_launch = launch_request{
+    .theatre{worlds[*active].definition},
+    .invincible{combat_invulnerable},
+    .comments{comments_enabled},
+  };
+  navigate(interface_page::starting_airfield);
+}
+void front_end::accept() {
+  /// Reproduce MOAG's menu hierarchy while retaining one native session and save store
+  try {
+    switch(page) {
+    case interface_page::radio:
+      radio.reset(); page = interface_page::flight; pending_map = std::exchange(map_after_radio, false); break;
+    case interface_page::ending: ending->toggle_warp(); break;
+    case interface_page::title: title.reset(); navigate(interface_page::menu); break;
+    case interface_page::story: advancing_story = true; break;
+    case interface_page::menu:
+      if(session_running) {
+        if(selection == 0) page = interface_page::flight;
+        else if(selection == 1) show_flight_help();
+        else ask_to_end_sortie();
+      } else switch(selection) {
+      case 0: navigate(interface_page::roster); break;
+      case 1: navigate(interface_page::theatres); break;
+      case 2: navigate(interface_page::training); break;
+      case 3: navigate(interface_page::high_score_menu); break;
+      case 4:
+        document(assets.text("moag.inf"), 9);
+        if(!document_lines.empty()) document_lines.erase(document_lines.begin());
+        navigate(interface_page::registration); break;
+      case 5: navigate(interface_page::control_setup); break;
+      case 6: music_on = !music_on; campaign.music_enabled(music_on); break;
+      case 7: document_chapter = 0; numeric_input.clear(); document(assets.text("corncob.doc"), 0); navigate(interface_page::documentation); break;
+      case 8:
+        platform::write_binary(campaign.save_directory() / "CORNCOB.DOC", assets.file("corncob.doc"));
+        notice("The original documentation has been saved for printing.\nCORNCOB.DOC is in your save directory."); break;
+      case 9: information(1); break;
+      case 10: quit_requested = true; break;
+      }
+      break;
+    case interface_page::roster:
+      if(selection == 0) { renaming = false; entered_name.clear(); navigate(interface_page::pilot_name); }
+      else if(selection == 2) { campaign.deactivate(); sync_pilot(); }
+      else if(selection == 7) information(2);
+      else if(selection == 8) navigate(interface_page::menu);
+      else if(campaign.pilots().empty()) notice("There are no pilots in the list.\nYou will have to create one first.");
+      else {
+        pilot_action = selection == 1 ? roster_action::activate : selection == 3 ? roster_action::remove
+          : selection == 4 ? roster_action::resurrect : selection == 5 ? roster_action::rename : roster_action::records;
+        pilot_index = 0;
+        if(pilot_action == roster_action::records) { detailed_records = false; navigate(interface_page::records); }
+        else { navigate(interface_page::pilots); selection = 0; }
+      }
+      break;
+    case interface_page::pilots:
+      pilot_index = selection;
+      switch(pilot_action) {
+      case roster_action::activate: campaign.activate(pilot_index); sync_pilot(); navigate(interface_page::roster); break;
+      case roster_action::remove: navigate(interface_page::pilot_delete); break;
+      case roster_action::rename: renaming = true; entered_name = campaign.pilots()[pilot_index].name(); navigate(interface_page::pilot_name); break;
+      case roster_action::resurrect:
+        if(!campaign.pilots()[pilot_index].unavailable()) notice("This pilot is not dead or captured.\nYou can only resurrect dead or captured pilots.");
+        else navigate(interface_page::pilot_resurrect);
+        break;
+      case roster_action::records: detailed_records = false; navigate(interface_page::records); break;
+      }
+      break;
+    case interface_page::pilot_delete: campaign.delete_pilot(pilot_index); sync_pilot(); navigate(interface_page::roster); break;
+    case interface_page::pilot_resurrect: campaign.resurrect(pilot_index); navigate(interface_page::roster); break;
+    case interface_page::pilot_name:
+      if(renaming) { campaign.rename_pilot(pilot_index, entered_name); navigate(interface_page::roster); }
+      else {
+        pilot_record const validated{entered_name};
+        if(std::ranges::any_of(campaign.pilots(), [&](auto const &pilot){return pilot.name() == validated.name();}))
+          throw std::invalid_argument{"Sorry, that pilot already exists."};
+        navigate(interface_page::pilot_activate); selection = 0;
+      }
+      break;
+    case interface_page::pilot_activate: campaign.create_pilot(entered_name, selection == 0); sync_pilot(); navigate(interface_page::roster); break;
+    case interface_page::records:
+    case interface_page::medals: navigate(interface_page::roster); break;
+    case interface_page::boss:
+    case interface_page::current_score: page = interface_page::flight; break;
+    case interface_page::sortie_summary: sync_pilot(); navigate(interface_page::menu); break;
+    case interface_page::control_setup:
+      if(selection == 0 || selection == 1) {
+        controls.joystick_device = selection == 0 ? -2 : -1;
+        campaign.keyboard_control(selection == 0);
+      } else if(selection == 2 || selection == 3) automatic_centering = selection == 2;
+      else if(selection == 4) force_centering = true;
+      else if(selection == 5) information(5);
+      else navigate(interface_page::menu);
+      break;
+    case interface_page::training:
+      switch(selection) {
+      case 0:
+        if(!campaign.can_fly()) { notice("This pilot is not available for duty."); break; }
+        prepared_launch = launch_request{
+          .theatre{"training"},
+          .training{training},
+          .invincible{training.invincible},
+          .comments{comments_enabled},
+        };
+        navigate(interface_page::mission_briefing);
+        break;
+      case 1: navigate(interface_page::training_wickedness); break;
+      case 2: navigate(interface_page::training_counts); break;
+      case 3: training = {}; campaign.training_settings(training); break;
+      case 4: training.invincible = !training.invincible; campaign.training_settings(training); break;
+      case 5: information(6); break;
+      case 6: navigate(interface_page::menu); break;
+      }
+      break;
+    case interface_page::training_wickedness:
+    case interface_page::training_counts:
+      if(selection == 3) navigate(interface_page::training);
+      else { training_editor = page; training_field = selection; numeric_input.clear(); navigate(interface_page::training_value); }
+      break;
+    case interface_page::training_value:
+      if(!numeric_input.empty()) {
+        unsigned int const value{static_cast<unsigned int>(std::stoi(numeric_input))};
+        bool const quality{training_editor == interface_page::training_wickedness};
+        if(value > (quality ? 8u : world::training_defence::maximum_menu_count)) { feedback = quality ? "Enter a value from 0 to 8" : "Enter a value from 0 to 25"; break; }
+        auto &defence{training_field == 0 ? training.kla : training_field == 1 ? training.vehicles : training.aaa};
+        if(quality) defence.quality = static_cast<int>(value) - 1;
+        else defence.count = value;
+        campaign.training_settings(training);
+      }
+      feedback.clear(); navigate(training_editor); break;
+    case interface_page::theatres:
+      switch(selection) {
+      case 0: if(campaign.can_fly()) launch_combat(); else notice("This pilot is not available for duty."); break;
+      case 1: navigate(interface_page::new_theatre); break;
+      case 2: case 3: case 4:
+        if(saved_theatres.empty()) notice("Sorry, this pilot has no open theaters to choose from.");
+        else { detailed_records = false; navigate(selection == 2 ? interface_page::open_theatre : selection == 3 ? interface_page::theatre_delete : interface_page::theatre_records); selection = 0; }
+        break;
+      case 5: combat_invulnerable = !combat_invulnerable; campaign.combat_invincible(combat_invulnerable); break;
+      case 6: controls.beginner_flight = !controls.beginner_flight; campaign.beginner_flight(controls.beginner_flight); break;
+      case 7: comments_enabled = !comments_enabled; campaign.inflight_comments(comments_enabled); break;
+      case 8: information(3); break;
+      case 9: navigate(interface_page::menu); break;
+      }
+      break;
+    case interface_page::new_theatre:
+      {
+        std::array<std::span<uint8_t const>, 4> const data{resources::morning_asset(), resources::dusk_asset(), resources::wasteland_asset(), resources::white_sands_asset()};
+        campaign.open_theatre(world::theatre_catalog[selection].name, world::decode_theatre(data[selection]));
+        saved_theatres = campaign.theatres();
+        navigate(interface_page::theatres);
+      }
+      break;
+    case interface_page::open_theatre: campaign.activate_theatre(selection); navigate(interface_page::theatres); break;
+    case interface_page::theatre_delete: campaign.delete_theatre(selection); saved_theatres = campaign.theatres(); navigate(interface_page::theatres); break;
+    case interface_page::theatre_records:
+      if(detailed_records) { detailed_records = false; navigate(interface_page::theatres); }
+      else detailed_records = true;
+      break;
+    case interface_page::mission_briefing:
+    case interface_page::starting_airfield:
+      pending_launch = std::exchange(prepared_launch, std::nullopt);
+      break;
+    case interface_page::airfield_information: navigate(interface_page::starting_airfield); break;
+    case interface_page::missions:
+      if(selection == 0) { scroll = 0; page = interface_page::briefing; }
+      else { if(selection - 1 < mission_starts.size()) pending_relocation = mission_starts[selection - 1]; page = interface_page::flight; }
+      break;
+    case interface_page::briefing:
+      if(session_running) page = interface_page::flight;
+      break;
+    case interface_page::high_score_menu:
+      if(selection < 3) { score_list = selection; navigate(interface_page::high_scores); }
+      else if(selection == 3) navigate(interface_page::score_delete);
+      else if(selection == 4) information(7);
+      else navigate(interface_page::menu);
+      break;
+    case interface_page::score_delete:
+      if(selection < 3) { score_list = selection; navigate(interface_page::score_delete_confirmation); }
+      else if(selection == 3) information(8);
+      else navigate(interface_page::high_score_menu);
+      break;
+    case interface_page::score_delete_confirmation: campaign.clear_scores(score_list); navigate(interface_page::score_delete); break;
+    case interface_page::high_scores: navigate(interface_page::high_score_menu); break;
+    case interface_page::menu_information: navigate(information_return); break;
+    case interface_page::documentation:
+      if(document_chapter == 0 && !numeric_input.empty()) {
+        unsigned int const chapter{static_cast<unsigned int>(std::stoi(numeric_input))};
+        if(chapter < 1 || chapter > 17) break;
+        document_chapter = chapter;
+      } else if(++document_chapter > 17) document_chapter = 0;
+      numeric_input.clear(); document(assets.text("corncob.doc"), document_chapter); break;
+    case interface_page::registration: navigate(interface_page::menu); break;
+    case interface_page::notice: feedback.clear(); navigate(information_return); break;
+    case interface_page::help: if(++help_index == help_screens.size()) navigate(return_page); break;
+    case interface_page::quit_confirmation:
+      if(selection == 0) pending_finish = true;
+      else page = interface_page::flight;
+      break;
+    case interface_page::outcome:
+      session_running = false;
+      navigate(latest_result ? interface_page::sortie_summary : interface_page::menu);
+      break;
+    case interface_page::flight: break;
+    }
+  } catch(std::exception const &error) { notice(error.what()); }
 }
 void front_end::command(interface_command const command) {
-  /// Keyboard navigation operates on the current page, keeping flight input separate while a menu is open
-  unsigned int const count{choice_count()};
-  auto clamp_scroll{[&]{
-    unsigned int lines{0};
-    std::istringstream text{briefing};
-    std::string line;
-    while(std::getline(text, line)) if(line.find('\f') == std::string::npos && !line.starts_with("Sxyth")) ++lines;
-    scroll = std::min(scroll, lines > 20 ? lines - 20 : 0);
+  /// Text readers scroll; entry lists navigate; confirmation dialogs accept only their documented keys
+  bool const confirmation{page == interface_page::pilot_delete || page == interface_page::pilot_resurrect || page == interface_page::score_delete_confirmation};
+  if(confirmation && command != interface_command::accept) {
+    navigate(page == interface_page::score_delete_confirmation ? interface_page::score_delete : interface_page::roster);
+    return;
+  }
+  bool const reading{page == interface_page::menu_information || page == interface_page::documentation || page == interface_page::registration || page == interface_page::briefing || page == interface_page::airfield_information};
+  unsigned int const visible_lines{page == interface_page::airfield_information ? 9u : page == interface_page::menu_information ? 15u : page == interface_page::briefing ? 16u : 22u};
+  auto scroll_to{[&](unsigned int const line){
+    unsigned int count{static_cast<unsigned int>(document_lines.size())};
+    if(page == interface_page::briefing) {
+      count = 0;
+      std::istringstream text{briefing}; std::string line;
+      while(std::getline(text, line)) if(line.find('\f') == std::string::npos && !line.starts_with("Sxyth")) ++count;
+    }
+    scroll = std::min(line, count > visible_lines ? count - visible_lines : 0u);
   }};
   switch(command) {
-  case interface_command::backspace:
-    if(editing_name() && !entered_name.empty()) entered_name.pop_back();
-    break;
   case interface_command::accept: accept(); break;
+  case interface_command::backspace:
+    if(editing_name()) {
+      auto &text{page == interface_page::training_value ? numeric_input : entered_name};
+      if(!text.empty()) text.pop_back();
+    } else if(page == interface_page::documentation && document_chapter == 0 && !numeric_input.empty()) numeric_input.pop_back();
+    else this->command(interface_command::cancel);
+    break;
   case interface_command::up:
-    if(page == interface_page::records || page == interface_page::medals) pilot_index = (pilot_index + static_cast<unsigned int>(campaign.pilots().size()) - 1) % static_cast<unsigned int>(campaign.pilots().size());
-    else if(page == interface_page::briefing) { if(scroll != 0) --scroll; }
-    else selection = (selection + count - 1) % count;
-    break;
   case interface_command::down:
-    if(page == interface_page::records || page == interface_page::medals) pilot_index = (pilot_index + 1) % static_cast<unsigned int>(campaign.pilots().size());
-    else if(page == interface_page::briefing) { ++scroll; clamp_scroll(); }
-    else selection = (selection + 1) % count;
+    if(reading) scroll_to(command == interface_command::up ? (scroll == 0 ? 0 : scroll - 1) : scroll + 1);
+    else if(page == interface_page::records || page == interface_page::medals) {
+      unsigned int const count{static_cast<unsigned int>(campaign.pilots().size())};
+      pilot_index = (pilot_index + (command == interface_command::up ? count - 1 : 1)) % count;
+    } else {
+      unsigned int const count{choice_count()};
+      selection = (selection + (command == interface_command::up ? count - 1 : 1)) % count;
+    }
     break;
-  case interface_command::page_down:
-    if(page == interface_page::records) records = static_cast<record_view>((std::to_underlying(records) + 1) % 4);
-    else if(page == interface_page::briefing) { scroll += 17; clamp_scroll(); }
-    break;
-  case interface_command::page_up:
-    if(page == interface_page::records) records = static_cast<record_view>((std::to_underlying(records) + 3) % 4);
-    else scroll = scroll > 17 ? scroll - 17 : 0;
+  case interface_command::home: if(reading) scroll = 0; else selection = 0; break;
+  case interface_command::end: if(reading) scroll_to(static_cast<unsigned int>(document_lines.size())); else selection = choice_count() - 1; break;
+  case interface_command::page_down: if(reading) scroll_to(scroll + visible_lines - 1); break;
+  case interface_command::page_up: if(reading) scroll_to(scroll >= visible_lines - 1 ? scroll - visible_lines + 1 : 0); break;
+  case interface_command::details:
+    if(page == interface_page::records || page == interface_page::medals) detailed_records = !detailed_records;
     break;
   case interface_command::previous:
-    if(page == interface_page::medals) page = interface_page::records;
-    else if(page == interface_page::records) page = interface_page::medals;
-    if(page == interface_page::high_scores) score_list = (score_list + 2) % 3;
-    if(page == interface_page::training) adjust_training(-1);
-    if(page == interface_page::control_setup) adjust_controls();
     if(page == interface_page::help && help_index != 0) --help_index;
     break;
   case interface_command::next:
-    if(page == interface_page::medals) page = interface_page::records;
-    else if(page == interface_page::records) page = interface_page::medals;
-    if(page == interface_page::high_scores) score_list = (score_list + 1) % 3;
-    if(page == interface_page::training) adjust_training(1);
-    if(page == interface_page::control_setup) adjust_controls();
     if(page == interface_page::help || page == interface_page::story || page == interface_page::title) accept();
     break;
   case interface_command::cancel:
-    if(page == interface_page::radio) accept();
-    else if(page == interface_page::ending) { ending.reset(); show_outcome(14); }
-    else if(page == interface_page::flight) ask_to_end_sortie();
-    else if(page == interface_page::help) page = return_page;
-    else if(session_running && (page == interface_page::briefing || page == interface_page::missions || page == interface_page::current_score || page == interface_page::boss)) page = interface_page::flight;
-    else if(page == interface_page::quit_confirmation) page = session_running ? interface_page::flight : interface_page::menu;
-    else if(page == interface_page::pilots || page == interface_page::pilot_name || page == interface_page::pilot_delete || page == interface_page::records || page == interface_page::medals) { page = interface_page::roster; selection = 0; feedback.clear(); }
-    else if(page == interface_page::title || page == interface_page::story) { title.reset(); page = interface_page::menu; }
-    else if(page == interface_page::menu && session_running) page = interface_page::flight;
-    else if(page == interface_page::menu) {
-      page = interface_page::quit_confirmation;
-      selection = 0;
-    } else {
-      page = interface_page::menu;
-      selection = 0;
+    switch(page) {
+    case interface_page::radio: accept(); break;
+    case interface_page::ending: ending.reset(); show_outcome(14); break;
+    case interface_page::flight: ask_to_end_sortie(); break;
+    case interface_page::help: navigate(return_page); break;
+    case interface_page::menu: if(session_running) page = interface_page::flight; else quit_requested = true; break;
+    case interface_page::mission_briefing: prepared_launch.reset(); navigate(interface_page::training); break;
+    case interface_page::starting_airfield: prepared_launch.reset(); navigate(interface_page::theatres); break;
+    case interface_page::airfield_information: navigate(interface_page::starting_airfield); break;
+    case interface_page::pilots: case interface_page::pilot_name: case interface_page::pilot_delete:
+    case interface_page::records: case interface_page::medals: case interface_page::pilot_resurrect: navigate(interface_page::roster); break;
+    case interface_page::pilot_activate: selection = 1; accept(); break;
+    case interface_page::new_theatre: case interface_page::open_theatre: case interface_page::theatre_delete:
+    case interface_page::theatre_records: detailed_records = false; navigate(interface_page::theatres); break;
+    case interface_page::training_counts: case interface_page::training_wickedness: navigate(interface_page::training); break;
+    case interface_page::training_value: feedback.clear(); navigate(training_editor); break;
+    case interface_page::score_delete: case interface_page::high_scores: navigate(interface_page::high_score_menu); break;
+    case interface_page::score_delete_confirmation: navigate(interface_page::score_delete); break;
+    case interface_page::menu_information: navigate(information_return); break;
+    case interface_page::documentation:
+      if(document_chapter != 0) { document_chapter = 0; document(assets.text("corncob.doc"), 0); }
+      else navigate(interface_page::menu);
+      break;
+    case interface_page::notice: accept(); break;
+    case interface_page::title: case interface_page::story: title.reset(); navigate(interface_page::menu); break;
+    case interface_page::briefing: case interface_page::missions: case interface_page::current_score: case interface_page::boss:
+    case interface_page::quit_confirmation: page = interface_page::flight; break;
+    default: navigate(interface_page::menu); break;
     }
     break;
   case interface_command::help:
-    return_page = page;
-    page = interface_page::help;
-    help_index = 0;
-    break;
+    return_page = page; help_index = 0; navigate(interface_page::help); break;
   }
 }
 void front_end::begin_ending(graphics::indexed_framebuffer const &backdrop, std::array<render::rgba_pixel, 16> const &colours) {
@@ -435,161 +528,25 @@ void front_end::render(render::framebuffer &target) const {
     title->render(target);
     return;
   }
-  bool const intelligence{page == interface_page::briefing};
-  graphics::interface_canvas canvas{target, intelligence ? assets.file("font14.bin") : std::span<uint8_t const>{menu_font}, intelligence ? 14u : 16u, 640, intelligence ? 350u : 400u};
-  if(page == interface_page::menu) {
-    static std::array<std::string_view, 8> constexpr choices{"Duty roster", "Combat missions", "Training missions", "Pilot records", "High-score tables", "Controls and sound setup", "Introduction", "Quit"};
-    static std::array<std::string_view, 3> constexpr resume{"Resume flight", "Flight controls and help", "End current sortie"};
-    draw_menu(canvas, "Main menu", session_running ? std::span<std::string_view const>{resume} : std::span<std::string_view const>{choices});
-    auto const *pilot{campaign.active_pilot()};
-    canvas.text(72, 304, pilot ? pilot->name() + " - " + std::string{rank_name(pilot->rank())} : "Trainee - progress is not saved", grey);
-  } else if(page == interface_page::control_setup) {
-    std::string const device{controls.joystick_device == -2 ? "keyboard only" : controls.joystick_device == -1 ? "automatic joystick" : "joystick " + std::to_string(controls.joystick_device)};
-    std::array<std::string, 5> const labels{
-      "Controls: " + device,
-      std::string{"Flight model: "} + (controls.beginner_flight ? "beginner" : "advanced"),
-      std::string{"Music: "} + (music_on ? "on" : "off"),
-      "Flight controls and help", "Return to main menu",
-    };
-    std::array<std::string_view, 5> choices;
-    std::ranges::copy(labels, choices.begin());
-    draw_menu(canvas, "Controls and sound setup", choices);
-    canvas.text(64, 240, "Beginner: gentle pitch assistance toward level flight", grey);
-    canvas.text(64, 264, "Joystick buttons 1/2: guns/missiles", grey);
-    canvas.text(64, 288, "Keyboard arrows override the stick during flight", grey);
-  } else if(page == interface_page::training) {
-    auto quality{[](int const q){return q < 0 ? std::string{"random"} : std::to_string(q + 1);}};
-    std::array<std::string, 9> const labels{
-      "KLA sites: " + std::to_string(training.kla.count), "KLA quality: " + quality(training.kla.quality),
-      "Vehicle sites: " + std::to_string(training.vehicles.count), "Vehicle quality: " + quality(training.vehicles.quality),
-      "AAA sites: " + std::to_string(training.aaa.count), "AAA quality: " + quality(training.aaa.quality),
-      std::string{"Invulnerability: "} + (training.invincible ? "on" : "off"), "Start training flight", "Return to main menu",
-    };
-    std::array<std::string_view, 9> choices;
-    std::ranges::copy(labels, choices.begin());
-    draw_menu(canvas, "Training missions", choices);
-  } else if(page == interface_page::missions) {
-    std::vector<std::string_view> choices{"Read full airbase intelligence"};
-    for(auto const &start : mission_starts) choices.push_back(start.title);
-    draw_menu(canvas, "Intelligence - choose an airborne start", choices);
-    if(choices.empty()) canvas.text(80, 160, "No airborne starts in this theatre", grey);
-  } else if(page == interface_page::theatres) draw_menu(canvas, "Choose a theatre of operations", theatre_titles);
-  else if(page == interface_page::roster) {
-    static std::array<std::string_view, 8> constexpr choices{"Create pilot", "Activate pilot", "View pilot records", "Rename pilot", "Resurrect pilot", "Deactivate pilot (use trainee)", "Delete pilot", "Return to main menu"};
-    draw_menu(canvas, "Duty roster", choices);
-  } else if(page == interface_page::pilots) {
-    std::vector<std::string> names;
-    for(auto const &pilot : campaign.pilots()) names.push_back(pilot.name() + (pilot.unavailable() ? " (killed or captured)" : pilot.selected() ? " (active)" : ""));
-    std::vector<std::string_view> choices{names.begin(), names.end()};
-    draw_menu(canvas, "Choose a pilot", choices);
-  } else if(page == interface_page::pilot_delete) {
-    static std::array<std::string_view, 2> constexpr choices{"Yes - delete pilot and saved theatres", "No - return to roster"};
-    draw_menu(canvas, "Delete " + campaign.pilots()[pilot_index].name() + "?", choices);
-  } else if(page == interface_page::pilot_name) {
-    draw_menu(canvas, renaming ? "Rename pilot" : "Create pilot", {});
-    canvas.text(80, 140, "Pilot name (1 to 20 characters):", grey);
-    canvas.rectangle(80, 176, 560, 200, {0, 0, 85});
-    canvas.text(88, 180, entered_name + "_", yellow);
-  } else if(page == interface_page::records || page == interface_page::sortie_summary || page == interface_page::current_score) {
-    draw_menu(canvas, page == interface_page::records ? "Pilot records" : "Sortie report", {});
-    pilot_record const *pilot{page == interface_page::records ? &campaign.pilots()[pilot_index] : campaign.active_pilot()};
-    bool const record_page{page == interface_page::records};
-    auto const result{!record_page ? *latest_result : records == record_view::latest ? pilot->last_sortie()
-      : records == record_view::best ? pilot->best_sortie() : records == record_view::individual ? pilot->individual_records() : pilot->career()};
-    if(record_page) {
-      static std::array<std::string_view, 4> constexpr labels{"Career totals", "Latest sortie", "Best sortie", "Individual records"};
-      canvas.text(72, 88, labels[std::to_underlying(records)], yellow);
-    }
-    canvas.text(72, 120, pilot ? pilot->name() + " - " + std::string{rank_name(pilot->rank())} : "Trainee", yellow);
-    int32_t const score{!record_page ? calculate_score(result) : records == record_view::latest ? pilot->last_sortie_score()
-      : records == record_view::best ? pilot->best_sortie_score() : pilot->career_score()};
-    if(!record_page || records != record_view::individual) canvas.text(72, 152, "Score: " + std::to_string(score), grey);
-    canvas.text(72, 176, "Objectives completed: " + std::to_string(result.objectives_completed), grey);
-    canvas.text(72, 200, "Aircraft lost: " + std::to_string(result.aircraft_lost), grey);
-    canvas.text(72, 224, "Friendly losses: " + std::to_string(result.friendly_destroyed), grey);
-    canvas.text(72, 248, std::string{record_page && records == record_view::career ? "Accumulated damage: " : "Maximum damage: "} + std::to_string(result.maximum_damage), grey);
-    auto const seconds{result.elapsed_seconds};
-    canvas.text(72, 272, std::format("Flying time: {}:{:02}:{:02}", seconds / 3600, seconds / 60 % 60, seconds % 60)
-      + (pilot ? "   Career sorties: " + std::to_string(pilot->sorties()) : ""), grey);
-    canvas.text(72, 304, page == interface_page::records ? "PgUp/PgDn: records  Left/Right: medals  Enter: roster" : "Press Enter to continue", yellow);
-  } else if(page == interface_page::medals) {
-    draw_menu(canvas, "Pilot medals", {});
-    auto const &pilot{campaign.pilots()[pilot_index]};
-    canvas.text(72, 88, pilot.name() + " - " + std::string{rank_name(pilot.rank())}, yellow);
-    for(unsigned int i{0}; i != medal_definitions.size(); ++i) {
-      auto const &award{medal_definitions[i]};
-      unsigned int const count{pilot.awards(award.kind)};
-      int const row{116 + static_cast<int>(i) * 18};
-      auto const colour{count == 0 ? render::ega_palette[8] : render::ega_palette[award.colour]};
-      canvas.text(80, row, std::string_view{award.glyphs.data(), award.glyphs.size()}, colour);
-      canvas.text(112, row, award.name, count == 0 ? grey : white);
-      canvas.text(496, row, std::to_string(count), count == 0 ? grey : yellow);
-    }
-    canvas.text(72, 316, "Left/Right: records  Up/Down: pilot  Enter: roster", yellow);
-  } else if(page == interface_page::high_scores) {
-    std::array<std::string_view, 3> constexpr titles{"Best missions", "Top careers", "Fastest careers"};
-    draw_menu(canvas, titles[score_list], {});
-    canvas.text(32, 92, score_list == 0 ? "    Pilot                Theatre                     Points" : "    Pilot                  Sorties  Revivals       Points", grey);
-    auto const &tables{campaign.high_scores()};
-    for(unsigned int i{0}; i != 10; ++i) {
-      std::string row;
-      if(score_list == 0) {
-        auto const &entry{tables.best_missions()[i]};
-        row = std::format("{:2}  {:20} {:22} {:>9}", i + 1, (entry.retired ? "*" : "") + score_text(entry.name), score_text(entry.theatre), entry.points);
-      } else {
-        auto const &entry{(score_list == 1 ? tables.best_careers() : tables.fastest_careers())[i]};
-        auto const points{score_list == 1 || entry.sorties == 0 ? entry.points : entry.points / entry.sorties};
-        row = std::format("{:2}  {:20} {:>7} {:>9} {:>13}", i + 1, (entry.retired ? "*" : "") + score_text(entry.name), entry.sorties, entry.resurrections, points);
-      }
-      canvas.text(32, 120 + static_cast<int>(i) * 18, row, i == 0 ? yellow : grey);
-    }
-    canvas.text(40, 316, score_list == 2 ? "Points per sortie; at least three sorties required" : "Left/Right: score tables   * retired pilot", yellow);
-  } else if(page == interface_page::quit_confirmation) {
-    static std::array<std::string_view, 2> constexpr choices{"Yes", "No - return"};
-    draw_menu(canvas, session_running ? "End this sortie?" : "Quit Corncob 3D?", choices);
-  } else if(page == interface_page::briefing) {
-    canvas.clear();
-    canvas.rectangle(0, 0, 640, 28, blue);
-    canvas.text(16, 6, "Airbase intelligence", white);
-    std::istringstream input{briefing};
-    std::string line;
-    unsigned int number{0}, drawn{0};
-    while(std::getline(input, line) && drawn != 20) {
-      if(!line.empty() && line.back() == '\r') line.pop_back();
-      if(line.find('\f') != std::string::npos || line.starts_with("Sxyth")) continue;
-      if(number++ < scroll) continue;
-      if(line.size() > 78) line.resize(78);
-      canvas.text(8, 34 + static_cast<int>(drawn++) * 14, line, grey);
-    }
-    canvas.text(8, 326, session_running ? "Up/Down or PgUp/PgDn scroll   Enter/Esc returns to flight" : "Up/Down or PgUp/PgDn scroll   Enter starts   Esc returns", yellow);
-  }
+  render_menus(target);
 }
 unsigned int front_end::choice_count() const {
-  /// Only selection pages wrap; text entry and reports keep a neutral selection
+  /// Counts describe the original selectable entries, excluding status text and panel decorations
   switch(page) {
-  case interface_page::menu: return session_running ? 3 : 8;
-  case interface_page::roster: return 8;
-  case interface_page::pilot_delete: return 2;
-  case interface_page::theatres: return 4;
-  case interface_page::training: return 9;
-  case interface_page::control_setup: return 5;
+  case interface_page::menu: return session_running ? 3 : 11;
+  case interface_page::roster: return 9;
+  case interface_page::theatres: return 10;
+  case interface_page::training: case interface_page::control_setup: return 7;
+  case interface_page::training_counts: case interface_page::training_wickedness: return 4;
+  case interface_page::new_theatre: return 4;
+  case interface_page::open_theatre: case interface_page::theatre_delete: case interface_page::theatre_records:
+    return std::max(1u, static_cast<unsigned int>(saved_theatres.size()));
+  case interface_page::high_score_menu: return 6;
+  case interface_page::score_delete: return 5;
+  case interface_page::pilot_activate: case interface_page::quit_confirmation: return 2;
   case interface_page::missions: return static_cast<unsigned int>(mission_starts.size()) + 1;
   case interface_page::pilots: return std::max(1u, static_cast<unsigned int>(campaign.pilots().size()));
-  case interface_page::quit_confirmation: return 2;
   default: return 1;
-  }
-}
-void front_end::adjust_controls() {
-  /// The original front end selects keyboard/joystick control and beginner/advanced aerodynamics before a flight
-  if(selection == 0) {
-    controls.joystick_device = controls.joystick_device == -2 ? -1 : -2;
-    campaign.keyboard_control(controls.joystick_device == -2);
-  } else if(selection == 1) {
-    controls.beginner_flight = !controls.beginner_flight;
-    campaign.beginner_flight(controls.beginner_flight);
-  } else if(selection == 2) {
-    music_on = !music_on;
-    campaign.music_enabled(music_on);
   }
 }
 audio::music_cue front_end::music() const noexcept {
@@ -601,16 +558,6 @@ audio::music_cue front_end::music() const noexcept {
 control_setup const &front_end::flight_controls() const noexcept {
   /// New sessions and platform polling consume the same settings shown by the front end
   return controls;
-}
-void front_end::adjust_training(int const direction) {
-  /// Training configures original site counts and qualities; no extra difficulty rules are invented
-  if(selection == 6) training.invincible = !training.invincible;
-  else if(selection < 6) {
-    auto &defence{selection < 2 ? training.kla : selection < 4 ? training.vehicles : training.aaa};
-    if((selection & 1u) == 0) defence.count = static_cast<unsigned int>(std::clamp(static_cast<int>(defence.count) + direction, 0, static_cast<int>(world::training_defence::maximum_menu_count)));
-    else defence.quality = std::clamp(defence.quality + direction, -1, 7);
-  } else return;
-  campaign.training_settings(training);
 }
 void front_end::show_intelligence(world::theatre const &world) {
   /// The retained session supplies its current theatre's complete intelligence text
@@ -643,12 +590,48 @@ std::optional<world::mission_start> front_end::take_relocation() {
   return std::exchange(pending_relocation, std::nullopt);
 }
 void front_end::character(uint32_t const codepoint) {
-  /// GLFW text callbacks preserve spaces without treating them as menu acceptance
-  if(editing_name() && codepoint >= 32 && codepoint < 127 && entered_name.size() < 20) entered_name += static_cast<char>(codepoint);
+  /// Text prompts own characters; elsewhere the yellow original shortcut executes its menu entry immediately
+  if(page == interface_page::pilot_name) {
+    if(codepoint >= 32 && codepoint < 127 && entered_name.size() < 20) entered_name += static_cast<char>(codepoint);
+    return;
+  }
+  if(codepoint == 32) return;
+  if(page == interface_page::training_value || (page == interface_page::documentation && document_chapter == 0)) {
+    if(codepoint >= '0' && codepoint <= '9' && numeric_input.size() < 2) numeric_input += static_cast<char>(codepoint);
+    return;
+  }
+  if(page == interface_page::starting_airfield && (codepoint == 'i' || codepoint == 'I')) {
+    document_lines = prepared_world ? resources::airfield_survey(*prepared_world) : std::vector<std::string>{};
+    scroll = 0;
+    navigate(interface_page::airfield_information);
+    return;
+  }
+  if(page == interface_page::pilot_delete || page == interface_page::pilot_resurrect || page == interface_page::score_delete_confirmation) { command(interface_command::cancel); return; }
+  if(page == interface_page::pilot_activate) {
+    if(codepoint == 'y' || codepoint == 'Y' || codepoint == 'n' || codepoint == 'N') { selection = codepoint == 'n' || codepoint == 'N' ? 1 : 0; accept(); }
+    return;
+  }
+  if(page == interface_page::high_scores || page == interface_page::notice) { accept(); return; }
+  std::string_view shortcuts;
+  switch(page) {
+  case interface_page::menu: if(!session_running) shortcuts = "dcthrjmvpix"; break;
+  case interface_page::roster: shortcuts = "cadlenvir"; break;
+  case interface_page::theatres: shortcuts = "foadvpmcir"; break;
+  case interface_page::training: shortcuts = "fwndpir"; break;
+  case interface_page::training_counts: case interface_page::training_wickedness: shortcuts = "mgar"; break;
+  case interface_page::control_setup: shortcuts = "kjamfir"; break;
+  case interface_page::high_score_menu: shortcuts = "scfdir"; break;
+  case interface_page::score_delete: shortcuts = "scfir"; break;
+  case interface_page::story: case interface_page::title: accept(); return;
+  default: break;
+  }
+  if(codepoint >= 128) return;
+  auto const index{shortcuts.find(static_cast<char>(std::tolower(static_cast<unsigned char>(codepoint))))};
+  if(index != std::string_view::npos) { selection = static_cast<unsigned int>(index); accept(); }
 }
 bool front_end::editing_name() const noexcept {
-  /// Text input owns printable characters only during a pilot-name prompt
-  return page == interface_page::pilot_name;
+  /// Space and Backspace belong to the active text prompt, rather than triggering menu navigation
+  return page == interface_page::pilot_name || page == interface_page::training_value;
 }
 bool front_end::take_finish() {
   /// Consume one confirmed end request; the application records and presents the actual result

@@ -1,0 +1,524 @@
+#include "front_end.h"
+#include <algorithm>
+#include <format>
+#include <numeric>
+#include <sstream>
+#include "graphics/menu_canvas.h"
+#include "maths/integer.h"
+#include "resources/assets.h"
+#include "world/theatre_catalog.h"
+
+namespace corncob::game {
+
+namespace {
+
+std::array<std::string_view, 7> constexpr short_ranks{"2nd Lt.", "1st Lt.", "Capt.", "Major", "Lt. Col.", "Colonel", "General"};
+std::array<std::string_view, 11> constexpr main_choices{
+  "\\Duty roster", "\\Combat missions", "\\Training missions", "display \\High score list", "\\Read This!!!",
+  "keyboard/\\Joystick setup", "\\Music toggle", "\\View  the Corncob 3D documentation",
+  "\\Print the Corncob 3D documentation", "get \\Information about this menu", "e\\Xit to dos",
+};
+std::array<std::string_view, 9> constexpr roster_choices{
+  "\\Create Pilot", "\\Activate Pilot", "\\Deactivate Pilot", "de\\Lete Pilot", "r\\Esurrect Pilot",
+  "re\\Name Pilot", "\\View Pilot Records", "get \\Information about this menu", "\\Return to previous menu",
+};
+std::array<std::string_view, 10> constexpr combat_choices{
+  "\\Fly mission", "\\Open a new theater of operations", "\\Activate an open theater", "\\Delete a theater",
+  "\\View status of a theater", "toggle invulnerable \\Plane", "toggle aerodynamic \\Model", "toggle inflight \\Comments",
+  "get \\Information about this menu", "\\Return to previous menu",
+};
+std::array<std::string_view, 7> constexpr training_choices{
+  "\\Fly mission", "modify \\Wickedness of enemies", "choose \\Number of enemies", "choose \\Default values",
+  "toggle invulnerable \\Plane", "get \\Information about this menu", "\\Return to previous menu",
+};
+std::array<std::string_view, 7> constexpr joystick_choices{
+  "choose \\Keyboard control", "choose \\Joystick control", "choose \\Automatic joystick centering",
+  "choose \\Manual joystick centering", "\\Force joystick re-centering next flight",
+  "get \\Information about this menu", "\\Return to previous menu",
+};
+std::array<std::string_view, 6> constexpr score_choices{
+  "see list of high \\Scores", "see list of top \\Careers", "see list of \\Fastest careers",
+  "\\Delete one of the above lists", "get \\Information about this menu", "\\Return to previous menu",
+};
+std::array<std::string_view, 5> constexpr delete_choices{
+  "delete the list of top \\Scores", "delete the list of top \\Careers", "delete the list of \\Fastest careers",
+  "get \\Information about this menu", "\\Return to previous menu",
+};
+
+int total(quality_counts const &counts) {
+  /// Reports display the original signed, wrapping word totals rather than host-sized counters
+  return maths::word(std::accumulate(counts.begin(), counts.end(), 0));
+}
+std::string pilot_label(pilot_record const *const pilot, bool const abbreviated = false) {
+  /// Main menus spell ranks out; the narrower roster panels use MOAG's abbreviated rank names
+  return pilot ? std::string{abbreviated ? short_ranks[std::to_underlying(pilot->rank())] : rank_name(pilot->rank())} + " " + pilot->name()
+    : std::string{abbreviated ? "2nd Lt. trainee" : "2nd Lieutenant trainee"};
+}
+std::span<uint8_t const> description(unsigned int const index) {
+  /// Each TWR begins with a launch record followed by the theater description shown in MOAG
+  switch(index) {
+  case 0: return resources::morning_briefing_asset();
+  case 1: return resources::dusk_briefing_asset();
+  case 2: return resources::wasteland_briefing_asset();
+  default: return resources::white_sands_briefing_asset();
+  }
+}
+void report(graphics::menu_canvas &screen, pilot_record const *const pilot, bool const detailed, std::string_view const title,
+            std::optional<sortie_statistics> const sortie = std::nullopt) {
+  /// The original overview includes decorations; Insert reveals the four statistical columns on the same report
+  screen.colours(7, 8, 9, 15);
+  screen.panel(0, 0, 79, 24, 9, true, false);
+  screen.text((78 - static_cast<int>(title.size())) / 2, 0, " " + std::string{title} + " ", 2);
+  screen.text(16, 2, "PILOT:", 2); screen.text(24, 2, pilot_label(pilot), 15);
+  auto const career{pilot ? pilot->career() : sortie.value_or(sortie_statistics{})};
+  unsigned int const tenths{career.elapsed_seconds / 360};
+  bool const columns{detailed || sortie.has_value()};
+  bool const global{columns && title == "CAREER REPORT"};
+  int const extra_rows{!columns ? 0 : global ? 2 : 1};
+  std::string const hours{std::format("{}.{} hours flying time.", tenths < 10 ? std::string{} : std::to_string(tenths / 10), tenths % 10)};
+  screen.text(24, 3, std::format("{} missions{}", pilot ? pilot->sorties() : 0, columns ? std::string{} : ",  " + hours), 2);
+  if(columns) screen.text(24, 3 + extra_rows, hours, 2);
+  screen.text(15, 4 + extra_rows, "STATUS:", 2);
+  screen.text(24, 4 + extra_rows, pilot && pilot->unavailable() ? "KILLED OR CAPTURED" : pilot && pilot->selected() ? "ACTIVE" : "WAITING FOR DUTY", 15);
+  screen.text(11, 5 + extra_rows, "HIGH SCORE:", 2); screen.text(24, 5 + extra_rows, std::to_string(pilot ? pilot->best_sortie_score() : 0), 15);
+  screen.text(37, 5 + extra_rows, "TOTAL SCORE:", 2); screen.text(51, 5 + extra_rows, std::to_string(pilot ? pilot->career_score() : 0), 15);
+  int const first{9 + extra_rows}, secondary{15 + (global ? 1 : 0)};
+  if(columns) {
+    screen.text(33, 7 + extra_rows, "Last      Career      Best       Career", 6);
+    screen.text(32, 8 + extra_rows, "Mission     High      Mission      Total", 6);
+  } else {
+    screen.text(31, 7, "Career", 6); screen.text(32, 8, "Total", 6); screen.text(52, 8, "DECORATIONS:", 2);
+  }
+  screen.text(8, 8 + extra_rows, "PRIMARY KILLS:", 2);
+  screen.text(7, secondary - 1, "SECONDARY KILLS:", 2);
+  struct report_row {
+    std::string_view label;
+    int row;
+    int (*value)(sortie_statistics const &);
+  };
+  std::array<report_row, 9> const fields{
+    report_row{
+      .label{"Mission Objective:"},
+      .row{first},
+      .value{[](auto const &s)->int{return maths::word(s.objectives_completed);}},
+    },
+    report_row{
+      .label{"TRFRU/Fuel Dumps:"},
+      .row{first + 1},
+      .value{[](auto const &s)->int{return maths::word(s.resource_kills);}},
+    },
+    report_row{
+      .label{"AAA Batteries:"},
+      .row{first + 2},
+      .value{[](auto const &s)->int{return total(s.aaa_kills);}},
+    },
+    report_row{
+      .label{"Other Sites:"},
+      .row{first + 3},
+      .value{[](auto const &s)->int{return maths::word(total(s.site_kills) + total(s.orb_kills));}},
+    },
+    report_row{
+      .label{"Ground Transports:"},
+      .row{secondary},
+      .value{[](auto const &s)->int{return total(s.vehicle_kills);}},
+    },
+    report_row{
+      .label{"Enemy Missiles:"},
+      .row{secondary + 1},
+      .value{[](auto const &s)->int{return total(s.kla_kills);}},
+    },
+    report_row{
+      .label{"Number of Planes Lost:"},
+      .row{19},
+      .value{[](auto const &s)->int{return maths::word(s.aircraft_lost);}},
+    },
+    report_row{
+      .label{"Friendly Sites Lost:"},
+      .row{20},
+      .value{[](auto const &s)->int{return maths::word(s.friendly_destroyed);}},
+    },
+    report_row{
+      .label{"Total Damage:"},
+      .row{21},
+      .value{[](auto const &s)->int{return maths::word(s.maximum_damage);}},
+    },
+  };
+  auto const last{sortie.value_or(pilot ? pilot->last_sortie() : sortie_statistics{})};
+  auto const best{pilot ? pilot->best_sortie() : sortie_statistics{}};
+  auto const peaks{pilot ? pilot->individual_records() : sortie_statistics{}};
+  for(auto const &field : fields) {
+    screen.text(29 - static_cast<int>(field.label.size()), field.row, field.label, 6);
+    if(columns) screen.text(33, field.row, std::format("{:>3}        {:>3}        {:>3}           {:>3}", field.value(last), field.value(peaks), field.value(best), field.value(career)));
+    else screen.text(33, field.row, std::format("{:>4}", field.value(career)));
+  }
+  if(!columns && pilot) {
+    int row{10};
+    for(auto const &award : medal_definitions) {
+      unsigned int const count{pilot->awards(award.kind)};
+      if(count == 0) continue;
+      screen.text(48, row, std::string_view{award.glyphs.data(), award.glyphs.size()}, award.colour);
+      screen.text(51, row++, std::format("{}{}", award.name, count > 1 ? " (" + std::to_string(count) + ")" : ""));
+    }
+  }
+  screen.text(columns && !global ? 16 : 7, 23, columns && !global ? "Type \x18\x19 for next/prev, or ESC, BS, or CR to exit"
+    : global ? "Type \x18\x19 for next/prev, <INS> for medals, or ESC, BS, or CR to exit"
+    : "Type \x18\x19 for next/prev, <INS> for stats, or ESC, BS, or CR to exit", 2);
+}
+
+} // anonymous namespace
+
+void front_end::render_menus(render::framebuffer &target) const {
+  /// Original menu composition is expressed in its 80-by-25 cells, including the retained underlay beneath dialogs
+  graphics::interface_canvas canvas{target, menu_font, 16, 640, 400};
+  graphics::menu_canvas screen{canvas};
+  auto const *pilot{campaign.active_pilot()};
+  auto const &worlds{saved_theatres};
+  auto const active{campaign.active_theatre()};
+  auto selected{[&](interface_page const menu){
+    if(page == menu) return selection;
+    auto const found{remembered_selection.find(menu)};
+    return found == remembered_selection.end() ? (menu == interface_page::menu ? 2u : 0u) : found->second;
+  }};
+  auto options{[&](int const x, int const y, auto const &labels, unsigned int const highlighted){
+    for(unsigned int n{0}; n != labels.size(); ++n) screen.option(x, y + static_cast<int>(n), labels[n], n == highlighted);
+  }};
+  screen.frame("Main Menu");
+  screen.text(10, 6, "Use arrow keys or type highlighted letter to choose action:", 11);
+  options(27, 8, main_choices, selected(interface_page::menu));
+  screen.text(9, 21, "Active pilot:", 14); screen.text(24, 21, pilot_label(pilot));
+  screen.text(9, 22, "Theater-of-Operations:", 14);
+  screen.text(33, 22, active && *active < worlds.size() ? worlds[*active].title : "Training Mission");
+  screen.text(9, 23, "Control:", 14); screen.text(19, 23, controls.joystick_device == -2 ? "Keyboard" : "Joystick");
+  screen.text(53, 23, "Music", 14); screen.text(59, 23, music_on ? "On " : "Off", 11);
+  interface_page const view{page == interface_page::menu_information || page == interface_page::notice ? information_return : page};
+  bool const roster{view == interface_page::roster || view == interface_page::pilots || view == interface_page::pilot_name
+    || view == interface_page::pilot_activate || view == interface_page::pilot_delete || view == interface_page::pilot_resurrect};
+  bool const combat{view == interface_page::theatres || view == interface_page::new_theatre || view == interface_page::open_theatre
+    || view == interface_page::theatre_delete || view == interface_page::theatre_records};
+  bool const training_menu{view == interface_page::training || view == interface_page::training_counts || view == interface_page::training_wickedness || view == interface_page::training_value};
+  if(roster || combat) {
+    screen.colours(1, 3, 6);
+    screen.heading(roster ? "Duty Roster" : "Theater of Operations Menu");
+    screen.panel(1, 5, 78, 23);
+    for(int row{6}; row < 23; ++row) screen.text(47, row, "\xb3", 6);
+    screen.text(47, 5, "\xc2", 6); screen.text(47, 23, "\xc1", 6);
+  }
+  if(roster) {
+    screen.text(59, 6, "Pilots:");
+    screen.text(47, 7, std::string{"\xc3"} + std::string(30, '\xc4') + '\xb4', 6);
+    screen.text(4, 7, "Use arrow keys or type highlighted letter");
+    screen.text(12, 8, "to choose action:");
+    options(10, 10, roster_choices, selected(interface_page::roster));
+    screen.text(3, 21, "Active pilot:  " + pilot_label(pilot, true));
+    unsigned int const first{view == interface_page::pilots && selection >= 14 ? selection - 13 : 0};
+    auto const pilots{campaign.pilots()};
+    for(unsigned int n{first}; n < pilots.size() && n < first + 14; ++n) {
+      int const row{8 + static_cast<int>(n - first)};
+      if(pilots[n].selected()) screen.text(48, row, "\x10");
+      screen.text(49, row, pilot_label(&pilots[n], true).substr(0, 28), view == interface_page::pilots && n == selection ? 15 : 1);
+    }
+    if(view == interface_page::pilots || view == interface_page::pilot_delete || view == interface_page::pilot_resurrect) {
+      unsigned int const chosen_index{view == interface_page::pilots ? selection : pilot_index};
+      std::string_view const action{pilot_action == roster_action::activate ? "activate" : pilot_action == roster_action::remove ? "delete"
+        : pilot_action == roster_action::rename ? "rename" : "resurrect"};
+      screen.colours(1, 7, 4);
+      screen.heading(pilot_action == roster_action::activate ? "Choose Active Pilot" : "Choose Pilot to " + std::string{action});
+      screen.panel(2, 6, 45, 21);
+      std::string const instruction{"Select pilot with \x18\x19, <CR> to " + std::string{action}};
+      screen.text(24 - static_cast<int>(instruction.size()) / 2, 7, instruction, 4);
+      auto const &chosen{pilots[chosen_index]};
+      auto const totals{chosen.career()}, peak{chosen.individual_records()}, best{chosen.best_sortie()};
+      std::string const label{"Pilot:  " + pilot_label(&chosen, true)};
+      screen.text(24 - static_cast<int>(label.size()) / 2, 9, label);
+      std::string const missions{std::format("{} missions {}", chosen.sorties(), chosen.selected() ? "(active)" : chosen.unavailable() ? "(K.I.A./captured)" : "(ready for action)")};
+      screen.text(24 - static_cast<int>(missions.size()) / 2, 11, missions);
+      screen.text(4, 12, "Mission Objectives = " + std::to_string(totals.objectives_completed));
+      screen.text(4, 13, "Total points = " + std::to_string(chosen.career_score()));
+      auto primary{[](sortie_statistics const &s){return maths::word(s.objectives_completed + s.resource_kills + total(s.aaa_kills) + total(s.site_kills) + total(s.orb_kills));}};
+      auto other{[](sortie_statistics const &s){return maths::word(total(s.kla_kills) + total(s.vehicle_kills));}};
+      screen.text(4, 14, "Primary Kills = " + std::to_string(primary(totals)));
+      screen.text(4, 15, "Other Kills = " + std::to_string(other(totals)));
+      screen.text(4, 17, "Combined best-single-mission:");
+      screen.text(5, 18, std::format("{} primary kills \xc4\xc4 {} other kills", primary(peak), other(peak)));
+      screen.text(4, 19, "Best mission score = " + std::to_string(chosen.best_sortie_score()) + ":");
+      screen.text(5, 20, std::format("{} primary kills \xc4\xc4 {} other kills", primary(best), other(best)));
+      screen.colours(1, 3, 6);
+      screen.text(49, 8 + static_cast<int>(chosen_index - first), pilot_label(&chosen, true).substr(0, 28), 11, 1);
+    }
+    if(view == interface_page::pilot_name || view == interface_page::pilot_activate) {
+      screen.colours(4, 7, 5, 4);
+      screen.heading(renaming ? "Rename Pilot" : "Create New Pilot");
+      screen.panel(3, 9, 49, 16);
+      screen.text(4, 10, renaming ? "Enter new name for " + campaign.pilots()[pilot_index].name() : "Enter name for new pilot.");
+      screen.text(4, 11, "(Maximum of 20 characters)");
+      screen.text(6, 12, entered_name + "_", 4);
+      if(view == interface_page::pilot_activate) screen.rich_text(4, 14, "Activate " + entered_name + "? [\\Yes or \\No]");
+    }
+    if(view == interface_page::pilot_delete || view == interface_page::pilot_resurrect) {
+      screen.colours(14, 6, 5);
+      screen.heading(view == interface_page::pilot_delete ? "Confirm Deletion" : "Confirm Resurrection");
+      screen.panel(3, 9, 59, 15);
+      screen.text(5, 11, std::string{"Type <ENTER> to "} + (view == interface_page::pilot_delete ? "delete " : "resurrect ") + pilot_label(&campaign.pilots()[pilot_index], true), 14);
+      screen.text(5, 12, " Almost anything else cancels...");
+    }
+  } else if(combat) {
+    screen.text(4, 6, "Current Pilot:"); screen.text(19, 6, pilot_label(pilot, true), 14);
+    screen.text(4, 7, "Active Theater :");
+    screen.text(7, 8, active && *active < worlds.size() ? worlds[*active].title : "none", 14);
+    screen.text(4, 10, "Choose with arrow keys or letter", 15);
+    options(4, 13, combat_choices, selected(interface_page::theatres));
+    screen.text(36, 18, combat_invulnerable ? "(Inv)" : "(Std)");
+    screen.text(33, 19, controls.beginner_flight ? "(Beginner)" : "(Advanced)");
+    screen.text(36, 20, comments_enabled ? "(On) " : "(Off)");
+    screen.text(49, 6, "Theaters-of-Operation:", 14);
+    for(unsigned int i{0}; i != world::theatre_catalog.size(); ++i) {
+      screen.text(49, 7 + static_cast<int>(i), i < 3 ? "\xfe" : " ", 14);
+      screen.text(50, 7 + static_cast<int>(i), world::theatre_catalog[i].title, view == interface_page::new_theatre && i == selection ? 15 : 1);
+    }
+    screen.text(47, 14, std::string{"\xc3"} + std::string(30, '\xc4') + '\xb4', 6);
+    screen.text(49, 15, "Your Open Theaters:", 14);
+    unsigned int const first{selection > 5 && view != interface_page::theatres && view != interface_page::new_theatre ? selection - 5 : 0};
+    for(unsigned int i{first}; i < worlds.size() && i < first + 6; ++i) {
+      int const row{16 + static_cast<int>(i - first)};
+      if(active && i == *active) screen.text(49, row, "\x10");
+      screen.text(50, row, worlds[i].title.substr(0, 27), view != interface_page::theatres && view != interface_page::new_theatre && i == selection ? 15 : 1);
+    }
+    if(view == interface_page::new_theatre) {
+      screen.colours(4, 7, 4);
+      screen.heading("Choose a Theater of Operations");
+      screen.colours(1, 7, 4);
+      screen.panel(2, 6, 45, 21);
+      screen.text(4, 7, "Choose desired theater of operations with", 4);
+      screen.text(4, 8, "\x18\x19.  Select theater of operations with", 4);
+      screen.text(4, 9, "<CR> or abort with <BS> or <ESC>.", 4);
+      screen.text(2, 10, std::string{"\xc3"} + std::string(42, '\xc4') + '\xb4', 4);
+      screen.text(24 - static_cast<int>(world::theatre_catalog[selection].title.size()) / 2, 11, world::theatre_catalog[selection].title, 14);
+      auto const bytes{description(selection)};
+      std::istringstream text{std::string{reinterpret_cast<char const*>(bytes.data()), bytes.size()}};
+      std::string line;
+      std::getline(text, line);
+      for(int row{13}; row <= 20 && std::getline(text, line) && line.find('\f') == std::string::npos; ++row) {
+        if(!line.empty() && line.back() == '\r') line.pop_back();
+        screen.rich_text(4, row, line, 1, 40);
+      }
+    } else if(view != interface_page::theatres && selection < worlds.size()) {
+      auto const &chosen{worlds[selection]};
+      auto const &record{chosen.pilot};
+      auto const totals{record.career()};
+      screen.colours(1, 7, 4);
+      screen.heading(view == interface_page::open_theatre ? "Activate an Open Theater" : view == interface_page::theatre_delete ? "Delete a Theater" : "View Status of a Theater");
+      screen.panel(2, 6, 45, 21);
+      screen.text(4, 7, "Select theater with \x18\x19, <CR> to select", 4);
+      screen.text(24 - static_cast<int>(chosen.title.size() + 5) / 2, 9, chosen.title + " T.O.");
+      screen.text(4, 10, std::format("{} misns.  {} objctvs killed, {} remain.", record.sorties(), totals.objectives_completed, chosen.objectives_remaining));
+      screen.text(4, 11, std::format("There are {} planes remaining in storage.", chosen.stored_aircraft));
+      screen.text(4, 13, "Total points = " + std::to_string(record.career_score()));
+      screen.text(4, 14, "Primary Kills = " + std::to_string(totals.resource_kills + total(totals.aaa_kills) + total(totals.site_kills) + total(totals.orb_kills)));
+      screen.text(4, 15, "Other Kills = " + std::to_string(total(totals.kla_kills) + total(totals.vehicle_kills)));
+      screen.text(4, 17, "Combined best-single-mission:");
+      auto primary{[](sortie_statistics const &s){return maths::word(s.objectives_completed + s.resource_kills + total(s.aaa_kills) + total(s.site_kills) + total(s.orb_kills));}};
+      auto secondary{[](sortie_statistics const &s){return maths::word(total(s.kla_kills) + total(s.vehicle_kills));}};
+      auto const peaks{record.individual_records()}, best{record.best_sortie()};
+      screen.text(5, 18, std::format("{} primary kills \xc4\xc4 {} other kills", primary(peaks), secondary(peaks)));
+      screen.text(4, 19, "Best mission score = " + std::to_string(record.best_sortie_score()) + ":");
+      screen.text(5, 20, std::format("{} primary kills \xc4\xc4 {} other kills", primary(best), secondary(best)));
+      if(view == interface_page::theatre_records && detailed_records) report(screen, &record, true, "CAREER REPORT:  " + chosen.title + " Theater of Operations");
+    }
+  } else if(training_menu) {
+    screen.colours(1, 3, 6);
+    screen.heading("Training Missions");
+    screen.panel(2, 5, 76, 22);
+    screen.text(22, 6, "Use arrow keys or type highlighted");
+    screen.text(26, 7, "letter to choose action:");
+    options(24, 9, training_choices, selected(interface_page::training));
+    screen.text(15, 17, "Current choices:", 14);
+    screen.text(18, 18, std::string{"Plane:  "} + (training.invincible ? "Invulnerable" : "Standard"));
+    auto strength{[](int const q){return q < 0 ? std::string{"random spread of strength"} : "strength " + std::to_string(q + 1);}};
+    screen.text(18, 19, std::to_string(training.kla.count) + " missile sites:"); screen.text(43, 19, strength(training.kla.quality));
+    screen.text(18, 20, std::to_string(training.aaa.count) + " AAA sites:"); screen.text(43, 20, strength(training.aaa.quality));
+    screen.text(18, 21, std::to_string(training.vehicles.count) + " ground vehicle sites:"); screen.text(43, 21, strength(training.vehicles.quality));
+    bool const editor{view == interface_page::training_value};
+    bool const quality{view == interface_page::training_wickedness || (editor && training_editor == interface_page::training_wickedness)};
+    if(view != interface_page::training) {
+      int const left{quality ? 14 : 9}, right{quality ? 65 : 68};
+      screen.colours(7, 4, 2);
+      screen.heading(quality ? "Modify Wickedness of Enemies" : "Choose Number of Enemies");
+      screen.panel(left, 8, right, 19);
+      screen.text(left + 2, 9, "Use arrow keys or type highlighted");
+      screen.text(left + 3, 10, "letter to choose action:");
+      std::array<std::string, 4> const labels{quality ? "modify enemy \\Missile wickedness" : "change number of \\Missile sites",
+        quality ? "modify enemy \\Ground vehicle" : "change number of \\Ground-Vehicle sites",
+        quality ? "modify \\AAA wickedness" : "change number of \\AAA sites", "\\Return to previous menu"};
+      options(left + 4, 12, labels, editor ? training_field : selection);
+      for(unsigned int n{0}; n != 3; ++n) {
+        auto const &defence{n == 0 ? training.kla : n == 1 ? training.vehicles : training.aaa};
+        screen.text(52, 12 + static_cast<int>(n), "currently " + std::to_string(quality ? defence.quality + 1 : static_cast<int>(defence.count)), n == (editor ? training_field : selection) ? 15 : 7);
+      }
+      if(editor) {
+        auto const &defence{training_field == 0 ? training.kla : training_field == 1 ? training.vehicles : training.aaa};
+        std::string const kind{training_field == 0 ? "Missile" : training_field == 1 ? "Ground Vehicle" : "AAA"};
+        screen.colours(4, 7, 5, 4);
+        screen.heading(quality ? "Modify " + kind + " Wickedness" : "Choose # of " + kind + " Sites");
+        screen.panel(left + 2, 9, right - 3, 17);
+        screen.text(left + 4, 11, quality ? kind + " wickedness is currently " + std::to_string(defence.quality + 1) + "."
+          : "The number of " + kind + " sites is currently " + std::to_string(defence.count) + ".");
+        if(quality) {
+          screen.text(left + 5, 12, "Values of 1-8 mean increasing wickedness.");
+          screen.text(left + 5, 13, "A value of 0 will choose a random");
+          screen.text(left + 5, 14, "spread of wickedness.");
+        }
+        screen.text(left + 4, quality ? 16 : 13, std::string{"Enter new value [0-"} + (quality ? "8]  " : "25]  ") + numeric_input + "_", 4);
+        if(!feedback.empty()) screen.text(left + 4, 15, feedback, 12);
+      }
+    }
+  } else if(view == interface_page::mission_briefing || view == interface_page::starting_airfield || view == interface_page::airfield_information) {
+    screen.colours(1, 3, 6);
+    screen.heading(view == interface_page::mission_briefing ? "Mission Briefing" : view == interface_page::starting_airfield ? "Your Starting Airfield" : "Detailed Info");
+    screen.panel(1, 5, 77, 22);
+    if(view == interface_page::mission_briefing) {
+      std::string const greeting{pilot_label(pilot) + ", prepare for your mission!"};
+      screen.text(39 - static_cast<int>(greeting.size()) / 2, 6, greeting, 14);
+      screen.text(1, 7, std::string{"\xc3"} + std::string(75, '\xc4') + '\xb4', 6);
+      screen.text(31, 8, "Training Mission:", 14);
+      screen.text(5, 9, "Your objective is to destroy the flying saucer and to take out");
+      screen.text(5, 10, "as many enemy fuel dumps and ground sites as possible.");
+      screen.text(5, 12, "Latest intelligence reports enemy strengths as follows:");
+      auto strength{[](int const q){return q < 0 ? std::string{"random spread of strength"} : "strength " + std::to_string(q + 1);}};
+      screen.text(15, 13, std::to_string(training.kla.count) + " Missile sites:"); screen.text(39, 13, strength(training.kla.quality));
+      screen.text(15, 14, std::to_string(training.aaa.count) + " AAA sites:"); screen.text(39, 14, strength(training.aaa.quality));
+      screen.text(15, 15, std::to_string(training.vehicles.count) + " Ground-Vehicle sites:"); screen.text(39, 15, strength(training.vehicles.quality));
+      screen.text(15, 16, "1 Enemy Saucers:"); screen.text(39, 16, "random spread of strength");
+      screen.text(3, 19, "Note:  Training missions are much harder than the combat missions.");
+      screen.text(21, 21, "Type <CR> to continue, <ESC> to abort", 14);
+    } else if(view == interface_page::starting_airfield) {
+      /// The four retained base-game worlds all use the single RDU control tower; nine-airfield expansion worlds are out of scope
+      screen.text(11, 6, "There is only one airfield in this Theater-of-Operation.", 14);
+      screen.text(6, 7, "Type <CR> to fly, `i' for detailed info, or <ESC> to abort mission.", 14);
+      screen.text(34, 13, "RDU ^international"); screen.text(39, 14, "Airport");
+      auto const &loaded{prepared_world};
+      unsigned int planes{0}, objectives{0};
+      if(loaded) for(auto const &object : loaded->objects) {
+        if(object.type == world::object_type::aircraft && object.has(world::object_flag::present) && object.position.x > -2'000'000 && object.position.x < 2'000'000 && object.position.y > -2'000'000 && object.position.y < 2'000'000) ++planes;
+        if(!object.has(world::object_flag::objective_complete) && (object.type == world::object_type::generator_orb || object.type == world::object_type::destroyed_generator_orb || object.type == world::object_type::objective_saucer)) ++objectives;
+      }
+      screen.text(35, 15, std::format("({} planes  {} MO)", planes, objectives));
+      screen.text(25, 21, "MO = Mission Objectives remaining", 14);
+    } else {
+      screen.text(3, 6, "Objects near RDU ^international Airport:", 14);
+      screen.text(3, 8, "Object                    Quality:  Range/Dir:    Alt:", 14);
+      screen.text(3, 9, "                                     (Mi.)       (ft.)", 14);
+      for(unsigned int i{0}; i < 9 && i + scroll < document_lines.size(); ++i)
+        screen.text(3, 12 + static_cast<int>(i), document_lines[i + scroll]);
+      screen.text(16, 21, "Type \x18\x19 <P-UP> <P-DN> etc, or <CR> to return...", 14);
+    }
+  } else if(view == interface_page::control_setup) {
+    screen.colours(1, 3, 6);
+    screen.heading("Keyboard/joystick setup");
+    screen.panel(10, 5, 66, 20);
+    screen.text(20, 6, "Use arrow keys or type highlighted");
+    screen.text(22, 7, "letter to choose action:");
+    options(20, 9, joystick_choices, selected(interface_page::control_setup));
+    screen.text(12, 17, "Current", 14); screen.text(13, 18, "choices:", 14);
+    screen.text(24, 17, std::string{"\xfe"} + (controls.joystick_device == -2 ? "Keyboard control." : "Joystick control."), 15);
+    if(controls.joystick_device != -2) screen.text(26, 18, std::string{automatic_centering ? "Automatic" : "Manual"} + " joystick recentering.");
+    if(force_centering) screen.text(13, 19, "Forcing joystick recenter next flight.");
+  } else if(view == interface_page::high_score_menu || view == interface_page::score_delete || view == interface_page::score_delete_confirmation) {
+    screen.colours(1, 3, 6);
+    bool const deleting{view != interface_page::high_score_menu};
+    screen.heading(deleting ? "Delete a Score List" : "High Score Menu");
+    screen.panel(12, 5, 68, 19);
+    screen.text(22, 8, "Use arrow keys or type highlighted");
+    screen.text(24, 9, "letter to choose action:");
+    if(deleting) options(22, 11, delete_choices, selected(interface_page::score_delete));
+    else options(22, 11, score_choices, selected(interface_page::high_score_menu));
+    if(view == interface_page::score_delete_confirmation) {
+      screen.colours(4, 7, 5, 4);
+      screen.heading("Confirm Deletion"); screen.panel(19, 9, 61, 15);
+      screen.text(21, 11, "Type <ENTER> to delete high score list", 14);
+      screen.text(21, 12, " Almost anything else cancels...");
+    }
+  } else if(view == interface_page::high_scores) {
+    std::array<std::string_view, 3> constexpr titles{"High Scores", "Top Careers", "Fastest Careers"};
+    screen.colours(1, 3, 6);
+    screen.heading(titles[score_list]); screen.panel(2, 5, 76, 20);
+    screen.text(4, 6, score_list == 0 ? "Name                       Score  Theater-of-Operations      Kills"
+      : score_list == 1 ? "Name                 Total Score  Missions Resurrections     Kills"
+      : "Name                 Total Score  Missions Resurrections   Points/Misn", 14);
+    unsigned int count{0};
+    auto const &tables{campaign.high_scores()};
+    for(unsigned int i{0}; i != 10; ++i) {
+      auto const name{score_list == 0 ? score_text(tables.best_missions()[i].name) : score_text((score_list == 1 ? tables.best_careers() : tables.fastest_careers())[i].name)};
+      if(name.empty()) continue;
+      auto const &statistics{score_list == 0 ? tables.best_missions()[i].statistics : (score_list == 1 ? tables.best_careers() : tables.fastest_careers())[i].statistics};
+      int const row{8 + static_cast<int>(count++)};
+      if(score_list == 0) {
+        auto const &entry{tables.best_missions()[i]};
+        screen.text(5, row, std::format("{:<21} {:>10}  {:<22}", name + (entry.retired ? "*" : ""), entry.points, score_text(entry.theatre)));
+      } else {
+        auto const &entry{(score_list == 1 ? tables.best_careers() : tables.fastest_careers())[i]};
+        screen.text(5, row, std::format("{:<21} {:>10}  {:>6} {:>8}", name + (entry.retired ? "*" : ""), entry.points, entry.sorties, entry.resurrections));
+        if(score_list == 2) screen.text(64, row, std::to_string(entry.sorties == 0 ? 0 : entry.points / entry.sorties));
+      }
+      if(score_list < 2) screen.text(63, row, std::format("{} {} {}", statistics.objectives_completed,
+        maths::word(statistics.resource_kills + statistics.objectives_completed + total(statistics.aaa_kills) + total(statistics.site_kills) + total(statistics.orb_kills)),
+        maths::word(total(statistics.kla_kills) + total(statistics.vehicle_kills))));
+    }
+    screen.text(5, 9 + static_cast<int>(count), "Type almost any key to continue...");
+  } else if(view == interface_page::records || view == interface_page::medals) {
+    report(screen, &campaign.pilots()[pilot_index], detailed_records, "CAREER REPORT");
+  } else if(view == interface_page::sortie_summary || view == interface_page::current_score) {
+    report(screen, pilot, true, view == interface_page::sortie_summary ? "POST-MISSION CAREER REPORT" : "MISSION REPORT", latest_result);
+  } else if(view == interface_page::briefing || view == interface_page::missions || (view == interface_page::menu && session_running) || view == interface_page::quit_confirmation) {
+    /// Flight helper pages keep their existing session continuation while the launcher uses the original MOAG hierarchy
+    if(view == interface_page::missions) {
+      std::vector<std::string_view> choices{"Read full airbase intelligence"};
+      for(auto const &start : mission_starts) choices.push_back(start.title);
+      draw_menu(canvas, "Airbase intelligence", choices);
+    } else if(view == interface_page::briefing) {
+      draw_menu(canvas, "Airbase intelligence", {});
+      std::istringstream input{briefing}; std::string line; unsigned int n{0}, drawn{0};
+      while(std::getline(input, line) && drawn < 16) {
+        if(line.find('\f') != std::string::npos || line.starts_with("Sxyth")) continue;
+        if(n++ < scroll) continue;
+        if(!line.empty() && line.back() == '\r') line.pop_back();
+        screen.rich_text(2, 6 + static_cast<int>(drawn++), line, 7, 76);
+      }
+    } else if(view == interface_page::quit_confirmation) {
+      std::array<std::string_view, 2> constexpr choices{"Yes", "No - return"}; draw_menu(canvas, "End this sortie?", choices);
+    } else {
+      std::array<std::string_view, 3> constexpr choices{"Resume flight", "Flight controls and help", "End current sortie"}; draw_menu(canvas, "Main menu", choices);
+    }
+  }
+  if(page == interface_page::documentation || page == interface_page::registration || page == interface_page::menu_information) {
+    bool const context{page == interface_page::menu_information};
+    int const left{context ? 2 : 0}, top{context ? 5 : 0}, right{context ? 76 : 79}, bottom{context ? 22 : 24};
+    screen.colours(7, page == interface_page::documentation ? 8 : 4, page == interface_page::documentation ? 9 : 2, 15);
+    if(context) {
+      std::array<std::string_view, 9> constexpr titles{"", "Main Menu Information", "Duty Roster Menu Information", "Combat Missions Information", "", "Keyboard/Joystick Information", "Training Missions Information", "High Score Menu Information", "Delete a High Score List"};
+      screen.heading(titles.at(information_section));
+    } else canvas.clear();
+    screen.panel(left, top, right, bottom, 16, false, context);
+    unsigned int const visible{static_cast<unsigned int>(bottom - top - 2)};
+    for(unsigned int i{0}; i != visible && i + scroll < document_lines.size(); ++i)
+      screen.rich_text(left + 1, top + 1 + static_cast<int>(i), document_lines[i + scroll], 7, static_cast<unsigned int>(right - left - 3));
+    if(document_lines.size() > visible) {
+      for(int y{top + 1}; y < bottom - 1; ++y) screen.text(right - 1, y, "\xb1", 7);
+      unsigned int const thumb_height{std::max(1u, (visible * visible + static_cast<unsigned int>(document_lines.size()) - 1) / static_cast<unsigned int>(document_lines.size()))};
+      int const thumb{top + 1 + static_cast<int>(scroll * (visible - thumb_height) / (document_lines.size() - visible))};
+      for(unsigned int i{0}; i != thumb_height; ++i) screen.text(right - 1, thumb + static_cast<int>(i), " ", 7, 7);
+    }
+    canvas.rectangle((left + 1) * 8, (bottom - 1) * 16, right * 8, bottom * 16, render::rgba_pixel{});
+    if(page == interface_page::documentation && document_chapter == 0) {
+      screen.text(4, 23, "Choose a chapter number for more info, <CR> to continue or <ESC> to exit", 15, 0);
+      if(!numeric_input.empty()) screen.text(74, 23, numeric_input, 15);
+    } else screen.text(context ? 13 : 14, bottom - 1, "Type \x18 \x19 <P-UP> <P-DN> etc..., <CR> or <ESC> to exit", 15, 0);
+  }
+  if(page == interface_page::notice) {
+    screen.heading("Information"); screen.panel(8, 9, 72, 16);
+    std::istringstream text{feedback}; std::string line; int row{11};
+    while(std::getline(text, line) && row < 15) screen.text(10, row++, line.substr(0, 61));
+    screen.text(10, 15, "Type almost any key to continue...", 14);
+  }
+}
+
+} // namespace corncob::game
