@@ -1,0 +1,23 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "19fe3a0a0ec929a0b35b889d414b7a4f090f76314fbb3f48bd97533fa2686ee3",
+  "cases": 512,
+  "qualities": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "routine": "0xc102 BMRTIM",
+  "stubs": [
+    "0xab2b RADARPROCESS skips drawing/proximity audio",
+    "0xaf8e bomb constructor",
+    "0xb1a2 KLA constructor",
+    "0xc4e9 virtual AAA firing"
+  ],
+  "scope": "Whole living movement handler: objective rest/takeoff, modes, height correction, wave terms, speed noise and limiting; all eight qualities, including stationary starts"
+}

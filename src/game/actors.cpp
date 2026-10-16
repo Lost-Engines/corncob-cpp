@@ -204,19 +204,19 @@ void actors::update_saucer(world::placed_object &object, actor_context const &co
   uint16_t transition{3};
   switch(object.flags & 6u) {
   case 0:
-    object.velocity.x = maths::word(object.velocity.x + direction.x * 2);
-    object.velocity.y = maths::word(object.velocity.y + direction.y * 2);
-    transition = shifts <= 13 ? 50 : object.health <= 25 ? 20 : 3;
-    break;
-  case 2:
     object.velocity.x = maths::word(object.velocity.x - direction.x);
     object.velocity.y = maths::word(object.velocity.y - direction.y);
     transition = parameters.retreat_exit_threshold;
     break;
-  case 4:
+  case 2:
     object.velocity.y = maths::word(object.velocity.y + direction.x);
     object.velocity.x = maths::word(object.velocity.x - direction.y);
     transition = parameters.sideways_exit_threshold;
+    break;
+  case 4:
+    object.velocity.x = maths::word(object.velocity.x + direction.x * 2);
+    object.velocity.y = maths::word(object.velocity.y + direction.y * 2);
+    transition = shifts <= 13 ? 50 : object.health <= 25 ? 20 : 3;
     break;
   case 6:
     transition = parameters.coast_exit_threshold;
@@ -264,7 +264,7 @@ void actors::update_saucer(world::placed_object &object, actor_context const &co
   int const desired{speed + (static_cast<int>(parameters.target_speed) - speed) / parameters.horizontal_wave_frequency
     + random.below(parameters.speed_noise_span) - parameters.speed_noise_span / 2};
   // the original only reduces this magnitude; acceleration comes from its mode and wave terms
-  if(desired <= speed && speed != 0) {
+  if(desired >= 0 && desired <= speed && speed != 0) {
     for(unsigned int axis{0}; axis != 3; ++axis) object.velocity[axis] = maths::word(static_cast<int32_t>(object.velocity[axis]) * desired / speed);
   }
   if((parameters.weapon_bits >> 8) != 0) {
@@ -480,8 +480,12 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
         effects.hallucination = static_cast<uint16_t>(proximity * proximity / 31);
       }
       break;
-    case fuel_dump:
     case control_tower:
+      theatre.start.x = maths::dword(static_cast<int64_t>(object.position.x) + 3001 - 2 * 65'536);
+      theatre.start.y = maths::dword(static_cast<int64_t>(object.position.y) - 16'000);
+      ++object.timer;
+      break;
+    case fuel_dump:
     case radar_dish:
     case tet:
       ++object.timer;

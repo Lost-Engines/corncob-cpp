@@ -369,3 +369,12 @@ heading wobble replaces the earlier provisional value.
 Free-fall damping and parachute swing each match 512 original executions, including
 word truncation, even-only horizontal velocity, the swing envelope and interruption
 threshold. The connected walking/flight/ejection and rescue scenarios still pass.
+
+## Saucer movement
+
+The full living saucer handler now matches 512 native executions across all eight
+qualities, including stationary starts and the objective saucer's protected rest
+state. The stored modes select retreat, circling, approach and coasting in that
+order. These checks cover altitude correction, wave motion, transition randomness
+and speed limiting; weapon constructors and radar/audio are isolated explicitly.
+Active control towers also update the current airbase coordinates, as in TOWERTIM.
