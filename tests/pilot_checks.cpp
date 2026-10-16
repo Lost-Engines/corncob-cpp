@@ -54,6 +54,13 @@ int main(int const argc, char const *const argv[]) {
   changed.pilots[0].beginner_flight(false);
   for(unsigned int i{0}; i != old.size(); ++i)
     if(changed.pilots[0].native_data()[i] != static_cast<uint8_t>(i == 0x23b ? old[i] | 0x20 : old[i])) throw std::runtime_error{"setting flight assistance changed opaque pilot state"};
+  auto const training{keyboard.pilots[0].training_settings()};
+  if(training.kla.count != 5 || training.aaa.count != 6 || training.vehicles.count != 2
+    || training.kla.quality != -1 || training.aaa.quality != -1 || training.vehicles.quality != 3 || !training.invincible)
+    throw std::runtime_error{"original new-pilot training defaults decoded incorrectly"};
+  auto configured{keyboard.pilots[0]};
+  configured.training_settings(training);
+  if(!std::ranges::equal(configured.native_data(), keyboard.pilots[0].native_data())) throw std::runtime_error{"unchanged training settings altered native pilot bytes"};
   created.add_theatre(1);
   created.beginner_flight(false);
   auto const references{linked.pilots[0].theatres()};

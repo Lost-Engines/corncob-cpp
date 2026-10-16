@@ -28,6 +28,7 @@ front_end::front_end(resources::collection const &assets, campaign_store &campai
   assets{assets},
   campaign{campaign},
   menu_font{assets.menu_font()},
+  training{campaign.training_settings()},
   controls{controls.value_or(control_setup{
     .joystick_device{campaign.keyboard_control() ? -2 : -1},
     .beginner_flight{!campaign.active_pilot() || campaign.active_pilot()->beginner_flight()},
@@ -109,7 +110,7 @@ void front_end::accept() {
       pilot_index = selection;
       try {
         switch(pilot_action) {
-        case roster_action::activate: campaign.activate(pilot_index); controls.beginner_flight = campaign.active_pilot()->beginner_flight(); page = interface_page::roster; break;
+        case roster_action::activate: campaign.activate(pilot_index); training = campaign.training_settings(); controls.beginner_flight = campaign.active_pilot()->beginner_flight(); page = interface_page::roster; break;
         case roster_action::remove: page = interface_page::pilot_delete; break;
         case roster_action::records: page = interface_page::records; break;
         case roster_action::rename:
@@ -135,7 +136,7 @@ void front_end::accept() {
   case interface_page::pilot_name:
     try {
       if(renaming) campaign.rename_pilot(pilot_index, entered_name);
-      else { campaign.create_pilot(entered_name); controls.beginner_flight = campaign.active_pilot()->beginner_flight(); }
+      else { campaign.create_pilot(entered_name); training = campaign.training_settings(); controls.beginner_flight = campaign.active_pilot()->beginner_flight(); }
       feedback.clear();
       page = interface_page::roster;
       selection = 0;
@@ -591,10 +592,12 @@ control_setup const &front_end::flight_controls() const noexcept {
 void front_end::adjust_training(int const direction) {
   /// Training configures original site counts and qualities; no extra difficulty rules are invented
   if(selection == 6) training.invincible = !training.invincible;
-  if(selection >= 6) return;
-  auto &defence{selection < 2 ? training.kla : selection < 4 ? training.vehicles : training.aaa};
-  if((selection & 1u) == 0) defence.count = static_cast<unsigned int>(std::clamp(static_cast<int>(defence.count) + direction, 0, 50));
-  else defence.quality = std::clamp(defence.quality + direction, -1, 7);
+  else if(selection < 6) {
+    auto &defence{selection < 2 ? training.kla : selection < 4 ? training.vehicles : training.aaa};
+    if((selection & 1u) == 0) defence.count = static_cast<unsigned int>(std::clamp(static_cast<int>(defence.count) + direction, 0, static_cast<int>(world::training_defence::maximum_menu_count)));
+    else defence.quality = std::clamp(defence.quality + direction, -1, 7);
+  } else return;
+  campaign.training_settings(training);
 }
 void front_end::show_intelligence(world::theatre const &world) {
   /// The retained session supplies its current theatre's complete intelligence text

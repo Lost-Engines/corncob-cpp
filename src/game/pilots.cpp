@@ -92,6 +92,38 @@ void pilot_record::add_theatre(uint8_t const number) {
   data[first_theatre_offset + entries.size()] = number;
   data[active_offset] = data[count_offset]++;
 }
+world::training_setup pilot_record::training_settings() const {
+  /// MOAG stores site counts in KLA/AAA/vehicle order, followed by one-based qualities with zero meaning random
+  return {
+    .kla{
+      .count{data[0x234]},
+      .quality{data[0x237] - 1},
+    },
+    .vehicles{
+      .count{data[0x236]},
+      .quality{data[0x239] - 1},
+    },
+    .aaa{
+      .count{data[0x235]},
+      .quality{data[0x238] - 1},
+    },
+    .invincible{(data[0x23b] & 2u) != 0},
+  };
+}
+void pilot_record::training_settings(world::training_setup const &settings) {
+  /// Preserve the remaining setup bytes and aerodynamic-model bit when storing the original training controls
+  for(auto const &defence : {settings.kla, settings.vehicles, settings.aaa})
+    if(defence.count > world::training_defence::maximum_menu_count || defence.quality < -1 || defence.quality > 7)
+      throw std::invalid_argument{"training settings exceed the original menu limits"};
+  data[0x234] = static_cast<uint8_t>(settings.kla.count);
+  data[0x235] = static_cast<uint8_t>(settings.aaa.count);
+  data[0x236] = static_cast<uint8_t>(settings.vehicles.count);
+  data[0x237] = static_cast<uint8_t>(settings.kla.quality + 1);
+  data[0x238] = static_cast<uint8_t>(settings.aaa.quality + 1);
+  data[0x239] = static_cast<uint8_t>(settings.vehicles.quality + 1);
+  if(settings.invincible != ((data[0x23b] & 2u) != 0))
+    data[0x23b] = static_cast<uint8_t>((data[0x23b] & ~3u) | 4u | (settings.invincible ? 3u : 0u));
+}
 bool pilot_record::beginner_flight() const {
   /// MOAG's aerodynamic-model toggle stores advanced mode in bit five of the pilot's setup byte
   return (data[0x23b] & 0x20u) == 0;

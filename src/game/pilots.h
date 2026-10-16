@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 #include "game/statistics.h"
+#include "world/training.h"
 
 namespace corncob::game {
 
@@ -128,6 +129,8 @@ public:
   bool unavailable() const;
   std::span<uint8_t const> theatres() const;
   void add_theatre(uint8_t number);
+  world::training_setup training_settings() const;
+  void training_settings(world::training_setup const &settings);
   bool beginner_flight() const;
   void beginner_flight(bool value);
   void resurrect();

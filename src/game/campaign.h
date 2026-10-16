@@ -34,6 +34,8 @@ public:
   bool keyboard_control() const noexcept;
   void keyboard_control(bool value);
   void beginner_flight(bool value);
+  world::training_setup training_settings() const;
+  void training_settings(world::training_setup const &settings);
   std::optional<world::theatre> load_world(std::string_view theatre) const;
   void finish_sortie(std::string_view theatre, world::theatre const &world, sortie_statistics const &result);
   std::filesystem::path const &save_directory() const noexcept;

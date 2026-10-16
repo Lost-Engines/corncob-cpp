@@ -210,6 +210,16 @@ void campaign_store::beginner_flight(bool const value) {
   roster.pilots[*selected].beginner_flight(value);
   save_roster();
 }
+world::training_setup campaign_store::training_settings() const {
+  /// Named pilots retain separate training preferences in their original setup bytes
+  return selected ? roster.pilots[*selected].training_settings() : world::training_setup{};
+}
+void campaign_store::training_settings(world::training_setup const &settings) {
+  /// The disposable trainee keeps menu-local choices; a named pilot saves them with its career
+  if(!selected) return;
+  roster.pilots[*selected].training_settings(settings);
+  save_roster();
+}
 std::optional<world::theatre> campaign_store::load_world(std::string_view const theatre) const {
   /// THT keeps the original 671-byte header and compact live world rather than resetting destroyed scenery each sortie
   if(!selected) return std::nullopt;

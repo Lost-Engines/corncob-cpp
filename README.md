@@ -63,12 +63,13 @@ its throttle operates. Create or activate a pilot through the duty roster to sav
 your career and changes to each theatre. The duty roster also renames and deletes
 pilots; deleting a pilot removes their worlds and retires their high scores.
 Pilot records use Left/Right to switch
-between statistics and medals, and Up/Down to browse pilots. Invulnerable and
+between statistics and medals, Up/Down to browse pilots, and PgUp/PgDn for
+career totals, latest sortie, best sortie and individual records. Invulnerable and
 Control-C-aborted flights do not count toward careers or high scores. The default trainee does not save progress.
 `--save-dir` overrides the platform user-data directory.
 
 The training menu generates the original practice world with selectable defence
-counts and qualities. Combat theatres also retain their original intelligence
+counts and qualities, saved separately for each pilot. Combat theatres also retain their original intelligence
 briefings and airborne starts; mission jumps require an aircraft with less than
 16 damage and keep the current world intact.
 

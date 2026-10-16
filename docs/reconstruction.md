@@ -128,7 +128,10 @@ has left the embedded pilot name stale. Earlier native slot-named files remain
 readable. Header campaign words are preserved, though their full bookkeeping
 is still being investigated. Renaming updates live high-score names; deletion
 removes owned worlds and sets the original retired word in all three score lists.
-A reused name starts a distinct career.
+A reused name starts a distinct career. Training counts/qualities and invulnerability
+also use the original per-pilot setup bytes. New pilots retain the native five KLA,
+six AAA and two vehicle sites, with strength-four vehicles and random KLA/AAA
+strengths. The original menu limits each site count to twenty-five.
 
 Career records retain distinct latest sortie, highest-scoring sortie, individual
 peaks and cumulative totals; PgUp/PgDn switches between them. Native comparisons
@@ -258,8 +261,7 @@ match without stubs; the connected rescue scenario still passes.
 
 - Extend whole-frame title comparisons beyond native motion, palette masking and
   the inspected presentation captures.
-- Complete remaining front-end/bookkeeping details: training setup persistence,
-  remaining theatre-header words and original configuration bits; broaden
+- Complete remaining front-end/bookkeeping details: remaining theatre-header words and original configuration bits; broaden
   original configuration comparisons.
 - Verify remaining special-site handlers against
   full native executions, and broaden complete campaign comparisons.

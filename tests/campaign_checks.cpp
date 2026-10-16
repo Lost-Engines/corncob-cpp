@@ -186,7 +186,14 @@ int main(int const argc, char const *const argv[]) {
     campaign.finish_sortie("morning", completed, friendly_loss);
     require(!campaign.can_fly() && campaign.active_pilot()->awards(game::medal::distinguished_service_cross) == 0, "friendly losses failed to suspend the pilot and skip awards");
     require(campaign.active_pilot()->career().objectives_completed == 10, "suspension incorrectly discarded sortie statistics");
+    auto settings{campaign.training_settings()};
+    settings.kla.count = 3;
+    settings.vehicles.quality = 7;
+    settings.invincible = false;
+    campaign.training_settings(settings);
     game::campaign_store reopened{isolated};
+    auto const restored{reopened.training_settings()};
+    require(restored.kla.count == 3 && restored.vehicles.quality == 7 && !restored.invincible, "training preferences were not restored from the native pilot record");
     require(!reopened.can_fly(), "court-martial sentence did not survive restart");
     reopened.create_pilot("Replacement");
     require(reopened.can_fly(), "another pilot inherited the suspension");
