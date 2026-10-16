@@ -459,6 +459,9 @@ match without stubs; the connected rescue scenario still passes.
 
 ## Remaining fidelity work
 
+- Keep the intermittent training re-entry report open: the pilot was reported
+  walking through the aircraft after leaving and returning. Re-entry later worked
+  for the reporter; no cause or corrective gameplay change has been established.
 - Extend whole-frame title comparisons beyond native motion, palette masking and
   the inspected presentation captures.
 - Complete remaining front-end/bookkeeping details: remaining theatre-header words and original configuration bits; broaden
