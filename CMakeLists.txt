@@ -86,6 +86,8 @@ add_library(corncob_core STATIC
   src/game/vision.h
   src/game/combat.cpp
   src/game/combat.h
+  src/game/tower_briefing.cpp
+  src/game/tower_briefing.h
   src/game/front_end.cpp
   src/game/front_end_menus.cpp
   src/resources/airfield_survey.cpp
@@ -251,6 +253,7 @@ if(BUILD_TESTING)
   corncob_check(actor_checks native_actors "${PROJECT_SOURCE_DIR}/tests/reference/actors.bin")
   corncob_check(scenario_checks scripted_scenarios)
   corncob_check(interface_checks native_interface "${PROJECT_BINARY_DIR}/interface-checks")
+  corncob_check(tower_checks native_tower_briefings "${PROJECT_BINARY_DIR}/tower-checks")
   corncob_check(menu_checks native_menu_pixels "${PROJECT_SOURCE_DIR}/tests/reference/menus.txt" "${PROJECT_BINARY_DIR}/menu-checks")
   corncob_check(score_checks native_score "${PROJECT_SOURCE_DIR}/tests/reference/score.bin")
   corncob_check(pilot_checks native_pilots "${PROJECT_SOURCE_DIR}/tests/reference/pilots.bin")

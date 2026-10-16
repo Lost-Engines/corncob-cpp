@@ -1,4 +1,5 @@
 #include "training.h"
+#include <format>
 #include <stdexcept>
 #include "maths/random.h"
 
@@ -11,6 +12,17 @@ theatre generate_training(resources::geometry_bank const &geometry, training_set
   }
   theatre result;
   result.training = true;
+  /// MOAG writes the generated training intelligence into airfield four's TOWERS.DAT section
+  auto strength{[](training_defence const &defence){return defence.quality < 0 ? std::string{"random spread of strength"} : "strength " + std::to_string(defence.quality + 1);}};
+  result.briefing = "\r\n\f\r\n\f\r\n\f\r\n\f\r\n\f\r\n";
+  result.briefing += "   Your objective is to destroy the flying saucer and to take out\r\n"
+    "   as many enemy fuel dumps and ground sites as possible.\r\n\r\n"
+    "   Latest intelligence reports enemy strengths as follows:\r\n";
+  result.briefing += std::format("             {} Missile sites:         {}\r\n", setup.kla.count, strength(setup.kla));
+  result.briefing += std::format("             {} AAA sites:             {}\r\n", setup.aaa.count, strength(setup.aaa));
+  result.briefing += std::format("             {} Ground-Vehicle sites:  {}\r\n", setup.vehicles.count, strength(setup.vehicles));
+  result.briefing += "             1 Enemy Saucers:         random spread of strength\r\n\n\n"
+    " \\(Note:\\)  Training missions are much harder than the combat missions.";
   result.start = maths::world_position{-848'968, 0, 720};
   maths::random_source random{seed};
   auto add{[&](object_type const type, int32_t const x, int32_t const y, int32_t const z, unsigned int const quality = 0) -> placed_object& {

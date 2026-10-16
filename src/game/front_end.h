@@ -4,18 +4,20 @@
 #include <optional>
 #include <string>
 #include "audio/music_cue.h"
-#include "game/session.h"
 #include "game/campaign.h"
-#include "world/training.h"
+#include "game/session.h"
+#include "game/tower_briefing.h"
 #include "graphics/interface.h"
 #include "graphics/space_sequence.h"
 #include "graphics/title_sequence.h"
 #include "resources/cockpit_mask.h"
 #include "resources/radio_messages.h"
+#include "world/training.h"
 
 namespace corncob::game {
 
 enum class interface_command {
+  any_key,
   up,
   down,
   previous,
@@ -45,7 +47,6 @@ enum class interface_page {
   training_wickedness,
   training_value,
   control_setup,
-  missions,
   mission_briefing,
   starting_airfield,
   airfield_information,
@@ -109,7 +110,8 @@ private:
   bool pending_finish{false};
   world::training_setup training;
   control_setup controls;
-  std::vector<world::mission_start> mission_starts;
+  tower_briefing tower;
+  interface_page boss_return{interface_page::flight};
   std::optional<world::mission_start> pending_relocation;
   std::optional<sortie_statistics> latest_result;
   std::vector<resources::presentation_panel> stories;
@@ -138,7 +140,6 @@ private:
   unsigned int scroll{0};
   unsigned int outcome_index{0};
   std::string selected_theatre;
-  std::string briefing;
   std::optional<launch_request> pending_launch;
   std::optional<launch_request> prepared_launch;
   std::optional<world::theatre> prepared_world;
@@ -176,8 +177,7 @@ public:
   void command(interface_command command);
   void begin_flight();
   void show_menu();
-  void show_intelligence(world::theatre const &world);
-  void show_missions(world::theatre const &world);
+  void show_intelligence(world::theatre const &world, unsigned int airfield = tower_briefing::central_airfield);
   void show_current_score(sortie_statistics const &result);
   void show_boss();
   std::optional<world::mission_start> take_relocation();

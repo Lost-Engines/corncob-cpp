@@ -21,22 +21,29 @@ void menu_canvas::text(int const column, int const row, std::string_view const v
   canvas.rectangle(column * 8, row * 16, (column + static_cast<int>(value.size())) * 8, (row + 1) * 16, render::ega_palette.at(background == 16 ? this->background : background));
   canvas.text(column * 8, row * 16, value, render::ega_palette.at(colour == 16 ? foreground : colour));
 }
-void menu_canvas::rich_text(int column, int const row, std::string_view const value, unsigned int const colour, unsigned int const width) {
+void menu_canvas::rich_text(int const column, int const row, std::string_view const value, unsigned int const colour, unsigned int const width) {
+  /// Menu labels start a fresh emphasis span; text readers can retain it across consecutive physical lines
+  bool highlighted{false};
+  rich_text(column, row, value, colour, width, highlighted);
+}
+void menu_canvas::rich_text(int column, int const row, std::string_view const value, unsigned int const colour, unsigned int const width, bool &highlighted) {
   /// Original text marks emphasis with backslash-parentheses and single highlighted shortcut characters
-  bool highlighted{false}, shortcut{false};
   unsigned int drawn{0};
   for(unsigned int i{0}; i < value.size() && drawn < width; ++i) {
     char const ch{value[i]};
     if(ch == '\\' && i + 1 < value.size()) {
       char const next{value[++i]};
+      if(next == '\\') {
+        text(column++, row, std::string_view{&value[i], 1}, highlighted ? this->emphasis : colour);
+        ++drawn;
+        continue;
+      }
       if(next == '(') { highlighted = true; continue; }
       if(next == ')') { highlighted = false; continue; }
-      shortcut = true;
       text(column++, row, std::string_view{&value[i], 1}, 14);
     } else {
-      text(column++, row, std::string_view{&value[i], 1}, highlighted || shortcut ? this->emphasis : colour);
+      text(column++, row, std::string_view{&value[i], 1}, highlighted ? this->emphasis : colour);
     }
-    shortcut = false;
     ++drawn;
   }
 }

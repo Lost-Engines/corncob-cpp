@@ -1,15 +1,15 @@
 #include "front_end.h"
-#include "render/palette.h"
 #include <algorithm>
 #include <cctype>
-#include <sstream>
 #include <format>
+#include <sstream>
 #include <utility>
-#include "resources/assets.h"
-#include "resources/airfield_survey.h"
 #include "platform/storage.h"
-#include "world/world.h"
+#include "render/palette.h"
+#include "resources/airfield_survey.h"
+#include "resources/assets.h"
 #include "world/theatre_catalog.h"
+#include "world/world.h"
 
 namespace corncob::game {
 
@@ -172,7 +172,7 @@ void front_end::accept() {
     case interface_page::pilot_activate: campaign.create_pilot(entered_name, selection == 0); sync_pilot(); navigate(interface_page::roster); break;
     case interface_page::records:
     case interface_page::medals: navigate(interface_page::roster); break;
-    case interface_page::boss:
+    case interface_page::boss: page = boss_return; break;
     case interface_page::current_score: page = interface_page::flight; break;
     case interface_page::sortie_summary: sync_pilot(); navigate(interface_page::menu); break;
     case interface_page::control_setup:
@@ -254,12 +254,9 @@ void front_end::accept() {
       pending_launch = std::exchange(prepared_launch, std::nullopt);
       break;
     case interface_page::airfield_information: navigate(interface_page::starting_airfield); break;
-    case interface_page::missions:
-      if(selection == 0) { scroll = 0; page = interface_page::briefing; }
-      else { if(selection - 1 < mission_starts.size()) pending_relocation = mission_starts[selection - 1]; page = interface_page::flight; }
-      break;
     case interface_page::briefing:
-      if(session_running) page = interface_page::flight;
+      pending_relocation = tower.selected_start();
+      page = interface_page::flight;
       break;
     case interface_page::high_score_menu:
       if(selection < 3) { score_list = selection; navigate(interface_page::high_scores); }
@@ -299,23 +296,36 @@ void front_end::accept() {
 }
 void front_end::command(interface_command const command) {
   /// Text readers scroll; entry lists navigate; confirmation dialogs accept only their documented keys
+  if(page == interface_page::briefing) {
+    if(tower.lines().empty()) { page = interface_page::flight; return; }
+    switch(command) {
+    case interface_command::up: tower.move(-1); break;
+    case interface_command::down: tower.move(1); break;
+    case interface_command::previous: tower.move(-1); break;
+    case interface_command::next: tower.move(1); break;
+    case interface_command::page_up: tower.move(-tower_briefing::full_page); break;
+    case interface_command::page_down: tower.move(tower_briefing::full_page); break;
+    case interface_command::home: tower.home(); break;
+    case interface_command::end: tower.end(); break;
+    case interface_command::accept: accept(); break;
+    case interface_command::cancel: case interface_command::backspace: page = interface_page::flight; break;
+    default: break;
+    }
+    return;
+  }
   bool const confirmation{page == interface_page::pilot_delete || page == interface_page::pilot_resurrect || page == interface_page::score_delete_confirmation};
   if(confirmation && command != interface_command::accept) {
     navigate(page == interface_page::score_delete_confirmation ? interface_page::score_delete : interface_page::roster);
     return;
   }
-  bool const reading{page == interface_page::menu_information || page == interface_page::documentation || page == interface_page::registration || page == interface_page::briefing || page == interface_page::airfield_information};
-  unsigned int const visible_lines{page == interface_page::airfield_information ? 9u : page == interface_page::menu_information ? 15u : page == interface_page::briefing ? 16u : 22u};
+  bool const reading{page == interface_page::menu_information || page == interface_page::documentation || page == interface_page::registration || page == interface_page::airfield_information};
+  unsigned int const visible_lines{page == interface_page::airfield_information ? 9u : page == interface_page::menu_information ? 15u : 22u};
   auto scroll_to{[&](unsigned int const line){
     unsigned int count{static_cast<unsigned int>(document_lines.size())};
-    if(page == interface_page::briefing) {
-      count = 0;
-      std::istringstream text{briefing}; std::string line;
-      while(std::getline(text, line)) if(line.find('\f') == std::string::npos && !line.starts_with("Sxyth")) ++count;
-    }
     scroll = std::min(line, count > visible_lines ? count - visible_lines : 0u);
   }};
   switch(command) {
+  case interface_command::any_key: break;
   case interface_command::accept: accept(); break;
   case interface_command::backspace:
     if(editing_name()) {
@@ -374,8 +384,8 @@ void front_end::command(interface_command const command) {
       break;
     case interface_page::notice: accept(); break;
     case interface_page::title: case interface_page::story: title.reset(); navigate(interface_page::menu); break;
-    case interface_page::briefing: case interface_page::missions: case interface_page::current_score: case interface_page::boss:
-    case interface_page::quit_confirmation: page = interface_page::flight; break;
+    case interface_page::boss: page = boss_return; break;
+    case interface_page::current_score: case interface_page::quit_confirmation: page = interface_page::flight; break;
     default: navigate(interface_page::menu); break;
     }
     break;
@@ -490,6 +500,7 @@ void front_end::render(render::framebuffer &target) const {
     return;
   }
   if(page == interface_page::ending) { ending->render(target); return; }
+  if(page == interface_page::briefing) { tower.render(target, assets.file("font16.bin")); return; }
   if(page == interface_page::boss) {
     graphics::interface_canvas canvas{target, assets.file("font16.bin"), 16, 640, 400};
     canvas.clear();
@@ -544,7 +555,6 @@ unsigned int front_end::choice_count() const {
   case interface_page::high_score_menu: return 6;
   case interface_page::score_delete: return 5;
   case interface_page::pilot_activate: case interface_page::quit_confirmation: return 2;
-  case interface_page::missions: return static_cast<unsigned int>(mission_starts.size()) + 1;
   case interface_page::pilots: return std::max(1u, static_cast<unsigned int>(campaign.pilots().size()));
   default: return 1;
   }
@@ -559,24 +569,18 @@ control_setup const &front_end::flight_controls() const noexcept {
   /// New sessions and platform polling consume the same settings shown by the front end
   return controls;
 }
-void front_end::show_intelligence(world::theatre const &world) {
-  /// The retained session supplies its current theatre's complete intelligence text
+void front_end::show_intelligence(world::theatre const &world, unsigned int const airfield) {
+  /// F2 and walking into a tower run the same original helper, retaining its form-feed sections and visible mission selection
+  tower = tower_briefing{world.briefing, airfield};
+  pending_relocation.reset();
   session_running = true;
-  briefing = world.briefing;
-  scroll = 0;
   page = interface_page::briefing;
-}
-void front_end::show_missions(world::theatre const &world) {
-  /// Intelligence starts are explicit directives in the original theatre text
-  session_running = true;
-  mission_starts = world.missions;
-  briefing = world.briefing;
-  selection = 0;
-  page = interface_page::missions;
 }
 void front_end::show_boss() {
   /// F1 retains the original deliberately uninteresting DOS prompt disguise
+  if(page == interface_page::briefing && tower.lines().empty()) { page = interface_page::flight; return; }
   session_running = true;
+  boss_return = page == interface_page::briefing ? interface_page::briefing : interface_page::flight;
   page = interface_page::boss;
 }
 void front_end::show_current_score(sortie_statistics const &result) {
@@ -591,6 +595,23 @@ std::optional<world::mission_start> front_end::take_relocation() {
 }
 void front_end::character(uint32_t const codepoint) {
   /// Text prompts own characters; elsewhere the yellow original shortcut executes its menu entry immediately
+  if(page == interface_page::briefing) {
+    if(tower.lines().empty()) { page = interface_page::flight; return; }
+    switch(codepoint) {
+    case 6: case 14: case 'j': case '2': case '6': command(interface_command::down); break;
+    case 2: case 16: case 'k': case '4': case '8': command(interface_command::up); break;
+    case 25: case ' ': command(interface_command::page_down); break;
+    case 'd': tower.move(tower_briefing::half_page); break;
+    case 'u': tower.move(-tower_briefing::half_page); break;
+    case 20: case 'g': command(interface_command::home); break;
+    case 18: case 'G': command(interface_command::end); break;
+    case 15: command(interface_command::page_up); break;
+    case 8: case 27: case 'q': command(interface_command::cancel); break;
+    case 10: case 13: command(interface_command::accept); break;
+    default: break;
+    }
+    return;
+  }
   if(page == interface_page::pilot_name) {
     if(codepoint >= 32 && codepoint < 127 && entered_name.size() < 20) entered_name += static_cast<char>(codepoint);
     return;

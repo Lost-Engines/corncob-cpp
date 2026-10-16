@@ -16,6 +16,7 @@ public:
   void shadow(int left, int top, int right, int bottom);
   void text(int column, int row, std::string_view text, unsigned int colour = 16, unsigned int background = 16);
   void rich_text(int column, int row, std::string_view text, unsigned int colour = 16, unsigned int width = columns);
+  void rich_text(int column, int row, std::string_view text, unsigned int colour, unsigned int width, bool &highlighted);
   void panel(int left, int top, int right, int bottom, unsigned int colour = 16, bool double_border = false, bool shadow = true);
   void frame(std::string_view title);
   void heading(std::string_view title);

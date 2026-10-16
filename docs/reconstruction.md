@@ -170,13 +170,34 @@ and ordering have not yet had the complete native comparison given to the twenty
 reference screens. The analog-centering menu entries retain their original
 wording and session choices; GLFW supplies digital axes without DOS port timing
 or drift calibration. Conditional dialogs, populated score/medal pages and the
-remaining in-flight helper layouts need broader visual comparison before
+in-flight score helper layout need broader visual comparison before
 claiming every possible front-end screen is pixel-identical.
 
-F1 retains BOSS.TXT's DOS-prompt disguise. F2 exposes intelligence and stored Sxyth
-airborne starts without rebuilding the world; damaged aircraft retain the original
-jump restriction and message. An airborne start explicitly releases the stopped
-runway latch so movement begins without another throttle input. F3 reports the retained sortie without recording it.
+F1 retains BOSS.TXT's DOS-prompt disguise. F2 and walking into a tower now use
+the reconstructed TOWER.EXE briefing reader. It selects one of nine form-feed
+sections, retaining the 22-row window, proportional scrollbar, original rich-text
+attributes and 127-byte input-line chunks. Arrows move one line, PgUp/PgDn and
+Space move twenty, U/D move eleven, Home/End and G/g reach the ends. The original
+numeric and control-letter aliases also work. Enter returns the first Sxyth
+start visible on the current page; Escape, Backspace and Q cancel it. An empty
+section shows the original notice and accepts any key. F1 inside the reader
+opens the boss disguise and restores the same briefing when dismissed.
+
+Forty-nine complete unchanged-DOS screen captures match RGB pixels exactly,
+including all four theatres, all nine section indices, generated training,
+scroll limits, long lines, multiline emphasis, literal backslashes and the boss
+round trip. Selected coordinates and absent/cancelled return files also match.
+The captured expectations are retained in `tests/reference/tower_briefings.h`;
+`tools/generate_tower_briefing_reference.py` imports them from the research
+repository's `capture_native_tower.py` output. The game and tests require no DOS
+executable or Python at runtime. These checks cover the helper's text and
+selection behaviour; the live TOWERS.INF survey and reserve-aircraft allocation
+belong to MOAG, and remain separate work.
+
+The flight engine ignores a selected airborne start while the pilot is on foot,
+and damaged aircraft retain the original jump restriction and message. An
+airborne start explicitly releases the stopped runway latch so movement begins
+without another throttle input. F3 reports the retained sortie without recording it.
 F4 traverses ten original help pages. Pause also accepts Space for help and
 P/Escape to resume, as documented on those pages. Eleven BLACKBOX records supply native warning
 rectangles, text and placements. Flight Escape warns once when messages are enabled
@@ -448,6 +469,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Animation clock | 512 native word-counter transitions and a connected 16,384-pass restart |
 | Sortie clock | 512 unchanged two-segment DOS-clock conversions, including pause boundaries and wrapping; connected flight/pause/map timing |
 | Score/persistence | 512 ISCORE calculations, 256 complete MOAG career updates and 512 complete promotion/medal decisions; 16,384 original mask bytes; original control/model/new-pilot fixtures; 96 full 5,040-byte native high-score insertion/tie/padding cases and exact retirement; roster/world restart, rename and deletion scenarios |
+| Tower intelligence | Forty-nine complete unchanged-DOS screen/mission-return comparisons, all nine briefing sections, original scrolling and boss continuation |
 | Menus | Twenty complete unchanged-DOS screen comparisons, original navigation and text readers, nested training editors, duplicate/transient/deleted theater ownership |
 | Music | Three native-driver recordings; complete title/menu repeats, arbitrary 1–512-frame callbacks, saved native music flags and older-roster import |
 | Sound | 512 engine/register-write cases; 10,535 proximity writes across 512 connected frames; 384 ordered actor-proximity passes; finite, non-silent PCM |

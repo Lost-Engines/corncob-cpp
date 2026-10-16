@@ -38,9 +38,12 @@ at the intended 4:3 CRT aspect ratio, using nearest-neighbour sampling. The wind
 floats and remains resizable. `--scale 1` selects the initial scale explicitly;
 Escape ends the sortie, showing the original one-time warning first when away
 from base; F1 opens the original boss screen, F2 opens
-airbase intelligence and airborne mission starts, F3 shows the current score, F4 opens flight help,
+airbase intelligence, F3 shows the current score, F4 opens flight help,
 and R toggles the rear view. Walking into a control-tower doorway opens
-intelligence and repairs the retained aircraft before returning to the same flight. `--skip-intro` opens the menu directly.
+intelligence and repairs the retained aircraft before returning to the same flight.
+In intelligence, use arrows or PgUp/PgDn to scroll; Enter selects the first
+highlighted mission start currently visible. Escape returns without selecting one.
+`--skip-intro` opens the menu directly.
 
 White Sands starts on foot; the other combat theatres automatically board an available normal aircraft.
 Keypad 5 walks forward and keypad 0 walks backwards; arrows

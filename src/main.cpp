@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <bitset>
 #include <charconv>
 #include <cmath>
 #include <cstdlib>
@@ -7,18 +8,18 @@
 #include <limits>
 #include <memory>
 #include <string>
-#include "game/session.h"
-#include "game/front_end.h"
 #include <boost/program_options.hpp>
 #include <boost/scope/scope_exit.hpp>
 #include <GLFW/glfw3.h>
-#include "graphics/scene.h"
-#include "platform/framebuffer_presenter.h"
-#include "platform/storage.h"
-#include "platform/audio_output.h"
-#include "platform/joystick.h"
 #include "audio/effects.h"
 #include "audio/music.h"
+#include "game/front_end.h"
+#include "game/session.h"
+#include "graphics/scene.h"
+#include "platform/audio_output.h"
+#include "platform/framebuffer_presenter.h"
+#include "platform/joystick.h"
+#include "platform/storage.h"
 #include "render/framebuffer.h"
 #include "resources/assets.h"
 #include "resources/cockpit_mask.h"
@@ -32,6 +33,7 @@ struct window_state {
   corncob::game::front_end &front;
   bool &sound_enabled;
   corncob::render::framebuffer &frame;
+  std::bitset<GLFW_KEY_LAST + 1> tower_key_releases{};
 };
 
 corncob::world::theatre load_theatre(std::string const &name) {
@@ -236,10 +238,37 @@ auto main(int const argc, char const *const argv[])->int {
   window_state state{game, front, sound_enabled, frame};
   glfwSetWindowUserPointer(window.get(), &state);
   glfwSetKeyCallback(window.get(), [](GLFWwindow *const window, int const key, int const /*scancode*/, int const action, int const modifiers){
-    if(action != GLFW_RELEASE) return;
     auto &state{*static_cast<window_state*>(glfwGetWindowUserPointer(window))};
     auto &game{state.game};
     auto &front{state.front};
+    if(key >= 0 && action == GLFW_RELEASE && state.tower_key_releases.test(static_cast<unsigned int>(key))) {
+      state.tower_key_releases.reset(static_cast<unsigned int>(key));
+      return;
+    }
+    if(front.current_page() == corncob::game::interface_page::briefing && action != GLFW_RELEASE) {
+      /// DOS consumes presses and repeats; a closing reader must not pass the matching release into flight
+      using enum corncob::game::interface_command;
+      if(key < 0 || (key >= GLFW_KEY_LEFT_SHIFT && key <= GLFW_KEY_RIGHT_SUPER)) return;
+      state.tower_key_releases.set(static_cast<unsigned int>(key));
+      if((modifiers & GLFW_MOD_CONTROL) != 0 && key >= GLFW_KEY_A && key <= GLFW_KEY_Z) {
+        front.character(static_cast<uint32_t>(key - GLFW_KEY_A + 1));
+        return;
+      }
+      switch(key) {
+      case GLFW_KEY_UP: case GLFW_KEY_LEFT: case GLFW_KEY_KP_4: case GLFW_KEY_KP_8: front.command(up); break;
+      case GLFW_KEY_DOWN: case GLFW_KEY_RIGHT: case GLFW_KEY_KP_2: case GLFW_KEY_KP_6: front.command(down); break;
+      case GLFW_KEY_HOME: case GLFW_KEY_KP_7: front.command(home); break;
+      case GLFW_KEY_END: case GLFW_KEY_KP_1: front.command(end); break;
+      case GLFW_KEY_PAGE_UP: case GLFW_KEY_KP_9: front.command(page_up); break;
+      case GLFW_KEY_PAGE_DOWN: case GLFW_KEY_KP_3: front.command(page_down); break;
+      case GLFW_KEY_ENTER: case GLFW_KEY_KP_ENTER: front.command(accept); break;
+      case GLFW_KEY_ESCAPE: case GLFW_KEY_BACKSPACE: front.command(cancel); break;
+      case GLFW_KEY_F1: front.show_boss(); break;
+      default: front.command(any_key); break;
+      }
+      return;
+    }
+    if(action != GLFW_RELEASE) return;
     if(!front.in_flight()) {
       using enum corncob::game::interface_command;
       if(front.current_page() == corncob::game::interface_page::help && (key == GLFW_KEY_P || key == GLFW_KEY_ESCAPE)) {
@@ -252,7 +281,11 @@ auto main(int const argc, char const *const argv[])->int {
         front.command(accept);
         return;
       }
-      if(front.current_page() == corncob::game::interface_page::boss) { front.command(accept); return; }
+      if(front.current_page() == corncob::game::interface_page::boss) {
+        /// Modifier releases do not produce a DOS input character and must not dismiss the disguise
+        if(key < GLFW_KEY_LEFT_SHIFT || key > GLFW_KEY_RIGHT_SUPER) front.command(accept);
+        return;
+      }
       switch(key) {
       case GLFW_KEY_UP: front.command(up); break;
       case GLFW_KEY_DOWN: front.command(down); break;
@@ -294,7 +327,7 @@ auto main(int const argc, char const *const argv[])->int {
       else if(game->request_exit()) front.leave_sortie();
       break;
     case GLFW_KEY_F1: front.show_boss(); break;
-    case GLFW_KEY_F2: front.show_missions(game->world()); break;
+    case GLFW_KEY_F2: front.show_intelligence(game->world()); break;
     case GLFW_KEY_F3: front.show_current_score(game->results()); break;
     case GLFW_KEY_F4: front.show_flight_help(); break;
     case GLFW_KEY_S: state.sound_enabled = !state.sound_enabled; break;
@@ -320,6 +353,12 @@ auto main(int const argc, char const *const argv[])->int {
   });
   glfwSetCharCallback(window.get(), [](GLFWwindow *const window, unsigned int const codepoint){
     auto &state{*static_cast<window_state*>(glfwGetWindowUserPointer(window))};
+    /// Keypad navigation is handled once on key release, irrespective of Num Lock's optional character event
+    if(state.front.current_page() == corncob::game::interface_page::briefing) {
+      for(int const key : {GLFW_KEY_KP_2, GLFW_KEY_KP_4, GLFW_KEY_KP_6, GLFW_KEY_KP_8}) {
+        if(glfwGetKey(window, key) == GLFW_PRESS) return;
+      }
+    }
     state.front.character(codepoint);
   });
   corncob::audio::effects sound{interface_assets};
@@ -381,7 +420,7 @@ auto main(int const argc, char const *const argv[])->int {
     }
     if(front.in_flight()) game->resume_from_tower();
     if(front.take_map()) game->press(corncob::game::action::toggle_map);
-    if(auto const relocation{front.take_relocation()}) game->relocate(*relocation);
+    if(auto const relocation{front.take_relocation()}; relocation && game->player() == corncob::game::player_mode::in_aircraft) game->relocate(*relocation);
     double const now{glfwGetTime()};
     double const elapsed{std::min(now - previous_time, 0.1)};
     previous_time = now;

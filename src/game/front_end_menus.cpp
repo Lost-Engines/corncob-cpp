@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <format>
 #include <numeric>
-#include <sstream>
 #include "graphics/menu_canvas.h"
 #include "maths/integer.h"
 #include "resources/assets.h"
@@ -468,22 +467,8 @@ void front_end::render_menus(render::framebuffer &target) const {
     report(screen, &campaign.pilots()[pilot_index], detailed_records, "CAREER REPORT");
   } else if(view == interface_page::sortie_summary || view == interface_page::current_score) {
     report(screen, pilot, true, view == interface_page::sortie_summary ? "POST-MISSION CAREER REPORT" : "MISSION REPORT", latest_result);
-  } else if(view == interface_page::briefing || view == interface_page::missions || (view == interface_page::menu && session_running) || view == interface_page::quit_confirmation) {
-    /// Flight helper pages keep their existing session continuation while the launcher uses the original MOAG hierarchy
-    if(view == interface_page::missions) {
-      std::vector<std::string_view> choices{"Read full airbase intelligence"};
-      for(auto const &start : mission_starts) choices.push_back(start.title);
-      draw_menu(canvas, "Airbase intelligence", choices);
-    } else if(view == interface_page::briefing) {
-      draw_menu(canvas, "Airbase intelligence", {});
-      std::istringstream input{briefing}; std::string line; unsigned int n{0}, drawn{0};
-      while(std::getline(input, line) && drawn < 16) {
-        if(line.find('\f') != std::string::npos || line.starts_with("Sxyth")) continue;
-        if(n++ < scroll) continue;
-        if(!line.empty() && line.back() == '\r') line.pop_back();
-        screen.rich_text(2, 6 + static_cast<int>(drawn++), line, 7, 76);
-      }
-    } else if(view == interface_page::quit_confirmation) {
+  } else if((view == interface_page::menu && session_running) || view == interface_page::quit_confirmation) {
+    if(view == interface_page::quit_confirmation) {
       std::array<std::string_view, 2> constexpr choices{"Yes", "No - return"}; draw_menu(canvas, "End this sortie?", choices);
     } else {
       std::array<std::string_view, 3> constexpr choices{"Resume flight", "Flight controls and help", "End current sortie"}; draw_menu(canvas, "Main menu", choices);
