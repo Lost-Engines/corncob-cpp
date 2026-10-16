@@ -116,6 +116,21 @@ int main() {
   require(!targets.objects[3].has(world::object_flag::present) && std::ranges::any_of(targets.objects, [](auto const &object){
     return object.has(world::object_flag::present) && object.type == world::object_type::vehicle_site && object.quality() == 7;
   }), "concealed site did not reveal its configured contents when struck");
+  world::theatre barriers;
+  auto const &barrier_definition{geometry.definition(world::object_type::forcefield_x)};
+  barriers.objects.push_back({
+    .position{0, 0, 8000},
+    .attitude{},
+    .type{world::object_type::forcefield_x},
+    .flags{barrier_definition.flags},
+    .timer{32'000},
+  });
+  game::combat barrier_weapons{geometry, barriers};
+  game::actors barrier_actors{geometry, barriers, barrier_weapons};
+  for(unsigned int frame{0}; frame != 10; ++frame) barrier_actors.advance({observer, observer, velocity, false, 0}, {});
+  require(geometry.appearance(barriers.objects[0]).far == 0 && barriers.objects[0].has(world::object_flag::present), "distant blinking wall did not retain its near barrier");
+  barrier_weapons.damage(0, bomb);
+  require(geometry.appearance(barriers.objects[0]).far == barrier_definition.models.far && barriers.objects[0].health == barrier_definition.hit_points, "barrier contact damaged the field instead of briefly revealing it");
   std::cout << "Local spawning, hostile shells, persistent orb objectives and four-tile activation exercised" << std::endl;
   return EXIT_SUCCESS;
 }

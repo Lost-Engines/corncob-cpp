@@ -2,11 +2,36 @@
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
+#include <optional>
 #include "resources/binary_reader.h"
 #include "resources/colour_rules.h"
 
 namespace corncob::resources {
 
+void geometry_bank::bind_animation(model_address const address, unsigned int const primitive, unsigned int const line, unsigned int const vertex, unsigned int const axis, bool const diameter) {
+  /// Resolve original pointer tables once, retaining typed indices so the bank remains safe to move or copy
+  binary_reader const input{source};
+  std::optional<model_pulse> pulse;
+  if(diameter) {
+    if(address == 0x6a93) pulse = model_pulse::upper_saucer;
+    if(address == 0x6a9f) pulse = model_pulse::lower_saucer;
+  } else {
+    std::array<unsigned int, 3> constexpr tables{0x6314, 0x633e, 0x6374};
+    for(unsigned int table{0}; table != tables.size(); ++table) {
+      unsigned int const start{tables[table]};
+      for(unsigned int i{0}; i != input.word(start); ++i) if(input.word(start + 4 + i * 2) == address) pulse = static_cast<model_pulse>(table);
+    }
+  }
+  if(pulse) animation_bindings.push_back({
+    .primitive{primitive},
+    .line{line},
+    .vertex{vertex},
+    .axis{axis},
+    .pulse{*pulse},
+    .negative{input.signed_word(address) < 0},
+    .diameter{diameter},
+  });
+}
 unsigned int geometry_bank::load_primitive(unsigned int const kind, model_address const address) {
   /// Cache typed drawing payloads once while preserving their original shared addresses
   uint32_t const key{(kind << 16) | address};
@@ -22,7 +47,10 @@ unsigned int geometry_bank::load_primitive(unsigned int const kind, model_addres
         .vertices{},
         .colour{input.word(address + 2)},
       };
-      for(unsigned int i{0}; i != count; ++i) shape.vertices.push_back(input.vector(address + 4 + i * 6));
+      for(unsigned int i{0}; i != count; ++i) {
+        shape.vertices.push_back(input.vector(address + 4 + i * 6));
+        for(unsigned int axis{0}; axis != 3; ++axis) bind_animation(static_cast<model_address>(address + 4 + i * 6 + axis * 2), index, 0, i, axis);
+      }
       primitives.emplace_back(std::move(shape));
     }
     break;
@@ -37,7 +65,10 @@ unsigned int geometry_bank::load_primitive(unsigned int const kind, model_addres
           .vertices{},
           .colour{input.word(line_address + 2)},
         };
-        for(unsigned int vertex{0}; vertex != segments + 1; ++vertex) line.vertices.push_back(input.vector(line_address + 4 + vertex * 6));
+        for(unsigned int vertex{0}; vertex != segments + 1; ++vertex) {
+          line.vertices.push_back(input.vector(line_address + 4 + vertex * 6));
+          for(unsigned int axis{0}; axis != 3; ++axis) bind_animation(static_cast<model_address>(line_address + 4 + vertex * 6 + axis * 2), index, i, vertex, axis);
+        }
         shape.lines.push_back(std::move(line));
       }
       primitives.emplace_back(std::move(shape));
@@ -61,6 +92,7 @@ unsigned int geometry_bank::load_primitive(unsigned int const kind, model_addres
       disc_cloud shape;
       for(unsigned int i{0}; i != count; ++i) {
         unsigned int const disc_address{address + 2 + i * 10};
+        bind_animation(static_cast<model_address>(disc_address + 6), index, 0, i, 0, true);
         shape.discs.push_back({
           .position{input.vector(disc_address)},
           .diameter{input.word(disc_address + 6)},
@@ -164,6 +196,12 @@ model_levels geometry_bank::appearance(world::placed_object const &object) const
   case world::model_pose::yellow_explosion: return {0x3d64, 0x3d64, 0x3d64};
   case world::model_pose::red_explosion: return {0x3d3c, 0x3d3c, 0x3d3c};
   case world::model_pose::radar_wreck: return {0x406a, 0x4132, 0x4132};
+  case world::model_pose::distant_hidden:
+    {
+      auto result{definition(object.type).models};
+      result.far = 0;
+      return result;
+    }
   default: break;
   }
   return definition(object.type).models;
@@ -180,6 +218,33 @@ primitive const &geometry_bank::drawing(unsigned int const index) const {
 uint8_t geometry_bank::colour(colour_reference const reference) const noexcept {
   /// A nonzero high byte marks a native colour-variable address rather than a literal index
   return (reference >> 8) != 0 ? colours[reference] : static_cast<uint8_t>(reference);
+}
+void geometry_bank::animate(unsigned int const frame) {
+  /// Update shared animated vertices and saucer sizes once per rendered game frame, without re-decoding static models
+  auto const pulse{model_animation::at(frame)};
+  for(auto const &binding : animation_bindings) {
+    int16_t const value{binding.negative ? maths::negate(pulse.value(binding.pulse)) : pulse.value(binding.pulse)};
+    std::visit([&](auto &shape){
+      using shape_type = std::decay_t<decltype(shape)>;
+      if constexpr(std::is_same_v<shape_type, wireframe>) shape.lines[binding.line].vertices[binding.vertex][binding.axis] = value;
+      else if constexpr(std::is_same_v<shape_type, polygon>) shape.vertices[binding.vertex][binding.axis] = value;
+      else if constexpr(std::is_same_v<shape_type, disc_cloud>) shape.discs[binding.vertex].diameter = static_cast<uint16_t>(value);
+    }, primitives[binding.primitive]);
+  }
+}
+maths::fixed_vector geometry_bank::collision_extents(world::object_type const type, unsigned int const frame) const noexcept {
+  /// Wire forcefields use the same native phase as their vertices; collision half-extents are twice the geometric half-size
+  auto result{maths::fixed_vector{definitions[std::to_underlying(type)].collision_extents}};
+  auto const pulse{model_animation::at(frame)};
+  using enum world::object_type;
+  switch(type) {
+  case wire_forcefield_x: result.y = maths::word(pulse.wide_wall * 2); result.z = maths::word(pulse.small_wall * 2); break;
+  case wire_forcefield_y: result.x = maths::word(pulse.wide_wall * 2); result.z = maths::word(pulse.small_wall * 2); break;
+  case wire_forcefield_z: result.x = maths::word(pulse.wide_wall * 2); result.y = maths::word(pulse.square_wall * 2); break;
+  case wire_forcefield_z1: result.x = result.y = maths::word(pulse.small_wall * 2); break;
+  default: break;
+  }
+  return result;
 }
 void geometry_bank::configure_sun(world::sky_parameters const &sky) {
   /// READUNIVPARAMS changes the two authored sun discs and their shared colour byte

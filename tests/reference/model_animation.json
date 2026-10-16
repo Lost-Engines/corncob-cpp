@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "7aa097dbeced00f2f347cef7f744433c052efbbdc30e0a9bd929c92b994736bf",
+  "routine_file_offsets": "0x8ada..0x8bd6",
+  "cases": 512,
+  "stubs": [],
+  "scope": "Three native pulses, two saucer discs, four wire forcefields with every vertex and collision component"
+}

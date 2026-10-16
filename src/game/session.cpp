@@ -145,16 +145,16 @@ void session::find_surfaces() {
     if(!object.has(world::object_flag::present)) continue;
     auto const &definition{geometry.definition(object.type)};
     auto within_xy{[&](maths::world_position const &point){
-      return std::abs(static_cast<int64_t>(point.x) - object.position.x) < definition.collision_extents.x
-        && std::abs(static_cast<int64_t>(point.y) - object.position.y) < definition.collision_extents.y;
+      return std::abs(static_cast<int64_t>(point.x) - object.position.x) < object.collision_extents.x
+        && std::abs(static_cast<int64_t>(point.y) - object.position.y) < object.collision_extents.y;
     }};
     if(has(definition, world::object_property::runway) && within_xy(aircraft.position)
-       && std::abs(static_cast<int64_t>(aircraft.position.z) - object.position.z) < definition.collision_extents.z) {
+       && std::abs(static_cast<int64_t>(aircraft.position.z) - object.position.z) < object.collision_extents.z) {
       landing.surface_height = object.position.z;
       landing.runway = true;
     }
     if(mode != player_mode::on_foot || !within_xy(person.position)) continue;
-    if(std::abs(static_cast<int64_t>(person.position.z) - object.position.z) >= definition.collision_extents.z) continue;
+    if(std::abs(static_cast<int64_t>(person.position.z) - object.position.z) >= object.collision_extents.z) continue;
     if(has(definition, world::object_property::kills_person) && !invincible) {
       fatal_contact = object.type;
       mode = player_mode::dead;
@@ -164,7 +164,7 @@ void session::find_surfaces() {
       notice = "Captured";
     } else if(has(definition, world::object_property::walkable)) {
       int32_t height{object.position.z};
-      if(has(definition, world::object_property::raised_walking_surface)) height += definition.collision_extents.z - flight::landing_state::aircraft_height - 1;
+      if(has(definition, world::object_property::raised_walking_surface)) height += object.collision_extents.z - flight::landing_state::aircraft_height - 1;
       if(person.position.z + flight::landing_state::aircraft_height >= height) person.surface_height = height;
     }
   }
@@ -474,6 +474,15 @@ void session::advance(input_state const &input) {
   if(input.throttle_down) press(action::throttle_down);
   fast_ticks += 40;
   ++frame;
+  for(auto &object : theatre.objects) switch(object.type) {
+  case world::object_type::wire_forcefield_x:
+  case world::object_type::wire_forcefield_y:
+  case world::object_type::wire_forcefield_z:
+  case world::object_type::wire_forcefield_z1:
+    object.collision_extents = geometry.collision_extents(object.type, frame);
+    break;
+  default: break;
+  }
   flight::time_step const step{
     .elapsed{static_cast<int16_t>(input.advance_time ? 50 : 5)},
     .normal{5},

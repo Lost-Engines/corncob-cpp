@@ -330,6 +330,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
   output.height = render::screen_layout::height;
   output.pixels.resize(render::screen_layout::pixel_count);
   statistics = {};
+  geometry.animate(frame);
   set_palette(theatre, observer.position);
   std::ranges::fill(indexed.pixels, 0);
   if(observer.cockpit) {

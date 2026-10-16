@@ -61,6 +61,7 @@ enum class model_pose {
   yellow_explosion,
   red_explosion,
   radar_wreck,
+  distant_hidden,
 };
 
 struct motion_profile {

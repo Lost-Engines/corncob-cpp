@@ -8,6 +8,7 @@
 #include <vector>
 #include "maths/fixed.h"
 #include "world/world.h"
+#include "resources/model_animation.h"
 
 namespace corncob::resources {
 
@@ -83,6 +84,17 @@ private:
   std::unordered_map<uint32_t, unsigned int> primitive_ids;
   std::array<uint8_t, 65'536> colours;
 
+  struct animation_binding {
+    unsigned int primitive;
+    unsigned int line;
+    unsigned int vertex;
+    unsigned int axis;
+    model_pulse pulse;
+    bool negative;
+    bool diameter;
+  };
+  std::vector<animation_binding> animation_bindings;
+  void bind_animation(model_address address, unsigned int primitive, unsigned int line, unsigned int vertex, unsigned int axis, bool diameter = false);
   unsigned int load_primitive(unsigned int kind, model_address address);
   void load_model(model_address address);
 
@@ -96,6 +108,8 @@ public:
   std::span<draw_command const> commands(model_address address, unsigned int octant) const;
   primitive const &drawing(unsigned int index) const;
   uint8_t colour(colour_reference reference) const noexcept;
+  void animate(unsigned int frame);
+  maths::fixed_vector collision_extents(world::object_type type, unsigned int frame) const noexcept;
   void configure_sun(world::sky_parameters const &sky);
   void prepare_colours(world::placed_object const &object, unsigned int frame, uint16_t timer, uint8_t random, bool radar_active);
 };

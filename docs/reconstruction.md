@@ -301,3 +301,16 @@ All 768 initial star coordinates and 64 complete indexed star frames match
 unchanged SRATS execution using the development EGA adapter. The combined
 window fills, fade and handoff also have scripted coverage; this does not claim
 a pixel comparison of the entire original ending with inherited instruments.
+
+## Animated forcefields and saucers
+
+Wire barriers now follow the three original independent size cycles, with matching
+collision dimensions for each frame. The saucer's upper and lower lights pulse
+in opposition. Geometry bindings are decoded once from the original pointer
+tables; static model data stays cached. All changed wire vertices, collision
+components and saucer diameters match 512 unchanged native geometry updates.
+
+Quality-zero filled barriers hide their distant representation until struck,
+while retaining their nearby surface and collision. Contact reveals them briefly
+instead of destroying them. Forcefield shutdown uses the preceding local generator
+census. Scripted checks cover the reveal and retained barrier state.

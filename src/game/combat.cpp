@@ -305,6 +305,14 @@ void combat::complete(world::placed_object &object) {
 void combat::damage(unsigned int const index, world::placed_object const &attacker, bool const aircraft_impact) {
   /// Type handlers retain their weapon restrictions and wreck states before applying common hit-point damage
   auto &object{theatre.objects.at(index)};
+  if((geometry.definition(object.type).properties & std::to_underlying(world::object_property::forcefield)) != 0) {
+    if(object.type == world::object_type::forcefield_x || object.type == world::object_type::forcefield_y
+      || object.type == world::object_type::forcefield_z || object.type == world::object_type::forcefield_z1) {
+      object.timer = 32'000;
+      object.pose = world::model_pose::normal;
+    }
+    return;
+  }
   if(!object.has(world::object_flag::collision_callback)) return;
   using enum world::object_type;
   if(object.type == bomb || object.type == missile || object.type == aa_shell) {

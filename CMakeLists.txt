@@ -121,6 +121,8 @@ add_library(corncob_core STATIC
   src/graphics/interface.h
   src/resources/geometry_bank.cpp
   src/resources/geometry_bank.h
+  src/resources/model_animation.cpp
+  src/resources/model_animation.h
   src/world/motion.cpp
   src/world/motion.h
   src/world/training.cpp
@@ -209,5 +211,6 @@ if(BUILD_TESTING)
   corncob_check(audio_checks native_sound "${PROJECT_SOURCE_DIR}/tests/reference/audio.bin")
   corncob_check(high_score_checks native_high_scores)
   corncob_check(space_checks native_ending "${PROJECT_SOURCE_DIR}/tests/reference/space.bin")
+  corncob_check(model_animation_checks native_model_animation "${PROJECT_SOURCE_DIR}/tests/reference/model_animation.bin")
   target_link_libraries(audio_checks PRIVATE corncob_audio)
 endif()

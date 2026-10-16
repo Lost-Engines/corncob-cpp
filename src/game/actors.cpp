@@ -488,8 +488,14 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
       break;
     }
     if((definition.properties & std::to_underlying(world::object_property::forcefield)) != 0) {
-      if(previous_counts[std::to_underlying(generator_orb)] == 0 && counts[std::to_underlying(destroyed_generator_orb)] != 0) object.flags = 0;
-      else object.timer = 32'000;
+      if(previous_counts[std::to_underlying(generator_orb)] == 0 && previous_counts[std::to_underlying(destroyed_generator_orb)] != 0) object.flags = 0;
+      else if(object.type == forcefield_x || object.type == forcefield_y || object.type == forcefield_z || object.type == forcefield_z1) {
+        // quality zero only reveals its far model for eight frames after contact; the nearby barrier always remains visible
+        if(object.quality() == 0 && object.timer <= 31'992) {
+          object.timer = 31'990;
+          object.pose = world::model_pose::distant_hidden;
+        }
+      } else object.timer = 32'000;
     }
   }
   observed_aliens = std::max(observed_aliens, counts[std::to_underlying(world::object_type::alien)]);
