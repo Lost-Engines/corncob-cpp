@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 #include "graphics/stars.h"
+#include "graphics/radar.h"
+#include "graphics/map_projection.h"
 
 namespace corncob::graphics {
 
@@ -115,9 +117,9 @@ struct visible_object {
 };
 
 std::optional<visible_object> visibility(world::placed_object const &object, resources::object_definition const &definition,
-                                       maths::world_position const &observer, resources::model_levels const &models) noexcept {
+                                       maths::world_position const &observer, resources::model_levels const &models, bool const map_mode = false) noexcept {
   /// Translate DISTEVAL's three coordinate scales and D3DOBJ's original model breakpoints
-  maths::world_position const delta{object.position - observer};
+  maths::world_position const delta{map_mode ? map_relative(object.position - observer) : object.position - observer};
   int64_t maximum{0};
   for(unsigned int axis{0}; axis != 3; ++axis) maximum = std::max(maximum, std::abs(static_cast<int64_t>(delta[axis])));
   if(maximum >= 8'388'608) return std::nullopt;
@@ -141,6 +143,7 @@ std::optional<visible_object> visibility(world::placed_object const &object, res
     reduction = 8;
     address = models.far;
   }
+  if(map_mode && reduction == 8 && observer.z > 35 * 65'536 && (object.flags & 0x100u) == 0) return std::nullopt;
   if(object.type == world::object_type::aircraft && (object.flags & 0x2000u) != 0 && reduction != 8) address = resources::geometry_bank::experimental_model;
   return visible_object{
     .object{&object},
@@ -380,12 +383,16 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
 
   std::vector<visible_object> visible;
   for(auto const &object : theatre.objects) {
-    if(!object.has(world::object_flag::present) || !world::in_active_neighbourhood(object.position, observer.position)) continue;
-    if(auto item{visibility(object, geometry.definition(object.type), observer.position, geometry.appearance(object))}) visible.push_back(std::move(*item));
+    if(!object.has(world::object_flag::present) || (!observer.map_mode && !world::in_active_neighbourhood(object.position, observer.position))) continue;
+    if(auto item{visibility(object, geometry.definition(object.type), observer.position, geometry.appearance(object), observer.map_mode)}) visible.push_back(std::move(*item));
   }
-  std::ranges::stable_sort(visible, [](visible_object const &lhs, visible_object const &rhs){
+  if(!observer.map_mode) std::ranges::stable_sort(visible, [](visible_object const &lhs, visible_object const &rhs){
     return lhs.tier != rhs.tier ? lhs.tier > rhs.tier : lhs.distance > rhs.distance;
   });
+  if(observer.map_mode) {
+    // survey markers blink independently of the stopped actor timers
+    geometry.set_map_colours(timer);
+  }
   uint8_t const shared_random{static_cast<uint8_t>(random.next() % 15)};
   for(auto const &item : visible) {
     auto const &object{*item.object};
@@ -395,6 +402,21 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     auto const origin{maths::transform(rotation, item.relative)};
     draw_model(item.model, model_octant(item.relative, inverse), matrix, origin, item.reduction, views);
     ++statistics.objects;
+  }
+  if(observer.map_mode && (observer.position.z >> 16) >= 8) {
+    world::placed_object const marker{
+      .position{maths::world_position{observer.map_position}},
+      .attitude{},
+      .type{world::object_type::internal_aircraft},
+      .flags{0x131},
+    };
+    auto definition{geometry.definition(world::object_type::internal_aircraft)};
+    auto constexpr address{resources::geometry_bank::map_marker_model};
+    definition.models = {address, address, address};
+    definition.limits = {977'625'289, 977'625'289, 977'625'289};
+    if(auto const item{visibility(marker, definition, observer.position, definition.models, true)}) {
+      draw_model(address, 0, rotation, maths::transform(rotation, item->relative), item->reduction, views.first(1));
+    }
   }
   if(telemetry && telemetry->aircraft.throttle <= 50) {
     auto const &aircraft{telemetry->aircraft};
@@ -427,7 +449,19 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
       sight.line({x + offset, y - 8}, {x + offset, y - 3}, 7);
       sight.line({x + offset, y + 9}, {x + offset, y + 4}, 7);
     }
-    if(observer.cockpit) instruments.draw(indexed, random, *telemetry, frame);
+    if(observer.cockpit) {
+      for(auto const &object : theatre.objects) {
+        if(!object.has(world::object_flag::present) || !world::in_active_neighbourhood(object.position, observer.position)) continue;
+        bool const kla{object.type == world::object_type::kla && object.timer < 23'900};
+        bool const saucer{object.type == world::object_type::saucer || object.type == world::object_type::objective_saucer};
+        if(!kla && !saucer) continue;
+        if(auto const position{radar_position(object.position, telemetry->aircraft.position, telemetry->aircraft.attitude.heading)}) {
+          geometry.prepare_colours(object, frame, timer, shared_random, false);
+          radar_dot(indexed, random, *position, kla ? 10 : geometry.colour((timer & 512u) != 0 ? 0x68e0 : 0x68e2));
+        }
+      }
+      instruments.draw(indexed, random, *telemetry, frame);
+    }
   }
   if(observer.palette_phase != vec3<uint16_t>{0, 0, 0}) {
     for(auto &colour : palette) for(unsigned int axis{0}; axis != 3; ++axis) {

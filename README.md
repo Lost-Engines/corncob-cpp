@@ -40,7 +40,10 @@ turn. Walk into an aircraft to board. +/− controls throttle, arrows fly, Z/X
 operate the rudder, F toggles flaps, I uses rocket boost, and . brakes. E leaves
 the aircraft; Space opens a parachute while falling. Caps Lock enables remote
 flight after ejection. A toggles the original autopilot. L toggles the cockpit, G ground detail, P pauses,
-and S toggles AdLib sound effects. `--no-sound` starts with effects disabled.
+M opens the original overhead map; keypad arrows pan, keypad 9/3 changes height,
+Shift turns the view, Home recentres and Space returns. Num Lock or held Control
+switches the keypad to looking around. V calls a rescue van while stranded on
+foot. S toggles AdLib sound effects. `--no-sound` starts with effects disabled.
 The experimental aircraft at White Sands requires campaign clearance before
 its throttle operates. Create or activate a pilot through the duty roster to save
 your career and changes to each theatre. The default trainee does not save progress.

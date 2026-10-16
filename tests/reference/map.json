@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "5a1ef7ff821984df15de22d783d28916158f9a6dda82539f76ffc418dc7545a5",
+  "cases": 512,
+  "routine_file_offset": "0x6ff7 REL3D, with z0=35",
+  "stubs": [],
+  "scope": "Original apparent-depth capping and full signed three-component rescaling"
+}

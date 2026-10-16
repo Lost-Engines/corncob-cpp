@@ -227,7 +227,13 @@ auto main(int const argc, char const *const argv[])->int {
       }
       return;
     }
+    if(game->in_map()) {
+      if(key == GLFW_KEY_ESCAPE || key == GLFW_KEY_M || key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER || key == GLFW_KEY_SPACE) game->press(corncob::game::action::toggle_map);
+      return;
+    }
     switch(key) {
+    case GLFW_KEY_M: game->press(corncob::game::action::toggle_map); break;
+    case GLFW_KEY_V: game->press(corncob::game::action::call_rescue); break;
     case GLFW_KEY_ESCAPE: front.ask_to_end_sortie(); break;
     case GLFW_KEY_F1: front.show_boss(); break;
     case GLFW_KEY_F2: front.show_missions(game->world()); break;
@@ -237,6 +243,7 @@ auto main(int const argc, char const *const argv[])->int {
     case GLFW_KEY_A: game->press(corncob::game::action::toggle_autopilot); break;
     case GLFW_KEY_R: game->press(corncob::game::action::toggle_rear); break;
     case GLFW_KEY_L: game->press(corncob::game::action::toggle_cockpit); break;
+    case GLFW_KEY_NUM_LOCK: game->press(corncob::game::action::toggle_look); break;
     case GLFW_KEY_G: game->press(corncob::game::action::toggle_ground); break;
     case GLFW_KEY_F: game->press(corncob::game::action::toggle_flaps); break;
     case GLFW_KEY_I: game->press(corncob::game::action::rocket); break;
@@ -348,7 +355,22 @@ auto main(int const argc, char const *const argv[])->int {
           .weapons{
             .gun{held(GLFW_KEY_SPACE)},
             .cannon{held(GLFW_KEY_LEFT_SHIFT)},
-            .missile{held(GLFW_KEY_C)},
+            .missile{held(GLFW_KEY_C) && !held(GLFW_KEY_LEFT_CONTROL) && !held(GLFW_KEY_RIGHT_CONTROL)},
+          },
+          .view{
+            .left{held(GLFW_KEY_LEFT) || held(GLFW_KEY_KP_4)},
+            .right{held(GLFW_KEY_RIGHT) || held(GLFW_KEY_KP_6)},
+            .up{held(GLFW_KEY_UP) || held(GLFW_KEY_KP_8)},
+            .down{held(GLFW_KEY_DOWN) || held(GLFW_KEY_KP_2)},
+            .below{held(GLFW_KEY_KP_5)},
+            .modifier{held(GLFW_KEY_LEFT_CONTROL) || held(GLFW_KEY_RIGHT_CONTROL)},
+          },
+          .map{
+            .higher{held(GLFW_KEY_PAGE_DOWN) || held(GLFW_KEY_KP_3)},
+            .lower{held(GLFW_KEY_PAGE_UP) || held(GLFW_KEY_KP_9)},
+            .home{held(GLFW_KEY_HOME) || held(GLFW_KEY_KP_7)},
+            .rotate{held(GLFW_KEY_LEFT_SHIFT)},
+            .slow{held(GLFW_KEY_S)},
           },
         };
       }
@@ -367,7 +389,7 @@ auto main(int const argc, char const *const argv[])->int {
       }
     }
     auto audio_frame{corncob::audio::observe(*game)};
-    audio_frame.active = sound_enabled && front.in_flight() && !game->is_paused() && !inspect;
+    audio_frame.active = sound_enabled && front.in_flight() && !game->is_paused() && !game->in_map() && !inspect;
     audio_frame.dead = audio_frame.dead && sound_enabled;
     sound.update(audio_frame);
     if(!inspect && (front.take_finish() || (front.in_flight() && game->finished()))) {
@@ -381,6 +403,7 @@ auto main(int const argc, char const *const argv[])->int {
       front.render(frame);
       presenter.present(frame);
       ++frame_number;
+      glfwWaitEventsTimeout(1.0 / 60.0);
       continue;
     }
     corncob::graphics::instrument_telemetry const telemetry{
@@ -391,7 +414,7 @@ auto main(int const argc, char const *const argv[])->int {
       .autopilot{game->autopilot_engaged()},
       .damage{&game->aircraft_damage()},
     };
-    auto const *const panel{!inspect && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
+    auto const *const panel{!inspect && !game->in_map() && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
 #ifndef NDEBUG
     if(!cockpit_preview) renderer->render(game->world(), observer, inspect ? frame_number : game->frame_number(),
       static_cast<uint16_t>(inspect ? static_cast<uint64_t>(now * 1'193'182.0 / 1024.0) : game->timer()), frame, panel);

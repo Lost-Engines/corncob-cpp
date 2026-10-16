@@ -66,12 +66,23 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
 
 void session::press(action const command) {
   /// Handle discrete game commands independently of window callbacks for scripted and native checks
+  if(command == action::toggle_map) {
+    if(map) map.reset();
+    else if(theatre.training) notice = "Map mode is not available in training missions";
+    else map.emplace(camera().position);
+    return;
+  }
+  if(map) return;
   if(command == action::pause) {
     paused = !paused;
     return;
   }
   if(command == action::toggle_rear) {
     rear = !rear;
+    return;
+  }
+  if(command == action::toggle_look) {
+    look_mode = !look_mode;
     return;
   }
   if(command == action::toggle_ground) {
@@ -125,6 +136,23 @@ void session::press(action const command) {
   case action::arm_charges:
     weapons.arm_charges();
     break;
+  case action::call_rescue:
+    if(mode == player_mode::on_foot && person.standing && !at_home()
+      && std::ranges::none_of(theatre.objects, [](auto const &object){return object.type == world::object_type::rescue_van && object.has(world::object_flag::present);})) {
+      auto position{maths::world_position{theatre.start}};
+      for(unsigned int attempt{0}; attempt != 16; ++attempt) {
+        auto const delta{vec3<int64_t>{position} - vec3<int64_t>{person.position}};
+        if(std::max({std::abs(delta.x), std::abs(delta.y), std::abs(delta.z)}) < 524'288) break;
+        position.x = maths::dword(static_cast<int64_t>(position.x) - (delta.x >> 1));
+        position.y = maths::dword(static_cast<int64_t>(position.y) - (delta.y >> 1));
+      }
+      position.z = 50;
+      if(auto const van{weapons.spawn(world::object_type::rescue_van, position)}) {
+        theatre.objects[*van].flags |= 0x7000u;
+        notice = "Rescue van called";
+      }
+    }
+    break;
   case action::toggle_remote:
     if(mode == player_mode::on_foot && controlled_aircraft) {
       remote = !remote;
@@ -159,7 +187,7 @@ void session::find_surfaces() {
       fatal_contact = object.type;
       mode = player_mode::dead;
       notice = "Killed on foot";
-    } else if(has(definition, world::object_property::captures_person)) {
+    } else if(has(definition, world::object_property::captures_person) && !invincible) {
       mode = player_mode::captured;
       notice = "Captured";
     } else if(has(definition, world::object_property::walkable)) {
@@ -469,6 +497,11 @@ void session::update_person(input_state const &input, flight::time_step const st
 
 void session::advance(input_state const &input) {
   /// One original five-unit frame is forty fast PIT ticks; T advances physical time without replacing frame timers
+  if(map) {
+    fast_ticks += 40;
+    map->advance(input.stick, input.map);
+    return;
+  }
   if(paused || finished()) return;
   if(input.throttle_up) press(action::throttle_up);
   if(input.throttle_down) press(action::throttle_down);
@@ -508,10 +541,7 @@ void session::advance(input_state const &input) {
     mode = player_mode::rescued;
     notice = "Rescued";
   }
-  if(effects.captured) {
-    mode = player_mode::captured;
-    notice = "Captured";
-  }
+
   weapons.collisions(observer);
   update_scenery();
   if(controlled_aircraft && experimental_clearance && aircraft.variant == flight::aircraft_variant::experimental
@@ -524,9 +554,40 @@ void session::advance(input_state const &input) {
   angular.wing_damage = damage.wing;
   angular.rudder_damage = damage.rudder;
   angular.stability_damage = damage.stability;
-  update_aircraft(input, step);
+  looking = look_mode || input.view.modifier;
+  auto flight_input{input};
+  if(mode == player_mode::on_foot && effects.capture_pending) {
+    remote = false;
+    auto const delta{effects.approach_target - person.position};
+    auto const desired{maths::arctangent(maths::word(delta.x >> 6), maths::word(delta.y >> 6))};
+    person.attitude.heading += static_cast<maths::angle>(timed_word(static_cast<int16_t>(maths::word(desired - person.attitude.heading) >> 7), step));
+    maths::angles const direction{
+      .heading{person.attitude.heading},
+    };
+    auto const stride{maths::transform(maths::make_inverse_rotation(direction), {timed_word(500, step), 0, 0})};
+    person.position.x += stride.x >> 4;
+    person.position.y += stride.y >> 4;
+    flight_input.stick.roll = flight_input.stick.pitch = 0;
+    flight_input.walk_forward = flight_input.walk_backward = false;
+  }
+  if(looking) {
+    maths::angles desired;
+    if(input.view.left) desired.heading = 16'380;
+    if(input.view.right) desired.heading = static_cast<maths::angle>(-16'380);
+    if(input.view.up) desired.pitch = static_cast<maths::angle>(-8192);
+    if(input.view.down) {
+      if(mode == player_mode::in_aircraft) desired.pitch = 8192;
+      else desired.heading = 32'767;
+    }
+    if(input.view.below && mode == player_mode::in_aircraft) desired.pitch = 16'383;
+    int const divisor{std::max(2, 2 * step.normal / step.elapsed)};
+    head_angles.heading += static_cast<maths::angle>(maths::word(desired.heading - head_angles.heading) / divisor);
+    head_angles.pitch += static_cast<maths::angle>(maths::word(desired.pitch - head_angles.pitch) / divisor);
+    flight_input.stick.roll = flight_input.stick.pitch = 0;
+  } else head_angles = {};
+  update_aircraft(flight_input, step);
   if(mode == player_mode::on_foot) {
-    update_person(input, step);
+    update_person(flight_input, step);
     check_aircraft_entry();
   }
   bool const use_person{mode == player_mode::on_foot && !remote};
@@ -544,10 +605,13 @@ void session::advance(input_state const &input) {
 
 graphics::camera session::camera() const {
   /// Walking, cockpit and remote flight share one renderer but retain separate player and aircraft viewpoints
+  if(map) return map->camera();
   bool const on_foot{mode != player_mode::in_aircraft && (!controlled_aircraft || theatre.objects[*controlled_aircraft].has(world::object_flag::present))};
+  auto attitude{on_foot ? person.attitude : aircraft.attitude};
+  if(looking) attitude = maths::extract_angles(maths::rotate_local(maths::make_inverse_rotation(attitude), head_angles));
   return {
     .position{maths::world_position{on_foot ? person.position : aircraft.position}},
-    .attitude{on_foot ? person.attitude : aircraft.attitude},
+    .attitude{attitude},
     .cockpit{!on_foot && cockpit},
     .rear_view{!on_foot && rear},
     .ground_detail{ground_detail},
@@ -586,6 +650,14 @@ unsigned int session::frame_number() const noexcept {
 bool session::is_paused() const noexcept {
   /// Paused frames neither consume simulation time nor advance objective/weapon counters
   return paused;
+}
+bool session::in_map() const noexcept {
+  /// Map inspection freezes the sortie but continues the original independent input and blink clock
+  return map.has_value();
+}
+bool session::looking_around() const noexcept {
+  /// Num Lock or held Control directs the keypad at the pilot's view instead of the aircraft's control surfaces
+  return looking;
 }
 bool session::autopilot_engaged() const noexcept {
   /// The indicator follows actual engagement, including the native low-speed disengagement

@@ -18,6 +18,8 @@ struct camera {
   bool cockpit{true};
   bool rear_view{true};
   bool ground_detail{true};
+  bool map_mode{false};
+  maths::world_position map_position{0, 0, 0};
   uint16_t orb_distortion{0};
   vec3<uint16_t> palette_phase{0, 0, 0};
 };

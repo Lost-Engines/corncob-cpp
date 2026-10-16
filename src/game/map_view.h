@@ -1,0 +1,27 @@
+#pragma once
+
+#include "flight/controls.h"
+#include "graphics/scene.h"
+
+namespace corncob::game {
+
+struct map_input {
+  bool higher{false};
+  bool lower{false};
+  bool home{false};
+  bool rotate{false};
+  bool slow{false};
+};
+
+class map_view {
+private:
+  maths::world_position origin;
+  graphics::camera observer;
+
+public:
+  explicit map_view(maths::world_position const &position);
+  void advance(flight::control_input const &stick, map_input const &input);
+  graphics::camera camera() const;
+};
+
+} // namespace corncob::game

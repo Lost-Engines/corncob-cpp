@@ -99,6 +99,7 @@ private:
   void load_model(model_address address);
 
 public:
+  static model_address constexpr map_marker_model{0x5b3e};
   static model_address constexpr sun_model{0x545c};
   static model_address constexpr experimental_model{0x6838};
 
@@ -109,6 +110,7 @@ public:
   primitive const &drawing(unsigned int index) const;
   uint8_t colour(colour_reference reference) const noexcept;
   void animate(unsigned int frame);
+  void set_map_colours(uint16_t timer);
   maths::fixed_vector collision_extents(world::object_type type, unsigned int frame) const noexcept;
   void configure_sun(world::sky_parameters const &sky);
   void prepare_colours(world::placed_object const &object, unsigned int frame, uint16_t timer, uint8_t random, bool radar_active);

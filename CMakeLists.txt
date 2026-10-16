@@ -94,6 +94,8 @@ add_library(corncob_core STATIC
   src/game/statistics.h
   src/game/session.cpp
   src/game/session.h
+  src/game/map_view.cpp
+  src/game/map_view.h
   src/flight/aircraft.cpp
   src/flight/aircraft.h
   src/flight/damage.cpp
@@ -106,6 +108,10 @@ add_library(corncob_core STATIC
   src/graphics/instruments.h
   src/graphics/raster.cpp
   src/graphics/raster.h
+  src/graphics/radar.cpp
+  src/graphics/radar.h
+  src/graphics/map_projection.cpp
+  src/graphics/map_projection.h
   src/graphics/scene.cpp
   src/graphics/scene.h
   src/graphics/space_sequence.cpp
@@ -212,5 +218,7 @@ if(BUILD_TESTING)
   corncob_check(high_score_checks native_high_scores)
   corncob_check(space_checks native_ending "${PROJECT_SOURCE_DIR}/tests/reference/space.bin")
   corncob_check(model_animation_checks native_model_animation "${PROJECT_SOURCE_DIR}/tests/reference/model_animation.bin")
+  corncob_check(radar_checks native_radar "${PROJECT_SOURCE_DIR}/tests/reference/radar.bin")
+  corncob_check(map_checks native_map "${PROJECT_SOURCE_DIR}/tests/reference/map.bin")
   target_link_libraries(audio_checks PRIVATE corncob_audio)
 endif()

@@ -172,6 +172,7 @@ geometry_bank::geometry_bank(std::span<uint8_t const> const source) :
     load_model(definitions[type].models.far);
   }
   for(auto const address : {0x6f71, 0x7099, 0x5e2a, 0x3d64, 0x3d3c, 0x47a1, 0x406a, 0x4132}) load_model(static_cast<model_address>(address));
+  load_model(map_marker_model);
   load_model(sun_model);
   load_model(experimental_model);
 }
@@ -219,9 +220,15 @@ uint8_t geometry_bank::colour(colour_reference const reference) const noexcept {
   /// A nonzero high byte marks a native colour-variable address rather than a literal index
   return (reference >> 8) != 0 ? colours[reference] : static_cast<uint8_t>(reference);
 }
+void geometry_bank::set_map_colours(uint16_t const timer) {
+  /// SURVCLR blinks yellow survey markers against the map's retained ground colour
+  colours[0x743b] = (timer & 1024u) == 0 ? 14 : 0;
+  colours[0x5b30] = (timer & 512u) == 0 ? 0 : 15;
+}
 void geometry_bank::animate(unsigned int const frame) {
   /// Update shared animated vertices and saucer sizes once per rendered game frame, without re-decoding static models
   auto const pulse{model_animation::at(frame)};
+  colours[0x743b] = 0;
   for(auto const &binding : animation_bindings) {
     int16_t const value{binding.negative ? maths::negate(pulse.value(binding.pulse)) : pulse.value(binding.pulse)};
     std::visit([&](auto &shape){

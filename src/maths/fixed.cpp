@@ -73,10 +73,8 @@ angle arctangent(coefficient x, coefficient y) noexcept {
   return static_cast<angle>(result + (quarter << 8));
 }
 
-uint16_t magnitude(fixed_vector const &value) noexcept {
-  /// VMAG uses DSQRT's short Newton iteration and returns one for a zero vector
-  uint32_t squared{0};
-  for(unsigned int axis{0}; axis != 3; ++axis) squared += static_cast<uint32_t>(static_cast<int32_t>(value[axis]) * value[axis]);
+uint16_t square_root(uint32_t const squared) noexcept {
+  /// DSQRT uses a short Newton iteration, including its one-for-zero result and high-input saturation
   if((squared & 0xc0000000u) != 0) return 32'767;
   uint32_t search{squared << 2};
   unsigned int guess{32'767}, alternate{23'170};
@@ -105,6 +103,13 @@ uint16_t magnitude(fixed_vector const &value) noexcept {
     if(std::abs(static_cast<int>(guess) - static_cast<int>(next)) < 3) return static_cast<uint16_t>(quotient);
     guess = next;
   }
+}
+
+uint16_t magnitude(fixed_vector const &value) noexcept {
+  /// VMAG wraps the sum of three signed-word squares before passing it to the native square-root helper
+  uint32_t squared{0};
+  for(unsigned int axis{0}; axis != 3; ++axis) squared += static_cast<uint32_t>(static_cast<int32_t>(value[axis]) * value[axis]);
+  return square_root(squared);
 }
 
 rotation make_rotation(angles const &value) noexcept {

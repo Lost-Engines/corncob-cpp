@@ -31,6 +31,20 @@ int main(int const argc, char const *const argv[]) {
     });
   }
   if(game.player() != corncob::game::player_mode::in_aircraft) throw std::runtime_error{"scripted pilot could not board the White Sands aircraft"};
+  auto const runway_heading{game.craft().attitude.heading};
+  game.press(corncob::game::action::toggle_look);
+  for(unsigned int frame{0}; frame != 16; ++frame) game.advance({
+    .stick{
+      .roll{-512},
+    },
+    .view{
+      .left{true},
+    },
+  });
+  if(!game.looking_around() || game.craft().attitude.heading != runway_heading || std::abs(static_cast<int>(corncob::maths::word(game.camera().attitude.heading - runway_heading))) < 15'000) throw std::runtime_error{"keypad look altered the aircraft instead of the camera"};
+  game.press(corncob::game::action::toggle_look);
+  game.advance({});
+  if(game.looking_around() || game.camera().attitude.heading != game.craft().attitude.heading) throw std::runtime_error{"leaving look mode did not restore the forward view"};
   game.press(corncob::game::action::throttle_up);
   if(game.craft().throttle != 20) throw std::runtime_error{"experimental clearance was bypassed"};
   auto const paused_timer{game.timer()};

@@ -16,6 +16,8 @@ struct actor_context {
 struct actor_effects {
   bool capture_pending{false};
   bool captured{false};
+  bool capture_closing{false};
+  maths::world_position approach_target{0, 0, 0};
   bool rescued{false};
   uint16_t hallucination{0};
   uint16_t orb_distortion{0};

@@ -43,6 +43,7 @@ coefficient sine(angle value) noexcept;
 coefficient cosine(angle value) noexcept;
 uint16_t sine_magnitude(angle value) noexcept;
 angle arctangent(coefficient x, coefficient y) noexcept;
+uint16_t square_root(uint32_t value) noexcept;
 uint16_t magnitude(fixed_vector const &value) noexcept;
 rotation make_rotation(angles const &value) noexcept;
 rotation make_inverse_rotation(angles const &value) noexcept;

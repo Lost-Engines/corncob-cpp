@@ -312,13 +312,15 @@ void actors::update_vehicle(world::placed_object &object, actor_context const &c
       if(context.on_foot && target->distance <= 256) {
         object.flags |= 2u;
         effects.capture_pending = true;
+        effects.approach_target = maths::world_position{object.position};
         if(target->distance <= 100) {
           object.flags |= 4u;
-          effects.captured = true;
+          effects.capture_closing = true;
         }
         if(object.collision_group == 1) {
           effects.captured = false;
-          effects.capture_pending = false;
+          if(target->distance <= 100) effects.capture_pending = false;
+          effects.capture_closing = false;
           if(target->distance <= 32) effects.rescued = true;
         }
       }

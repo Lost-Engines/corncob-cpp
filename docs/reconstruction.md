@@ -314,3 +314,28 @@ Quality-zero filled barriers hide their distant representation until struck,
 while retaining their nearby surface and collision. Contact reveals them briefly
 instead of destroying them. Forcefield shutdown uses the preceding local generator
 census. Scripted checks cover the reveal and retained barrier state.
+
+## Radar, views and map inspection
+
+The cockpit radar now shows active KLAs and saucers, relative to the aircraft
+even after ejection. Its unusual square-root distance compression, word product
+packing and three-pixel contact mask follow the original routines. All 512
+coordinate cases and 32,768 possible compressed-distance inputs match native
+execution. The existing flight magnitude checks still pass after sharing DSQRT.
+
+Num Lock and held Control select the original eased keypad head views without
+steering the aircraft. The scripted flight check verifies that looking sideways
+changes the camera while preserving runway heading, then restores the forward view.
+
+M enters the original overhead map, starting at 210 high words of altitude. It
+uses the existing software renderer, all stored tiles, survey-marker blinking
+and the authored player marker. Its apparent-depth cap at 35 high words matches
+512 unchanged REL3D executions. Map controls pan in proportion to altitude, zoom,
+rotate with Shift and centre Home while the sortie remains frozen. Training
+retains the original restriction. This is not a full native map pixel comparison.
+
+V now calls a quality-seven rescue van when stranded on foot, bringing a distant
+spawn into range as the original does. A scenario calls one van, rejects duplicate
+calls, walks to it and reaches the rescued sortie result. Hostile vehicles now
+pull the pilot toward them instead of declaring capture at the larger approach
+radius; capture itself uses the original object collision bounds.

@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include "flight/landing.h"
+#include "game/map_view.h"
 #include "flight/damage.h"
 #include "game/combat.h"
 #include "game/actors.h"
@@ -34,10 +35,22 @@ enum class action {
   toggle_rear,
   toggle_cockpit,
   toggle_ground,
+  toggle_look,
+  toggle_map,
+  call_rescue,
   pause,
   drop_bomb,
   plant_charge,
   arm_charges,
+};
+
+struct view_input {
+  bool left{false};
+  bool right{false};
+  bool up{false};
+  bool down{false};
+  bool below{false};
+  bool modifier{false};
 };
 
 struct input_state {
@@ -50,6 +63,8 @@ struct input_state {
   bool drop_through{false};
   bool advance_time{false};
   weapon_controls weapons{};
+  view_input view{};
+  map_input map{};
 };
 
 struct person_state {
@@ -93,6 +108,10 @@ private:
   bool cockpit{true};
   bool ground_detail{true};
   bool paused{false};
+  bool look_mode{false};
+  bool looking{false};
+  maths::angles head_angles;
+  std::optional<map_view> map;
   bool experimental_clearance{false};
   bool invincible{false};
   uint16_t orb_distortion{0};
@@ -127,6 +146,8 @@ public:
   unsigned int frame_number() const noexcept;
   bool is_paused() const noexcept;
   bool autopilot_engaged() const noexcept;
+  bool looking_around() const noexcept;
+  bool in_map() const noexcept;
   flight::damage_state const &aircraft_damage() const noexcept;
   combat_statistics const &statistics() const noexcept;
   sound_cues const &sounds() const noexcept;

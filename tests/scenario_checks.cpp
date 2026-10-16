@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "game/actors.h"
+#include "game/session.h"
 #include "resources/assets.h"
 
 namespace {
@@ -131,6 +132,23 @@ int main() {
   require(geometry.appearance(barriers.objects[0]).far == 0 && barriers.objects[0].has(world::object_flag::present), "distant blinking wall did not retain its near barrier");
   barrier_weapons.damage(0, bomb);
   require(geometry.appearance(barriers.objects[0]).far == barrier_definition.models.far && barriers.objects[0].health == barrier_definition.hit_points, "barrier contact damaged the field instead of briefly revealing it");
+  game::session rescue{geometry, world::theatre{}};
+  rescue.press(game::action::call_rescue);
+  rescue.press(game::action::call_rescue);
+  require(std::ranges::count_if(rescue.world().objects, [](auto const &object){return object.type == world::object_type::rescue_van && object.has(world::object_flag::present);}) == 1,
+    "rescue call failed or created duplicate vans");
+  for(unsigned int frame{0}; frame != 200 && !rescue.finished(); ++frame) {
+    auto const &person{rescue.pilot()};
+    auto const desired{maths::arctangent(maths::word(-person.position.x), maths::word(-person.position.y))};
+    int const error{maths::word(desired - person.attitude.heading)};
+    rescue.advance({
+      .stick{
+        .roll{static_cast<int16_t>(-std::clamp(error, -512, 512))},
+      },
+      .walk_forward{std::abs(error) < 2048},
+    });
+  }
+  require(rescue.player() == game::player_mode::rescued && rescue.results().has(game::sortie_status::rescued), "called van did not rescue a pilot who walked up to it");
   std::cout << "Local spawning, hostile shells, persistent orb objectives and four-tile activation exercised" << std::endl;
   return EXIT_SUCCESS;
 }
