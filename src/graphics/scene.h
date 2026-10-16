@@ -3,6 +3,7 @@
 #include <array>
 #include <span>
 #include "graphics/instruments.h"
+#include "graphics/ground_detail.h"
 #include "graphics/raster.h"
 #include "maths/fixed.h"
 #include "render/framebuffer.h"
@@ -46,12 +47,11 @@ class scene_renderer {
 private:
   resources::geometry_bank &geometry;
   resources::cockpit_mask const &cockpit;
-  indexed_framebuffer indexed;
-  std::array<render::rgba_pixel, 16> palette;
+  indexed_framebuffer indexed{};
+  std::array<render::rgba_pixel, 16> palette{};
   render_statistics statistics;
   instrument_panel instruments;
-  std::array<maths::world_position, 80> ground_points;
-  bool ground_initialised{false};
+  ground_field detail;
 
   void set_palette(world::theatre const &theatre, maths::world_position const &position);
   void background(view_parameters const &view, maths::rotation const &rotation);
@@ -61,6 +61,7 @@ private:
 
 public:
   scene_renderer(resources::geometry_bank &geometry, resources::cockpit_mask const &cockpit);
+  void initialise(maths::world_position const &observer, random_source &random);
   indexed_framebuffer const &indexed_frame() const noexcept;
   std::array<render::rgba_pixel, 16> const &colours() const noexcept;
   render_statistics render(world::theatre const &theatre, camera const &observer, unsigned int frame,

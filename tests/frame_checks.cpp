@@ -18,6 +18,8 @@ int main() {
   game::session second{second_geometry, world::decode_theatre(resources::morning_asset())};
   graphics::scene_renderer first_renderer{first_geometry, cockpit}, second_renderer{second_geometry, cockpit};
   corncob::render::framebuffer first_frame, second_frame, preview;
+  first_renderer.initialise(first.camera().position, first.random_stream());
+  second_renderer.initialise(second.camera().position, second.random_stream());
   unsigned int draws{0};
   auto draw_first{[&]{
     first_renderer.render(first.world(), first.camera(), first.frame_number(), static_cast<uint16_t>(first.timer()), first.random_stream(), first_frame);

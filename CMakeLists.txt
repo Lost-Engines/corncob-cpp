@@ -123,6 +123,8 @@ add_library(corncob_core STATIC
   src/graphics/radar.h
   src/graphics/map_projection.cpp
   src/graphics/map_projection.h
+  src/graphics/ground_detail.cpp
+  src/graphics/ground_detail.h
   src/graphics/scene.cpp
   src/graphics/scene.h
   src/graphics/title_sequence.cpp
@@ -219,6 +221,7 @@ if(BUILD_TESTING)
   corncob_check(raster_checks native_raster "${PROJECT_SOURCE_DIR}/tests/reference/lines.bin" "${PROJECT_SOURCE_DIR}/tests/reference/line_clipping.bin")
   corncob_check(scene_checks original_theatres)
   corncob_check(frame_checks simulation_frame_order)
+  corncob_check(ground_checks native_ground_detail "${PROJECT_SOURCE_DIR}/tests/reference/ground.bin")
   corncob_check(flight_checks native_flight "${PROJECT_SOURCE_DIR}/tests/reference/flight.bin")
   corncob_check(control_checks native_controls "${PROJECT_SOURCE_DIR}/tests/reference/controls.bin")
   corncob_check(landing_checks native_landing "${PROJECT_SOURCE_DIR}/tests/reference/landing.bin" "${PROJECT_SOURCE_DIR}/tests/reference/landing_recovery.bin")

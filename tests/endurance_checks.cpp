@@ -3,12 +3,13 @@
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
+#include <string_view>
 #include "game/session.h"
 #include "graphics/scene.h"
 #include "maths/random.h"
 #include "resources/assets.h"
 
-int main() {
+int main(int const argc, char const *const argv[]) {
   /// Exercise sustained mixed controls, weapons, ejection and rendering around every theatre's objectives, without replacing the actual simulation
   namespace resources = corncob::resources;
   namespace game = corncob::game;
@@ -18,6 +19,8 @@ int main() {
   resources::geometry_bank geometry{resources::engine_data_asset()};
   auto const cockpit{resources::decode_cockpit_mask(resources::cockpit_asset())};
   graphics::scene_renderer renderer{geometry, cockpit};
+  if(argc > 2 || (argc == 2 && std::string_view{argv[1]} != "--draw-every-frame")) throw std::invalid_argument{"optional --draw-every-frame expected"};
+  bool const full_frames{argc == 2};
   corncob::render::framebuffer output;
   maths::random_source input_random{0x454e4455};
   std::array const worlds{resources::morning_asset(), resources::dusk_asset(), resources::wasteland_asset(), resources::white_sands_asset()};
@@ -43,6 +46,12 @@ int main() {
       .heading{input_random.next()},
     });
     flight.press(game::action::toggle_messages);
+    graphics::scene_renderer full_renderer{geometry, cockpit};
+    if(full_frames) full_renderer.initialise(flight.camera().position, flight.random_stream());
+    auto draw_one{[&]{
+      full_renderer.render(flight.world(), flight.camera(), flight.frame_number(), static_cast<uint16_t>(flight.timer()), flight.random_stream(), output);
+      ++frames;
+    }};
     for(unsigned int tick{0}; tick != 1000 && !flight.finished(); ++tick) {
       if(tick % 47 == 0) flight.press(game::action::drop_bomb);
       if(tick % 131 == 0) flight.press(game::action::toggle_flaps);
@@ -50,7 +59,7 @@ int main() {
       if(tick == 530) flight.press(game::action::parachute);
       if(tick == 650) flight.press(game::action::toggle_remote);
       if(tick == 800) flight.press(game::action::call_rescue);
-      flight.advance({
+      game::input_state const input{
         .stick{
           .roll{maths::word(input_random.below(1025) - 512)},
           .pitch{maths::word(input_random.below(1025) - 512)},
@@ -64,10 +73,12 @@ int main() {
           .cannon{tick % 2 == 0},
           .missile{true},
         },
-      });
+      };
+      if(full_frames) flight.advance(input, std::function_ref<void()>{draw_one});
+      else flight.advance(input);
       if(flight.take_tower()) flight.resume_from_tower();
       ++updates;
-      if(tick % 127 == 0) {
+      if(!full_frames && tick % 127 == 0) {
         geometry.animate(flight.frame_number());
         renderer.render(flight.world(), flight.camera(), flight.frame_number(), static_cast<uint16_t>(flight.timer()), flight.random_stream(), output);
         ++frames;

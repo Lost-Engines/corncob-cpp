@@ -110,7 +110,8 @@ F1 retains BOSS.TXT's DOS-prompt disguise. F2 exposes intelligence and stored Sx
 airborne starts without rebuilding the world; damaged aircraft retain the original
 jump restriction and message. An airborne start explicitly releases the stopped
 runway latch so movement begins without another throttle input. F3 reports the retained sortie without recording it.
-F4 traverses ten original help pages. Eleven BLACKBOX records supply native warning
+F4 traverses ten original help pages. Pause also accepts Space for help and
+P/Escape to resume, as documented on those pages. Eleven BLACKBOX records supply native warning
 rectangles, text and placements. Flight Escape warns once when messages are enabled
 and the pilot is beyond the tower's 5,200-unit range; a later Escape ends the sortie.
 Control-C follows the distinct uncounted abort path.
@@ -220,6 +221,12 @@ and the model-resource bindings match. Previously these clouds retained static
 geometry. The shared random headquarters colour now also comes from that original
 block rather than an extra draw during display refresh.
 
+Ground dots and stars now use their runtime generators rather than a fixed star
+list. Complete startup retains all three eighty-point banks, including the unused
+far bank and final generated records beyond the draw loop. The 512 ground-point,
+256 star and 64 complete initialisation cases match native positions and PRNG
+continuation, including signed range wrapping and underground no-ops.
+
 Original instruments, propeller, ground points, stars, sun directives, radar,
 homing pointer and animated model geometry are connected. Wire forcefields pulse
 with matching collision bounds; saucer discs pulse in opposition. Quality-zero
@@ -286,6 +293,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools; 768 orb/objective/mindbender passes without stubs; 256 mortar passes and 104 complete emitted particles |
 | Debris/training | 530 particles from 64 constructor runs; 2,157 generated placements from 32 training runs |
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks, 12 polygon hashes, 304 line frames and 512 wire-clip cases; four original definition round trips; one 252-object plain saved world |
+| Ground/stars | 512 point regenerations, 256 stars and 64 complete three-bank initialisations with PRNG continuation |
 | Particles | 512 complete 35-disc/shared-colour frame blocks and PRNG continuations, plus resource bindings across the original models |
 | Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
@@ -299,16 +307,22 @@ Connected scenarios cover takeoff, ejection/parachute/remote control, weapons an
 persistent objectives, rescue/capture, damaged-aircraft tower visits, settings,
 career clearance and the ending. A sustained run exercises 32 original-theatre
 starts with mixed controls/weapons/ejection, more than 31,000 updates and 250
-rendered frames, then round-trips resulting worlds/results. It exposed the hidden
+rendered frames, then round-trips resulting worlds/results. An additional
+`endurance_checks --draw-every-frame` run completed 31,803 full simulation/render
+passes across the same 32 starts in Release and under AddressSanitizer/UBSan.
+The original sustained run exposed the hidden
 far-model crash before interactive playtesting.
 
 Private GLFW/X11 checks traversed pilot creation, mission selection, radio boxes,
 map, boss screen, help, score, abort/report, tower intelligence, repair/resume and
 Escape warnings, followed by both story fades and the animated title/credits. A further window
 traversal checked the saved training defaults, live bomb-supply indicators, flap
-state and cockpit warning colours.
+state and cockpit warning colours. Pause/Space help, help-page continuation
+and P/Escape return were also inspected in the actual window. A clean Release
+installation contains only the embedded executable and opens without the research
+workspace or external game assets.
 Captures were inspected without changing supplied DOS installs.
-The complete 45-check Debug, Release and sanitizer suites pass, including the
+The complete 46-check Debug, Release and sanitizer suites pass, including the
 longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title. Complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.

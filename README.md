@@ -3,12 +3,16 @@
 A native C++26 reconstruction of Corncob 3D, beginning with the normal 3.42 game.
 One executable brings together the original front end, flight, scoring and ending.
 
-**Work in progress:** the four original theatres now support walking, flight,
-ejection and remote control, player weapons, active enemies, persistent named
-pilots, their original medal artwork, three high-score tables and sortie reports. The original story, outcome artwork and flight help
-and interactive Earth-saved starfield are integrated into the same executable.
-The introduction includes its original animated flyby, cloud-filled logo and credits. Several original systems are still
-being completed and checked against the DOS game. Music is deferred.
+The four original theatres and generated training support walking, flight,
+ejection and remote control, weapons, active enemies and the original special
+sites. Named pilots retain their careers, medals, high scores and changed worlds.
+The story, animated introduction, help screens, outcomes, reports and interactive
+Earth-saved ending run in the same executable. AdLib sound effects are included;
+music is deferred.
+
+The game is playable, with continuing fidelity checks against the DOS executable.
+[Reconstruction notes](docs/reconstruction.md) describe verified behaviour and the
+remaining comparison work.
 
 ## Build and run
 
@@ -51,7 +55,7 @@ flight and is the original launcher default. Control choice and each named pilot
 flight model are saved; `--flight-model advanced` overrides the model at startup. E leaves
 the aircraft; Space opens a parachute while falling. Caps Lock enables remote
 flight after ejection. A toggles the original autopilot. L toggles the cockpit, G ground detail, P pauses,
-M opens the original overhead map; keypad arrows pan, keypad 9/3 changes height,
+While paused, Space opens help; P or Escape resumes the flight. M opens the original overhead map; keypad arrows pan, keypad 9/3 changes height,
 Shift turns the view, Home recentres and Space returns. Num Lock or held Control
 switches the keypad to looking around. V calls a rescue van while stranded on
 foot. S toggles AdLib sound effects. `--no-sound` starts with effects disabled.
@@ -81,6 +85,3 @@ Home resets the camera. `--no-cockpit` uses the original full-screen view.
 For optimised developer builds, use `-DCMAKE_BUILD_TYPE=RelWithDebInfo` and a
 separate build directory. This retains assertions and developer screenshot/time
 options. Release excludes those developer options. No automatic CI is enabled.
-
-[Reconstruction notes](docs/reconstruction.md) record the reference version,
-original-source discovery and the next implementation milestones.

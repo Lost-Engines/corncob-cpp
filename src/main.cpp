@@ -141,6 +141,7 @@ auto main(int const argc, char const *const argv[])->int {
   corncob::resources::geometry_bank geometry{corncob::resources::engine_data_asset()};
   auto renderer{std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit)};
   auto game{std::make_unique<corncob::game::session>(geometry, std::move(theatre))};
+  renderer->initialise(game->camera().position, game->random_stream());
   corncob::resources::collection interface_assets{corncob::resources::front_end_asset()};
   corncob::game::front_end front{interface_assets, *campaign, arguments.contains("skip-intro"), !arguments["theatre"].defaulted(), corncob::game::control_setup{
     .joystick_device{arguments["joystick"].defaulted() ? (campaign->keyboard_control() ? -2 : -1) : joystick_device},
@@ -239,6 +240,11 @@ auto main(int const argc, char const *const argv[])->int {
     auto &front{state.front};
     if(!front.in_flight()) {
       using enum corncob::game::interface_command;
+      if(front.current_page() == corncob::game::interface_page::help && (key == GLFW_KEY_P || key == GLFW_KEY_ESCAPE)) {
+        if(game->is_paused()) game->press(corncob::game::action::pause);
+        front.command(cancel);
+        return;
+      }
       if(front.current_page() == corncob::game::interface_page::radio) {
         if(key == GLFW_KEY_O && game->messages_enabled()) game->press(corncob::game::action::toggle_messages);
         front.command(accept);
@@ -273,7 +279,10 @@ auto main(int const argc, char const *const argv[])->int {
     case GLFW_KEY_O: game->press(corncob::game::action::toggle_messages); break;
     case GLFW_KEY_C: if((modifiers & GLFW_MOD_CONTROL) != 0) front.abort_sortie(); break;
     case GLFW_KEY_V: game->press(corncob::game::action::call_rescue); break;
-    case GLFW_KEY_ESCAPE: if(game->request_exit()) front.leave_sortie(); break;
+    case GLFW_KEY_ESCAPE:
+      if(game->is_paused()) game->press(corncob::game::action::pause);
+      else if(game->request_exit()) front.leave_sortie();
+      break;
     case GLFW_KEY_F1: front.show_boss(); break;
     case GLFW_KEY_F2: front.show_missions(game->world()); break;
     case GLFW_KEY_F3: front.show_current_score(game->results()); break;
@@ -287,7 +296,10 @@ auto main(int const argc, char const *const argv[])->int {
     case GLFW_KEY_F: game->press(corncob::game::action::toggle_flaps); break;
     case GLFW_KEY_I: game->press(corncob::game::action::rocket); break;
     case GLFW_KEY_E: game->press(corncob::game::action::eject); break;
-    case GLFW_KEY_SPACE: game->press(corncob::game::action::parachute); break;
+    case GLFW_KEY_SPACE:
+      if(game->is_paused()) front.show_flight_help();
+      else game->press(corncob::game::action::parachute);
+      break;
     case GLFW_KEY_CAPS_LOCK: game->press(corncob::game::action::toggle_remote); break;
     case GLFW_KEY_B: game->press(corncob::game::action::drop_bomb); break;
     case GLFW_KEY_SEMICOLON: game->press(corncob::game::action::plant_charge); break;
@@ -338,6 +350,7 @@ auto main(int const argc, char const *const argv[])->int {
       game = std::make_unique<corncob::game::session>(geometry, std::move(world));
       if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
       renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit);
+      renderer->initialise(game->camera().position, game->random_stream());
       if(launch->training) game->set_invincible(launch->training->invincible);
       game->set_beginner_flight(front.flight_controls().beginner_flight);
       front.begin_flight();

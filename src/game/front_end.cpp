@@ -11,7 +11,7 @@ namespace corncob::game {
 
 namespace {
 
-std::array<std::string_view, 4> constexpr theatre_titles{"Atkinsville (easy)", "Dusk (medium)", "Wasteland (hard)", "White Sands testing ground"};
+std::array<std::string_view, 4> constexpr theatre_titles{"Atkinsville (easy)", "Dusk (medium)", "Wasteland (medium)", "White Sands Testing Ground"};
 std::array<std::string_view, 4> constexpr theatre_names{"morning", "dusk", "wasteland", "white_sands"};
 render::rgba_pixel constexpr white{255, 255, 255}, grey{170, 170, 170}, yellow{255, 255, 85}, blue{0, 0, 170};
 std::span<uint8_t const> briefing_data(std::string_view const name) {

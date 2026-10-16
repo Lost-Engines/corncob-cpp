@@ -8,7 +8,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include "graphics/stars.h"
 #include "graphics/radar.h"
 #include "graphics/map_projection.h"
 #include "graphics/homing.h"
@@ -206,6 +205,7 @@ void scene_renderer::background(view_parameters const &view, maths::rotation con
 void scene_renderer::draw_ground_and_stars(world::theatre const &theatre, camera const &observer, maths::rotation const &rotation,
                                           std::span<view_parameters const> const views, random_source &random) {
   /// GRNDPT maintains eighty world-anchored dots within sixty-four observer heights and refreshes off-screen points
+  detail.initialise(observer.position, random);
   if(!observer.ground_detail) return;
   bool const dark{(palette[11].red >> 2) + (palette[11].green >> 2) + (palette[11].blue >> 2) <= 48};
   auto draw_point{[&](maths::world_position const &position, bool const star){
@@ -228,22 +228,12 @@ void scene_renderer::draw_ground_and_stars(world::theatre const &theatre, camera
     }
     return visible;
   }};
-  auto regenerate{[&](maths::world_position &position){
-    int64_t const range{std::max<int64_t>(0, observer.position.z) * 64};
-    position = maths::world_position{
-      observer.position.x + static_cast<int32_t>((range * random.next() >> 16) - range / 2),
-      observer.position.y + static_cast<int32_t>((range * random.next() >> 16) - range / 2),
-      0,
-    };
-  }};
-  for(auto &point : ground_points) {
-    if(!ground_initialised) regenerate(point);
-    if(!draw_point(point, false)) regenerate(point);
-    if(random.next() <= 91) regenerate(point);
+  for(auto &point : detail.points()) {
+    if(!draw_point(point, false)) regenerate_ground_point(point, observer.position, random);
+    if(random.next() <= 91) regenerate_ground_point(point, observer.position, random);
   }
-  ground_initialised = true;
   if(theatre.sky.stars) {
-    for(auto const &star : original_stars) draw_point(star, true);
+    for(auto const &star : detail.stars()) draw_point(star, true);
   }
 }
 
@@ -312,6 +302,11 @@ scene_renderer::scene_renderer(resources::geometry_bank &geometry, resources::co
   geometry{geometry},
   cockpit{cockpit} {
   /// Keep immutable world resources outside the renderer and own only frame-local display state
+}
+
+void scene_renderer::initialise(maths::world_position const &observer, random_source &random) {
+  /// Initialise the original point banks before the sortie's first actor update, independently of display refreshes
+  detail.initialise(observer, random);
 }
 
 indexed_framebuffer const &scene_renderer::indexed_frame() const noexcept {

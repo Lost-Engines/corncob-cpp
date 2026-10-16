@@ -83,14 +83,6 @@ def main():
                   f'    .timer_mask{{0x{rule.get("mask", 0):04x}}},', '  },']
     lines += ['};', '', '} // namespace corncob::resources', '']
     (ROOT / 'src/resources/colour_rules.h').write_text('\n'.join(lines))
-    stars = json.loads((args.research / 'analysis/resources/renderer/stars.json').read_text())
-    lines = ['#pragma once', '', '#include <array>', '#include "maths/fixed.h"', '', 'namespace corncob::graphics {', '',
-             '// original generated star bank: drawing consumes the anchor and the first 79 generated records',
-             'inline std::array<maths::world_position, 80> const original_stars{']
-    for record in stars['records'][:stars['draw_count']]:
-        lines.append('  maths::world_position{' + ', '.join(map(str, record['position_cm'])) + '},')
-    lines += ['};', '', '} // namespace corncob::graphics', '']
-    (ROOT / 'src/graphics/stars.h').write_text('\n'.join(lines))
     tables = json.loads((args.research / 'analysis/gameplay/tables.json').read_text())['quality_tables']
     lines = ['#pragma once', '', '#include <array>', '#include <cstdint>', '', 'namespace corncob::resources {', '',
              '// generated from the original 3.42 quality tables; qualities are stored as indices 0..7']
