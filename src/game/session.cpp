@@ -375,7 +375,7 @@ void session::leave_aircraft() {
   } else person.tumble = vec2<int16_t>{0, 0};
   look_mode = looking = false;
   head_angles = {};
-  notice = person.standing ? "On foot - move away before returning to the aircraft" : "Ejected - Space opens parachute";
+  notice = person.standing ? "On foot - walk over 40m away, then return to board" : "Ejected - Space opens parachute";
 }
 
 void session::update_aircraft(input_state const &input, flight::time_step const step) {

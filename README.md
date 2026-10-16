@@ -54,7 +54,8 @@ The main menu's controls and sound setup selects keyboard/joystick input and the
 original beginner or advanced flight model. Beginner gently assists the pitch toward level
 flight and is the original launcher default. Control choice and each named pilot’s
 flight model are saved; `--flight-model advanced` overrides the model at startup. E leaves
-the aircraft; Space opens a parachute while falling. Caps Lock enables remote
+the aircraft; to re-enter it, first walk more than 40 metres away, then return
+within 20 metres, as required by the original game. Space opens a parachute while falling. Caps Lock enables remote
 flight after ejection. A toggles the original autopilot. L toggles the cockpit, G ground detail, P pauses.
 While paused, Space opens help; P or Escape resumes the flight. M opens the original overhead map; keypad arrows pan, keypad 9/3 changes height,
 Shift turns the view, Home recentres and Space returns. Num Lock or held Control

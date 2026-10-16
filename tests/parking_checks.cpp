@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include "game/parked_aircraft.h"
+#include "game/scenery.h"
 #include "game/session.h"
 #include "resources/assets.h"
 #include "tests/actor_record.h"
@@ -79,6 +80,29 @@ int main(int const argc, char const *const argv[]) {
   for(unsigned int frame{0}; frame != 8; ++frame) arrival.advance({});
   if(arrival.player() != game::player_mode::on_foot || arrival.craft().position != parked)
     throw std::runtime_error{"stepping out relocated or automatically re-entered the retained aircraft"};
-  std::cout << planes << " original parked-aircraft handlers and " << towers << " tower reset cases match" << std::endl;
+  for(unsigned int frame{0}; frame != 24; ++frame) arrival.advance({
+    .walk_backward{true},
+  });
+  if(arrival.player() != game::player_mode::on_foot) throw std::runtime_error{"returning immediately bypassed the original walk-away requirement"};
+  bool walked_clear{false};
+  for(unsigned int frame{0}; frame != 200; ++frame) {
+    auto const distance{game::interaction_range(arrival.craft().position, arrival.pilot().position)};
+    if(distance && *distance > game::reentry_departure_distance) { walked_clear = true; break; }
+    arrival.advance({
+      .walk_forward{true},
+    });
+  }
+  if(!walked_clear || arrival.player() != game::player_mode::on_foot) throw std::runtime_error{"pilot could not walk clear of the retained aircraft"};
+  for(unsigned int frame{0}; frame != 200 && arrival.player() == game::player_mode::on_foot; ++frame) arrival.advance({
+    .walk_backward{true},
+  });
+  if(arrival.player() != game::player_mode::in_aircraft || !arrival.camera().cockpit || arrival.craft().position != parked)
+    throw std::runtime_error{"walking away and returning failed to re-enter the same aircraft"};
+  arrival.press(game::action::eject);
+  for(unsigned int frame{0}; frame != 24; ++frame) arrival.advance({
+    .walk_backward{true},
+  });
+  if(arrival.player() != game::player_mode::on_foot) throw std::runtime_error{"a later exit retained boarding permission from the previous walk-away"};
+  std::cout << planes << " original parked-aircraft handlers, " << towers << " tower reset cases and exit/return boarding match" << std::endl;
   return EXIT_SUCCESS;
 }
