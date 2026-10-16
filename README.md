@@ -39,7 +39,11 @@ intelligence and repairs the retained aircraft before returning to the same flig
 
 You start on foot. Keypad 5 walks forward and keypad 0 walks backwards; arrows
 turn. Walk into an aircraft to board. +/− controls throttle, arrows fly, Z/X
-operate the rudder, F toggles flaps, I uses rocket boost, and . brakes. E leaves
+operate the rudder, F toggles flaps, I uses rocket boost, and . brakes.
+A connected joystick is selected automatically for flight. Button 1 fires guns,
+button 2 fires missiles, and Space also fires missiles in joystick mode. Arrow
+keys override the stick unless used for head views. `--joystick none` keeps
+keyboard controls; `--list-joysticks` lists devices for `--joystick N`. E leaves
 the aircraft; Space opens a parachute while falling. Caps Lock enables remote
 flight after ejection. A toggles the original autopilot. L toggles the cockpit, G ground detail, P pauses,
 M opens the original overhead map; keypad arrows pan, keypad 9/3 changes height,

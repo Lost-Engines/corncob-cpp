@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "250bd9bccf0430681dcf5ef6100b3681e52860cd04f91d820acce30b6b54ec35",
+  "cases": 512,
+  "routine": "0x3d2 SPKE",
+  "stubs": [],
+  "scope": "Native quadratic response, followed by JOYTD sign and clipping; a digital full axis is 32767 units in place of an analogue timing calibration"
+}

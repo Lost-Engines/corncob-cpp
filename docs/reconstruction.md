@@ -458,3 +458,18 @@ the complete trailer before it is accepted; current saves continue to use XOR.
 An archived 252-object plain world is retained as a reference fixture, with its
 source hash. Its conversion preserves all packed fields and matches the recorded
 canonical XOR stream hash. Normal definition byte-for-byte round trips still pass.
+
+## Digital joystick input
+
+GLFW supplies the first two calibrated device axes and two buttons. The original
+SPKE quadratic response and JOYTD clipping match 512 native executions. Keyboard
+stick input takes precedence over both joystick axes, while keypad head views
+leave the physical stick available for flight. Buttons retain guns/missiles,
+including the original Space-for-missiles behaviour in joystick mode.
+
+The default selects the first connected two-axis device. `--joystick none`
+disables it, an explicit index selects one device, and `--list-joysticks` lists
+indices/names. Polling is restricted to focused flight, with hotplug discovery
+each pass. No analogue-port calibration or novel menu navigation is added. The
+connected flight scenario checks steering while looking sideways; physical
+hardware input remains untested on the development host.

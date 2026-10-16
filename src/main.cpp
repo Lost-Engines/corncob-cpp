@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <charconv>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -15,6 +16,7 @@
 #include "platform/framebuffer_presenter.h"
 #include "platform/storage.h"
 #include "platform/audio_output.h"
+#include "platform/joystick.h"
 #include "audio/effects.h"
 #include "render/framebuffer.h"
 #include "resources/assets.h"
@@ -66,6 +68,8 @@ auto main(int const argc, char const *const argv[])->int {
   options.add_options()
     ("help,h", "show command-line options")
     ("version", "show the native reconstruction version")
+    ("joystick", boost::program_options::value<std::string>()->default_value("auto"), "flight joystick: auto, none, or a device index 0..15; button 1 guns, button 2 missiles")
+    ("list-joysticks", "list connected joystick device indices and names, then exit")
     ("no-sound", "start with sound effects disabled; S toggles effects during flight")
     ("skip-intro", "open the main menu without the title and story")
     ("theatre", boost::program_options::value<std::string>()->default_value("white_sands"), "original theatre: white_sands, morning, dusk or wasteland")
@@ -93,6 +97,14 @@ auto main(int const argc, char const *const argv[])->int {
   if(arguments.contains("version")) {
     std::cout << "Corncob C++ 0.1.0 (reconstruction in progress)" << std::endl;
     return EXIT_SUCCESS;
+  }
+  int joystick_device{-1};
+  auto const joystick_argument{arguments["joystick"].as<std::string>()};
+  if(joystick_argument == "none") joystick_device = -2;
+  else if(joystick_argument != "auto") {
+    auto const result{std::from_chars(joystick_argument.data(), joystick_argument.data() + joystick_argument.size(), joystick_device)};
+    if(result.ec != std::errc{} || result.ptr != joystick_argument.data() + joystick_argument.size() || joystick_device < GLFW_JOYSTICK_1 || joystick_device > GLFW_JOYSTICK_LAST)
+      return startup_failure("--joystick must be auto, none or a device index from 0 to 15");
   }
   bool const automatic_scale{!arguments.contains("scale")};
   int const scale{automatic_scale ? 1 : arguments["scale"].as<int>()};
@@ -165,6 +177,15 @@ auto main(int const argc, char const *const argv[])->int {
   boost::scope::scope_exit terminate_glfw{[]{
     glfwTerminate();
   }};
+  if(arguments.contains("list-joysticks")) {
+    bool found{false};
+    for(int device{GLFW_JOYSTICK_1}; device <= GLFW_JOYSTICK_LAST; ++device) if(glfwJoystickPresent(device)) {
+      std::cout << device << ": " << glfwGetJoystickName(device) << '\n';
+      found = true;
+    }
+    if(!found) std::cout << "No joysticks connected" << std::endl;
+    return EXIT_SUCCESS;
+  }
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
@@ -386,6 +407,8 @@ auto main(int const argc, char const *const argv[])->int {
             .slow{held(GLFW_KEY_S)},
           },
         };
+        if(auto const joystick{corncob::platform::poll_joystick(joystick_device)})
+          corncob::game::apply_joystick(input, *joystick, input.view.modifier || game->looking_around());
       }
       accumulated_time += elapsed;
       while(accumulated_time >= simulation_period) {

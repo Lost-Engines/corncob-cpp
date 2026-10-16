@@ -607,7 +607,7 @@ void session::advance(input_state const &input) {
     int const divisor{std::max(2, 2 * step.normal / step.elapsed)};
     head_angles.heading += static_cast<maths::angle>(maths::word(desired.heading - head_angles.heading) / divisor);
     head_angles.pitch += static_cast<maths::angle>(maths::word(desired.pitch - head_angles.pitch) / divisor);
-    flight_input.stick.roll = flight_input.stick.pitch = 0;
+    if(!input.joystick_controlled) flight_input.stick.roll = flight_input.stick.pitch = 0;
   } else head_angles = {};
   update_aircraft(flight_input, step);
   if(mode == player_mode::on_foot) {

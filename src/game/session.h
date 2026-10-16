@@ -58,6 +58,7 @@ struct view_input {
 
 struct input_state {
   flight::control_input stick{};
+  bool joystick_controlled{false};
   bool throttle_up{false};
   bool throttle_down{false};
   bool walk_forward{false};

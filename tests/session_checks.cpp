@@ -85,6 +85,19 @@ int main(int const argc, char const *const argv[]) {
       capture.put(static_cast<char>(pixel.blue));
     }
   }
+  auto const before_stick_view{game.craft().attitude.roll};
+  for(unsigned int frame{0}; frame != 12; ++frame) game.advance({
+    .stick{
+      .roll{256},
+    },
+    .joystick_controlled{true},
+    .view{
+      .left{true},
+      .modifier{true},
+    },
+  });
+  if(game.craft().attitude.roll == before_stick_view || !game.looking_around()) throw std::runtime_error{"looking sideways suppressed physical joystick flight controls"};
+  game.advance({});
   auto const airborne{game.craft().position};
   game.press(corncob::game::action::eject);
   if(game.player() != corncob::game::player_mode::on_foot || game.camera().cockpit) throw std::runtime_error{"airborne ejection did not change viewpoint"};

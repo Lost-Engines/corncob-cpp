@@ -78,6 +78,8 @@ endfunction()
 add_library(corncob_core STATIC
   src/game/actors.cpp
   src/game/actors.h
+  src/game/joystick.cpp
+  src/game/joystick.h
   src/game/combat.cpp
   src/game/combat.h
   src/game/front_end.cpp
@@ -165,6 +167,8 @@ configure_first_party(corncob_audio)
 target_link_libraries(corncob_audio PUBLIC corncob_core PRIVATE nuked_opl3)
 
 add_library(corncob_platform STATIC
+  src/platform/joystick.cpp
+  src/platform/joystick.h
   src/platform/audio_output.cpp
   src/platform/audio_output.h
   src/platform/framebuffer_presenter.cpp
@@ -230,5 +234,6 @@ if(BUILD_TESTING)
   corncob_check(saucer_checks native_saucers "${PROJECT_SOURCE_DIR}/tests/reference/saucers.bin")
   corncob_check(threat_checks native_threats "${PROJECT_SOURCE_DIR}/tests/reference/threats.bin")
   corncob_check(endurance_checks sustained_gameplay)
+  corncob_check(joystick_checks native_joystick "${PROJECT_SOURCE_DIR}/tests/reference/joystick.bin")
   target_link_libraries(audio_checks PRIVATE corncob_audio)
 endif()
