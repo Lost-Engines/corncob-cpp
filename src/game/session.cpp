@@ -590,6 +590,14 @@ combat_statistics const &session::statistics() const noexcept {
   /// Expose earned totals without permitting the presentation layer to edit gameplay state
   return weapons.stats();
 }
+sound_cues const &session::sounds() const noexcept {
+  /// Audio observes successful gameplay events without consuming or mutating them
+  return weapons.sounds();
+}
+bool session::remote_control() const noexcept {
+  /// Remote operation retains engine sound and control while the pilot remains on foot
+  return remote;
+}
 bool session::at_home() const {
   /// HOMEDETECT uses the nearby control tower's three-dimensional range at the original one-sixty-fourth scale
   auto const &position{(mode == player_mode::in_aircraft || (mode == player_mode::dead && airframe_destroyed)) ? aircraft.position : person.position};

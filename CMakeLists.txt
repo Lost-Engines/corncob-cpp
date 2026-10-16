@@ -27,6 +27,32 @@ FetchContent_Declare(glfw
 )
 FetchContent_MakeAvailable(glfw)
 
+FetchContent_Declare(miniaudio
+  URL https://codeload.github.com/mackron/miniaudio/tar.gz/f40cf03f80cdb7e741d43e53b7e706e8c1394bcf
+  URL_HASH SHA256=412326cf55133404cbfb81ec8974b10149dc68732ce5bdeee8ba9cfc2695d646
+  SOURCE_SUBDIR unused_upstream_build
+)
+FetchContent_Declare(nuked_opl3
+  URL https://codeload.github.com/nukeykt/Nuked-OPL3/tar.gz/765ec962e473aeb767e4cba74ffdc8f588ffbfe8
+  URL_HASH SHA256=2fad908c3904d3ef51b55e0d6a8980c7142942e2d0baa7e99bf038cf0a41199d
+  SOURCE_SUBDIR unused_upstream_build
+)
+FetchContent_MakeAvailable(miniaudio nuked_opl3)
+add_library(nuked_opl3 STATIC "${nuked_opl3_SOURCE_DIR}/opl3.c")
+target_include_directories(nuked_opl3 SYSTEM PUBLIC "${nuked_opl3_SOURCE_DIR}")
+target_compile_options(nuked_opl3 PRIVATE $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-O2>)
+add_library(corncob_pcm STATIC src/platform/miniaudio_implementation.c)
+target_include_directories(corncob_pcm SYSTEM PUBLIC "${miniaudio_SOURCE_DIR}")
+target_compile_definitions(corncob_pcm PRIVATE MA_NO_DECODING MA_NO_ENCODING MA_NO_RESOURCE_MANAGER MA_NO_NODE_GRAPH MA_NO_ENGINE)
+target_compile_options(corncob_pcm PRIVATE $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-O2>)
+find_package(Threads REQUIRED)
+target_link_libraries(corncob_pcm PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+if(APPLE)
+  target_link_libraries(corncob_pcm PRIVATE "-framework CoreAudio" "-framework AudioToolbox" "-framework CoreFoundation")
+elseif(WIN32)
+  target_link_libraries(corncob_pcm PRIVATE ole32)
+endif()
+
 function(configure_first_party target)
   target_compile_features(${target} PUBLIC cxx_std_26)
   target_include_directories(${target} PUBLIC "${PROJECT_SOURCE_DIR}/src")
@@ -116,7 +142,13 @@ embed_resource(dusk_briefing dusk.twr)
 embed_resource(wasteland_briefing wasteland.twr)
 
 
+add_library(corncob_audio STATIC src/audio/effects.cpp src/audio/effects.h)
+configure_first_party(corncob_audio)
+target_link_libraries(corncob_audio PUBLIC corncob_core PRIVATE nuked_opl3)
+
 add_library(corncob_platform STATIC
+  src/platform/audio_output.cpp
+  src/platform/audio_output.h
   src/platform/framebuffer_presenter.cpp
   src/platform/framebuffer_presenter.h
 )
@@ -124,12 +156,14 @@ target_link_libraries(corncob_platform
   PUBLIC corncob_core
   PRIVATE glfw
   PRIVATE OpenGL::GL
+  PRIVATE corncob_pcm
 )
 configure_first_party(corncob_platform)
 
 add_executable(corncob src/main.cpp)
 target_link_libraries(corncob
   PRIVATE corncob_platform
+  PRIVATE corncob_audio
   PRIVATE glfw
   PRIVATE Boost::headers
   PRIVATE Boost::program_options
@@ -269,4 +303,12 @@ if(BUILD_TESTING)
   target_include_directories(autopilot_checks PRIVATE "${PROJECT_SOURCE_DIR}")
   target_link_libraries(autopilot_checks PRIVATE corncob_core)
   add_test(NAME native_autopilot COMMAND autopilot_checks "${PROJECT_SOURCE_DIR}/tests/reference/autopilot.bin")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(audio_checks tests/audio_checks.cpp)
+  configure_first_party(audio_checks)
+  target_include_directories(audio_checks PRIVATE "${PROJECT_SOURCE_DIR}")
+  target_link_libraries(audio_checks PRIVATE corncob_audio)
+  add_test(NAME native_sound COMMAND audio_checks "${PROJECT_SOURCE_DIR}/tests/reference/audio.bin")
 endif()

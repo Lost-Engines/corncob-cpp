@@ -253,3 +253,25 @@ is a state-transition test, not a claim that an autonomous pilot completed every
 objective through combat. Repeated visits do not re-award theatre medals. Detailed
 original scanner bookkeeping, resurrection qualifications and reporting remain
 under investigation.
+
+## Live AdLib sound effects
+
+The twelve original 3.ADL register patches feed Nuked OPL in OPL2 mode, with
+miniaudio supplying 48 kHz stereo PCM output. Engine pressure/airflow pitch and
+VOICEON packing match 512 unchanged native engine-write cases. A headless check
+also synthesizes the actual engine patch and verifies finite, non-silent PCM.
+Original AdLib is a mono sound path; two PCM channels do not imply new spatial
+stereo effects. Dependency source pins, authorship and licenses are retained.
+
+Successful weapon launches and explosions supply event counters. Current aircraft
+state drives engine, stall and damage sounds, while local KLAs, orbs and saucers
+feed their original shared channels and proximity parameters. Original native
+crash-noise timing (eighteen BIOS ticks, then a 750 ms wait) continues independently
+of the menu loop. Register batches cross to the PCM callback without exposing
+mutable world state. Muting does not accumulate an unconsumed event queue.
+
+The pressure/pitch protocol is independently verified; the complete combined
+soundscape and interrupt-driven proximity modulation still need broader DOS
+comparison. Music remains deliberately deferred. S toggles effects; --no-sound
+avoids opening an output device until sound is enabled. Failure to open a PCM
+device reports a warning and leaves the game usable.

@@ -1,0 +1,12 @@
+Nuked OPL3 emulates the AdLib-compatible OPL2 sound path.
+Copyright (C) 2013-2020 Nuke.YKT, LGPL-2.1-or-later.
+https://github.com/nukeykt/Nuked-OPL3
+Pinned source: 765ec962e473aeb767e4cba74ffdc8f588ffbfe8
+See Nuked-OPL3-LGPL-2.1.txt. CMake obtains the complete source and builds it locally.
+
+miniaudio supplies native PCM output. Copyright David Reid and contributors.
+Public domain or MIT No Attribution; see miniaudio-LICENSE.txt.
+https://github.com/mackron/miniaudio
+Pinned source: f40cf03f80cdb7e741d43e53b7e706e8c1394bcf
+
+Original register patches and gameplay sound design are by Corncob's authors.

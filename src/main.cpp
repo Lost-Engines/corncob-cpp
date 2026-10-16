@@ -14,6 +14,8 @@
 #include "graphics/scene.h"
 #include "platform/framebuffer_presenter.h"
 #include "platform/storage.h"
+#include "platform/audio_output.h"
+#include "audio/effects.h"
 #include "render/framebuffer.h"
 #include "resources/assets.h"
 #include "resources/cockpit_mask.h"
@@ -25,6 +27,7 @@ namespace {
 struct window_state {
   std::unique_ptr<corncob::game::session> &game;
   corncob::game::front_end &front;
+  bool &sound_enabled;
 };
 
 corncob::world::theatre load_theatre(std::string const &name) {
@@ -62,6 +65,7 @@ auto main(int const argc, char const *const argv[])->int {
   options.add_options()
     ("help,h", "show command-line options")
     ("version", "show the native reconstruction version")
+    ("no-sound", "start with sound effects disabled; S toggles effects during flight")
     ("skip-intro", "open the main menu without the title and story")
     ("theatre", boost::program_options::value<std::string>()->default_value("white_sands"), "original theatre: white_sands, morning, dusk or wasteland")
     ("save-dir", boost::program_options::value<std::string>()->default_value(corncob::platform::default_save_directory().string()), "directory for pilot careers and persistent theatres")
@@ -196,7 +200,8 @@ auto main(int const argc, char const *const argv[])->int {
   }
   glfwMakeContextCurrent(window.get());
   glfwSwapInterval(1);
-  window_state state{game, front};
+  bool sound_enabled{!arguments.contains("no-sound")};
+  window_state state{game, front, sound_enabled};
   glfwSetWindowUserPointer(window.get(), &state);
   glfwSetKeyCallback(window.get(), [](GLFWwindow *const window, int const key, int const /*scancode*/, int const action, int const /*modifiers*/){
     if(action != GLFW_RELEASE) return;
@@ -228,6 +233,7 @@ auto main(int const argc, char const *const argv[])->int {
     case GLFW_KEY_F2: front.show_missions(game->world()); break;
     case GLFW_KEY_F3: front.show_current_score(game->results()); break;
     case GLFW_KEY_F4: front.show_flight_help(); break;
+    case GLFW_KEY_S: state.sound_enabled = !state.sound_enabled; break;
     case GLFW_KEY_A: game->press(corncob::game::action::toggle_autopilot); break;
     case GLFW_KEY_R: game->press(corncob::game::action::toggle_rear); break;
     case GLFW_KEY_L: game->press(corncob::game::action::toggle_cockpit); break;
@@ -248,6 +254,8 @@ auto main(int const argc, char const *const argv[])->int {
     auto &state{*static_cast<window_state*>(glfwGetWindowUserPointer(window))};
     state.front.character(codepoint);
   });
+  corncob::audio::effects sound{interface_assets};
+  std::unique_ptr<corncob::platform::audio_output> audio_output;
   corncob::platform::framebuffer_presenter presenter{*window};
   unsigned int frame_number{0};
   double previous_time{glfwGetTime()}, accumulated_time{0.0};
@@ -255,7 +263,18 @@ auto main(int const argc, char const *const argv[])->int {
   while(!glfwWindowShouldClose(window.get())) {
     glfwPollEvents();
     if(front.quitting()) break;
+    if(sound_enabled && !audio_output) {
+      try {
+        audio_output = std::make_unique<corncob::platform::audio_output>([](void *const userdata, std::span<float> const samples) noexcept {
+          static_cast<corncob::audio::effects*>(userdata)->render(samples);
+        }, &sound);
+      } catch(std::exception const &error) {
+        std::cerr << "WARNING: sound effects unavailable: " << error.what() << std::endl;
+        sound_enabled = false;
+      }
+    }
     if(auto const launch{front.take_launch()}) {
+      sound.reset();
       theatre_name = launch->theatre;
       auto world{launch->training ? corncob::world::generate_training(geometry, *launch->training) : load_theatre(theatre_name)};
       if(auto saved{launch->training ? std::nullopt : campaign->load_world(theatre_name)}) {
@@ -346,6 +365,10 @@ auto main(int const argc, char const *const argv[])->int {
         glfwSetWindowTitle(window.get(), title.c_str());
       }
     }
+    auto audio_frame{corncob::audio::observe(*game)};
+    audio_frame.active = sound_enabled && front.in_flight() && !game->is_paused() && !inspect;
+    audio_frame.dead = audio_frame.dead && sound_enabled;
+    sound.update(audio_frame);
     if(!inspect && (front.take_finish() || (front.in_flight() && game->finished()))) {
       auto const result{game->results()};
       campaign->finish_sortie(theatre_name, game->snapshot(), result);

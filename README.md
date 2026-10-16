@@ -12,7 +12,8 @@ being completed and checked against the DOS game. Music is deferred.
 ## Build and run
 
 Requires CMake 3.30+, a C++26 compiler, Boost 1.85+ with Program_options, and OpenGL
-and window-system development packages. CMake fetches a pinned GLFW 3.4 archive.
+and window-system development packages. CMake fetches pinned GLFW, miniaudio and
+Nuked OPL sources.
 On Linux, GLFW enables both X11 and Wayland; disable an unwanted backend with
 `-DGLFW_BUILD_WAYLAND=OFF` or `-DGLFW_BUILD_X11=OFF`.
 
@@ -38,7 +39,8 @@ You start on foot. Keypad 5 walks forward and keypad 0 walks backwards; arrows
 turn. Walk into an aircraft to board. +/− controls throttle, arrows fly, Z/X
 operate the rudder, F toggles flaps, I uses rocket boost, and . brakes. E leaves
 the aircraft; Space opens a parachute while falling. Caps Lock enables remote
-flight after ejection. L toggles the cockpit, G ground detail, and P pauses.
+flight after ejection. A toggles the original autopilot. L toggles the cockpit, G ground detail, P pauses,
+and S toggles AdLib sound effects. `--no-sound` starts with effects disabled.
 The experimental aircraft at White Sands requires campaign clearance before
 its throttle operates. Create or activate a pilot through the duty roster to save
 your career and changes to each theatre. The default trainee does not save progress.

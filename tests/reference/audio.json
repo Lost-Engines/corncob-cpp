@@ -1,0 +1,14 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "59df5b74ac988f968821b91abf64ac1653fbed3029459176ce6dc1fc79a092d2",
+  "cases": 512,
+  "routines": [
+    "0x2fed..0x301c engine pitch",
+    "0xe0ce VOICEON",
+    "0xe034 ADLWRT"
+  ],
+  "stubs": [
+    "IN returns zero; OUT captures actual OPL register/data writes"
+  ],
+  "scope": "Pressure/airflow pitch arithmetic, native clamp/wrap and exact A0/B0 register packing; not full soundscape timing"
+}

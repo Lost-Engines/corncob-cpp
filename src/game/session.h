@@ -129,6 +129,8 @@ public:
   bool autopilot_engaged() const noexcept;
   flight::damage_state const &aircraft_damage() const noexcept;
   combat_statistics const &statistics() const noexcept;
+  sound_cues const &sounds() const noexcept;
+  bool remote_control() const noexcept;
   void relocate(world::mission_start const &start);
   void set_invincible(bool value) noexcept;
   void set_experimental_clearance(bool permitted) noexcept;

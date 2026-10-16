@@ -25,6 +25,12 @@ struct weapon_origin {
 };
 enum class fragment_pattern { outward, upward, mortar, incendiary };
 
+struct sound_cues {
+  uint32_t gunshots{0};
+  uint32_t missiles{0};
+  uint32_t explosions{0};
+};
+
 struct combat_statistics : sortie_statistics {
   unsigned int resources_destroyed{0};
   unsigned int orbs_destroyed{0};
@@ -51,6 +57,7 @@ private:
   int16_t muzzle_offset{720};
   int16_t missile_offset{240};
   combat_statistics statistics;
+  sound_cues cues;
 
   std::optional<unsigned int> allocate(bool bullet = false);
   void detonate(unsigned int index);
@@ -81,6 +88,7 @@ public:
   void complete(world::placed_object &object);
   void rearm() noexcept;
   combat_statistics const &stats() const noexcept;
+  sound_cues const &sounds() const noexcept;
   unsigned int bomb_supply() const noexcept;
   unsigned int ammunition() const noexcept;
   unsigned int stored_objects() const noexcept;

@@ -109,6 +109,7 @@ void combat::explosion(maths::world_position const &position, uint16_t const dam
   /// STRTBOOM uses a five-frame white/yellow/red model sequence with cause-specific attack flags
   if(auto const index{spawn(world::object_type::explosion, position)}) {
     auto &object{theatre.objects[*index]};
+    ++cues.explosions;
     object.timer = 5;
     object.flags = static_cast<uint16_t>((object.flags & ~0xe0u) | damaging_flags);
   }
@@ -137,6 +138,7 @@ bool combat::shoot(weapon_origin const &origin, bool const cannon, flight::time_
   };
   offset(object, origin.body_to_world, {0, muzzle_offset, 0});
   muzzle_offset = maths::negate(muzzle_offset);
+  ++cues.gunshots;
   gun_average += 2;
   return true;
 }
@@ -151,6 +153,7 @@ bool combat::launch_missile(weapon_origin const &origin, flight::time_step const
   object.timer = 100;
   offset(object, origin.body_to_world, {0, missile_offset, 0});
   missile_offset = maths::negate(missile_offset);
+  ++cues.missiles;
   missile_average += 5;
   return true;
 }
@@ -574,6 +577,10 @@ void combat::rearm() noexcept {
 combat_statistics const &combat::stats() const noexcept {
   /// Present shared destruction and objective totals to the campaign/scoring owner
   return statistics;
+}
+sound_cues const &combat::sounds() const noexcept {
+  /// Monotonic event counters let audio consume actual successful launches and blasts without owning simulation state
+  return cues;
 }
 unsigned int combat::bomb_supply() const noexcept {
   /// Report remaining aircraft bombs for cockpit indicators
