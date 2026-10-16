@@ -45,6 +45,7 @@ int main(int const argc, char const *const argv[]) {
     game::campaign_store campaign{directory};
     require(campaign.active_pilot() != nullptr && campaign.active_pilot()->rank() == game::pilot_rank::first_lieutenant, "saved pilot progression was lost on restart");
     require(campaign.active_pilot()->career_score() == 1875, "saved career score changed");
+    require(campaign.high_scores().best_missions().front().points == 1875, "saved high score was lost on restart");
     auto const loaded{campaign.load_world("morning")};
     require(loaded.has_value(), "changed theatre was not saved");
     require(std::ranges::any_of(loaded->objects, [](auto const &object){return object.type == world::object_type::destroyed_generator_orb && (object.flags & 0x200u) != 0;}), "destroyed objective reverted after loading");

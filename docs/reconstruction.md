@@ -275,3 +275,13 @@ soundscape and interrupt-driven proximity modulation still need broader DOS
 comparison. Music remains deliberately deferred. S toggles effects; --no-sound
 avoids opening an output device until sound is enabled. Failure to open a PCM
 device reports a warning and leaves the game usable.
+
+## Native high-score tables
+
+PILOT.HSC retains the original 5,040-byte layout: ten mission records and ten
+entries each for cumulative and fastest careers. Fastest careers require three
+sorties and use integer points per sortie. Later sorties update a named career's
+existing entry. All fixed-width name padding and opaque result fields survive
+loading and saving. The main menu exposes the three tables together. Codec and
+ranking checks cover round trips, eligibility, separate rankings and restart
+persistence; ranking is not yet independently compared with native MOAG execution.

@@ -40,14 +40,15 @@ campaign_store::campaign_store(std::filesystem::path directory) :
   directory{std::move(directory)} {
   /// Load only user save state; original scenery remains embedded in the executable
   auto const path{this->directory / "PILOT.SCR"};
-  if(!std::filesystem::exists(path)) return;
-  roster = pilot_roster::decode(platform::read_binary(path));
+  if(std::filesystem::exists(path)) roster = pilot_roster::decode(platform::read_binary(path));
   for(unsigned int i{0}; i != roster.pilots.size(); ++i) {
     if(roster.pilots[i].selected() && !roster.pilots[i].unavailable()) {
       selected = i;
       break;
     }
   }
+  auto const high_scores{this->directory / "PILOT.HSC"};
+  if(std::filesystem::exists(high_scores)) scores = score_tables::decode(platform::read_binary(high_scores));
 }
 std::filesystem::path campaign_store::theatre_path(std::string_view const theatre) const {
   /// Keep independent live worlds for each named pilot and theatre without putting typed filenames into pilot records
@@ -115,7 +116,7 @@ std::optional<world::theatre> campaign_store::load_world(std::string_view const 
 }
 void campaign_store::finish_sortie(std::string_view const theatre, world::theatre const &world, sortie_statistics const &result) {
   /// A trainee does not alter a named career; named pilots retain world destruction and their latest native result block
-  if(!selected) return;
+  if(!selected) { save_scores(theatre, result); return; }
   auto &pilot{roster.pilots[*selected]};
   pilot.finish_sortie(result);
   if(required_theatre(theatre) && remaining_objectives(world) == 0) {
@@ -132,7 +133,7 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
     }
     if(all_completed && pilot.awards(medal::combat_master) == 0 && !result.has(sortie_status::killed)) pilot.award(medal::combat_master);
   }
-  if(theatre == "training") { save_roster(); return; }
+  if(theatre == "training") { save_roster(); save_scores(theatre, result); return; }
   std::vector<uint8_t> saved(theatre_header_bytes);
   auto const title{std::string{theatre}};
   std::ranges::copy(title.substr(0, 27), saved.begin());
@@ -144,6 +145,16 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
   saved.insert(saved.end(), objects.begin(), objects.end());
   platform::write_binary(theatre_path(theatre), saved);
   save_roster();
+  save_scores(theatre, result);
+}
+void campaign_store::save_scores(std::string_view const theatre, sortie_statistics const &result) {
+  /// Persist all three native score lists independently of the selected pilot or live world
+  scores.record(theatre, result, active_pilot());
+  platform::write_binary(directory / "PILOT.HSC", scores.encode());
+}
+score_tables const &campaign_store::high_scores() const noexcept {
+  /// Reports read immutable ranked tables from the same save store as the roster
+  return scores;
 }
 std::filesystem::path const &campaign_store::save_directory() const noexcept {
   /// Report the canonical user save location for help and diagnostics

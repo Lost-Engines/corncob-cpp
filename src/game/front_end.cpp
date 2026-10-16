@@ -1,6 +1,7 @@
 #include "front_end.h"
 #include <algorithm>
 #include <sstream>
+#include <format>
 #include <utility>
 #include "resources/assets.h"
 #include "world/world.h"
@@ -61,12 +62,13 @@ void front_end::accept() {
         page = interface_page::records;
       } else feedback = "Create or activate a pilot in the duty roster first";
       break;
-    case 4:
+    case 4: page = interface_page::high_scores; score_list = 0; break;
+    case 5:
       return_page = page;
       page = interface_page::help;
       help_index = 0;
       break;
-    case 5: page = interface_page::story; story_index = 0; break;
+    case 6: page = interface_page::story; story_index = 0; break;
     default: page = interface_page::quit_confirmation; break;
     }
     selection = 0;
@@ -126,6 +128,7 @@ void front_end::accept() {
   case interface_page::current_score:
     page = interface_page::flight;
     break;
+  case interface_page::high_scores:
   case interface_page::sortie_summary:
     page = interface_page::menu;
     selection = 0;
@@ -211,10 +214,12 @@ void front_end::command(interface_command const command) {
     scroll = scroll > 17 ? scroll - 17 : 0;
     break;
   case interface_command::previous:
+    if(page == interface_page::high_scores) score_list = (score_list + 2) % 3;
     if(page == interface_page::training) adjust_training(-1);
     if(page == interface_page::help && help_index != 0) --help_index;
     break;
   case interface_command::next:
+    if(page == interface_page::high_scores) score_list = (score_list + 1) % 3;
     if(page == interface_page::training) adjust_training(1);
     if(page == interface_page::help || page == interface_page::story || page == interface_page::title) accept();
     break;
@@ -326,7 +331,7 @@ void front_end::render(render::framebuffer &target) const {
   bool const intelligence{page == interface_page::briefing};
   graphics::interface_canvas canvas{target, assets.file(intelligence ? "font14.bin" : "font16.bin"), intelligence ? 14u : 16u, 640, intelligence ? 350u : 400u};
   if(page == interface_page::menu) {
-    static std::array<std::string_view, 7> constexpr choices{"Duty roster", "Combat missions", "Training missions", "Pilot records", "Flight controls and help", "Introduction", "Quit"};
+    static std::array<std::string_view, 8> constexpr choices{"Duty roster", "Combat missions", "Training missions", "Pilot records", "High-score tables", "Flight controls and help", "Introduction", "Quit"};
     static std::array<std::string_view, 3> constexpr resume{"Resume flight", "Flight controls and help", "End current sortie"};
     draw_menu(canvas, "Main menu", session_running ? std::span<std::string_view const>{resume} : std::span<std::string_view const>{choices});
     auto const *pilot{campaign.active_pilot()};
@@ -373,6 +378,24 @@ void front_end::render(render::framebuffer &target) const {
     canvas.text(72, 248, "Maximum damage: " + std::to_string(result.maximum_damage), grey);
     if(pilot) canvas.text(72, 272, "Career sorties: " + std::to_string(pilot->sorties()), grey);
     canvas.text(72, 304, "Press Enter to continue", yellow);
+  } else if(page == interface_page::high_scores) {
+    std::array<std::string_view, 3> constexpr titles{"Best missions", "Top careers", "Fastest careers"};
+    draw_menu(canvas, titles[score_list], {});
+    canvas.text(32, 92, score_list == 0 ? "    Pilot                Theatre                     Points" : "    Pilot                  Sorties  Revivals       Points", grey);
+    auto const &tables{campaign.high_scores()};
+    for(unsigned int i{0}; i != 10; ++i) {
+      std::string row;
+      if(score_list == 0) {
+        auto const &entry{tables.best_missions()[i]};
+        row = std::format("{:2}  {:20} {:22} {:>9}", i + 1, score_text(entry.name), score_text(entry.theatre), entry.points);
+      } else {
+        auto const &entry{(score_list == 1 ? tables.best_careers() : tables.fastest_careers())[i]};
+        auto const points{score_list == 1 || entry.sorties == 0 ? entry.points : entry.points / entry.sorties};
+        row = std::format("{:2}  {:20} {:>7} {:>9} {:>13}", i + 1, score_text(entry.name), entry.sorties, entry.resurrections, points);
+      }
+      canvas.text(32, 120 + static_cast<int>(i) * 18, row, i == 0 ? yellow : grey);
+    }
+    canvas.text(40, 316, score_list == 2 ? "Points per sortie; at least three sorties required" : "Left/Right switches the three score tables", yellow);
   } else if(page == interface_page::quit_confirmation) {
     static std::array<std::string_view, 2> constexpr choices{"Yes", "No - return"};
     draw_menu(canvas, session_running ? "End this sortie?" : "Quit Corncob 3D?", choices);
@@ -396,7 +419,7 @@ void front_end::render(render::framebuffer &target) const {
 unsigned int front_end::choice_count() const {
   /// Only selection pages wrap; text entry and reports keep a neutral selection
   switch(page) {
-  case interface_page::menu: return session_running ? 3 : 7;
+  case interface_page::menu: return session_running ? 3 : 8;
   case interface_page::roster: return 7;
   case interface_page::theatres: return 4;
   case interface_page::training: return 9;

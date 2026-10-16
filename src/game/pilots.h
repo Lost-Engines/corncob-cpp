@@ -50,6 +50,7 @@ public:
   void resurrect();
   pilot_rank rank() const;
   uint16_t sorties() const;
+  uint16_t resurrections() const;
   uint8_t awards(medal kind) const;
   int32_t career_score() const;
   sortie_statistics last_sortie() const;

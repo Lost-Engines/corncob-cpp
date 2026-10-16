@@ -34,6 +34,7 @@ enum class interface_page {
   pilot_name,
   records,
   sortie_summary,
+  high_scores,
   current_score,
   boss,
   briefing,
@@ -54,6 +55,7 @@ private:
   enum class roster_action { activate, records, rename, resurrect };
   roster_action pilot_action{roster_action::activate};
   unsigned int pilot_index{0};
+  unsigned int score_list{0};
   std::string entered_name;
   std::string feedback;
   bool renaming{false};

@@ -81,6 +81,10 @@ uint16_t pilot_record::sorties() const {
   /// The native mission counter belongs to the career, not an individual theatre
   return word(sorties_offset);
 }
+uint16_t pilot_record::resurrections() const {
+  /// Career records and fastest-career tables retain the original revival counter
+  return word(resurrection_offset);
+}
 uint8_t pilot_record::awards(medal const kind) const {
   /// Medal counts are individual bytes, not word counters or bits
   return data.at(std::to_underlying(kind));
