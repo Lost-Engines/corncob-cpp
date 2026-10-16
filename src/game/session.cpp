@@ -130,7 +130,10 @@ void session::press(action const command) {
     if(mode == player_mode::in_aircraft) leave_aircraft();
     break;
   case action::parachute:
-    if(mode == player_mode::on_foot && !person.standing) person.parachute = true;
+    if(mode == player_mode::on_foot && !person.standing && !person.parachute) {
+      person.parachute = true;
+      person.swing_frames = 508;
+    }
     break;
   case action::drop_bomb:
     if(flying) weapons.drop_bomb(aircraft, fast_ticks, {});
@@ -336,6 +339,8 @@ void session::leave_aircraft() {
   weapons.rearm_person();
   person.position = maths::world_position{aircraft.position};
   person.attitude = aircraft.attitude;
+  person.ejection_attitude = aircraft.attitude;
+  person.swing_frames = 0;
   person.velocity = maths::fixed_vector{aircraft.velocity};
   person.standing = aircraft.on_ground || landing.crash_landing || landing.stopped;
   person.parachute = false;
@@ -351,7 +356,13 @@ void session::leave_aircraft() {
   reentry_allowed = false;
   mode = player_mode::on_foot;
   remote = false;
-  if(!person.standing) sortie_flags |= std::to_underlying(sortie_status::ejected);
+  if(!person.standing) {
+    sortie_flags |= std::to_underlying(sortie_status::ejected);
+    person.tumble.x = maths::word((random.below(8192) & 0xefffu) | 0x800u);
+    person.tumble.y = maths::word((random.below(8192) & 0xefffu) | 0x800u);
+  } else person.tumble = vec2<int16_t>{0, 0};
+  look_mode = looking = false;
+  head_angles = {};
   notice = person.standing ? "On foot - move away before returning to the aircraft" : "Ejected - Space opens parachute";
 }
 
@@ -442,11 +453,15 @@ void session::update_scenery() {
 void session::update_person(input_state const &input, flight::time_step const step) {
   /// Walking and free fall retain their own movement state while the abandoned aircraft still simulates
   if(!remote) {
-    int16_t const yaw{maths::word(-input.stick.roll)}, pitch{maths::word(-input.stick.pitch)};
+    person.tumble.x = maths::word(static_cast<int32_t>(person.tumble.x) * 9500 / 10'100);
+    person.tumble.y = maths::word(static_cast<int32_t>(person.tumble.y) * 9500 / 10'100);
+    // the original adds tumble.x to AX after copying yaw into CX; only the second component actually changes the view
+    int16_t const yaw{maths::word(-input.stick.roll)}, pitch{maths::word(-input.stick.pitch + person.tumble.y)};
     person.attitude.heading += static_cast<maths::angle>(timed_word(static_cast<int16_t>(yaw >> 1), step) * 2);
     person.attitude.pitch += static_cast<maths::angle>(timed_word(static_cast<int16_t>(pitch >> 1), step) * 2);
     int16_t const roll{std::bit_cast<int16_t>(person.attitude.roll)};
     person.attitude.roll += static_cast<maths::angle>(timed_word(static_cast<int16_t>(maths::negate(roll) >> 6), step));
+    swing_parachute(person, input.stick);
   }
   if((input.walk_forward || input.walk_backward) && std::abs(static_cast<int>(maths::word(static_cast<uint16_t>(fast_ticks) - person.last_step_tick))) > 40) {
     person.last_step_tick = static_cast<uint16_t>(fast_ticks);
@@ -476,6 +491,7 @@ void session::update_person(input_state const &input, flight::time_step const st
   if(person.position.z <= floor && person.velocity.z <= 0) {
     person.position.z = floor;
     person.velocity.z = 0;
+    person.swing_frames = 0;
     person.standing = true;
     return;
   }
@@ -483,10 +499,7 @@ void session::update_person(input_state const &input, flight::time_step const st
   for(unsigned int axis{0}; axis != 3; ++axis) person.position[axis] += maths::rounded_divide(maths::scale(person.velocity[axis] >> 4, step.elapsed), step.normal);
   person.velocity.z = maths::word(person.velocity.z - timed_word(50, step));
   if(person.parachute) person.horizontal_damping = 30'000;
-  person.velocity.x = maths::word((static_cast<int32_t>(person.velocity.x) * person.horizontal_damping >> 16) * 2);
-  person.velocity.y = maths::word((static_cast<int32_t>(person.velocity.y) * person.horizontal_damping >> 16) * 2);
-  int32_t const drag{maths::rounded_divide(maths::scale(static_cast<int32_t>(person.velocity.z) * 50, step.elapsed), step.normal)};
-  person.velocity.z = maths::word(person.velocity.z - drag / (person.parachute ? 900 : 4800));
+  damp_fall_velocity(person.velocity, person.horizontal_damping, person.parachute ? 900 : 4800, step);
   if(person.position.z < floor) {
     int const descent{-static_cast<int>(person.velocity.z)};
     if(descent >= 1800 && (person.parachute || descent >= 3200) && !invincible) {
@@ -571,8 +584,8 @@ void session::advance(input_state const &input) {
       .heading{person.attitude.heading},
     };
     auto const stride{maths::transform(maths::make_inverse_rotation(direction), {timed_word(500, step), 0, 0})};
-    person.position.x += stride.x >> 4;
-    person.position.y += stride.y >> 4;
+    person.position.x += maths::rounded_divide(maths::scale(stride.x >> 4, step.elapsed), step.normal);
+    person.position.y += maths::rounded_divide(maths::scale(stride.y >> 4, step.elapsed), step.normal);
     flight_input.stick.roll = flight_input.stick.pitch = 0;
     flight_input.walk_forward = flight_input.walk_backward = false;
   }

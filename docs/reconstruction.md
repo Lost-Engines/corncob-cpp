@@ -356,3 +356,16 @@ interface checks decode/render every message and verify acknowledgements return
 to the retained flight. These checks do not establish every original warning's
 full-session timing, and the existing explanatory Escape confirmation is still
 a native-interface adaptation.
+
+## Ejection and parachute motion
+
+Airborne ejection now retains the original tumble and saved attitude. Opening
+the parachute waits eight frames, restores that attitude and applies the original
+settling swing; moving the controls interrupts it. One source quirk is retained:
+the first tumble component is added to a register after yaw has already been
+copied elsewhere, so only the second changes the view. The native 100-unit walking
+heading wobble replaces the earlier provisional value.
+
+Free-fall damping and parachute swing each match 512 original executions, including
+word truncation, even-only horizontal velocity, the swing envelope and interruption
+threshold. The connected walking/flight/ejection and rescue scenarios still pass.

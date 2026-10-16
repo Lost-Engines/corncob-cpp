@@ -96,6 +96,8 @@ add_library(corncob_core STATIC
   src/game/session.h
   src/game/map_view.cpp
   src/game/map_view.h
+  src/game/pilot_motion.cpp
+  src/game/pilot_motion.h
   src/flight/aircraft.cpp
   src/flight/aircraft.h
   src/flight/damage.cpp
@@ -224,5 +226,6 @@ if(BUILD_TESTING)
   corncob_check(model_animation_checks native_model_animation "${PROJECT_SOURCE_DIR}/tests/reference/model_animation.bin")
   corncob_check(radar_checks native_radar "${PROJECT_SOURCE_DIR}/tests/reference/radar.bin")
   corncob_check(map_checks native_map "${PROJECT_SOURCE_DIR}/tests/reference/map.bin")
+  corncob_check(person_checks native_person "${PROJECT_SOURCE_DIR}/tests/reference/person.bin")
   target_link_libraries(audio_checks PRIVATE corncob_audio)
 endif()

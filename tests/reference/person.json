@@ -1,0 +1,13 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "dfdc72c642755ec8ad5f777ef759ee260bcbdaab20978318adba8b6df011e920",
+  "damping_cases": 512,
+  "swing_cases": 512,
+  "routines": [
+    "0x233f DAMPCHUTE",
+    "0x10c3 SWING"
+  ],
+  "stubs": [
+    "0x0644 JOYTD supplies recorded digital stick positions; no arithmetic or swing stubs"
+  ]
+}

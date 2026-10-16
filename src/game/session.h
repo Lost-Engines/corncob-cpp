@@ -4,6 +4,7 @@
 #include <string>
 #include "flight/landing.h"
 #include "game/map_view.h"
+#include "game/pilot_motion.h"
 #include "flight/damage.h"
 #include "game/combat.h"
 #include "game/actors.h"
@@ -69,19 +70,6 @@ struct input_state {
   map_input map{};
 };
 
-struct person_state {
-  maths::world_position position{0, 0, 720};
-  maths::angles attitude;
-  maths::fixed_vector velocity{0, 0, 0};
-  int32_t surface_height{0};
-  uint16_t jump_charge{0};
-  uint16_t last_step_tick{0};
-  int16_t step_wobble{80};
-  int16_t horizontal_damping{32'000};
-  bool standing{true};
-  bool parachute{false};
-  bool charging_jump{false};
-};
 
 class session {
 private:
