@@ -43,9 +43,10 @@ int main(int const argc, char const *const argv[]) {
   flight.advance({.map{.home{true}}});
   if(flight.camera().position.x != position.x || flight.camera().position.y != position.y) throw std::runtime_error{"map Home did not restore the pilot location"};
   auto const cockpit{resources::decode_cockpit_mask(resources::cockpit_asset())};
+  corncob::maths::random_source scene_random;
   corncob::graphics::scene_renderer renderer{geometry, cockpit};
   corncob::render::framebuffer image;
-  auto const rendered{renderer.render(flight.world(), flight.camera(), 1, 512, image)};
+  auto const rendered{renderer.render(flight.world(), flight.camera(), 1, 512, scene_random, image)};
   if(rendered.objects == 0) throw std::runtime_error{"map rendered no world placements"};
   if(argc == 3) {
     std::ofstream capture{argv[2], std::ios::binary};

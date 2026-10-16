@@ -528,12 +528,13 @@ void session::update_person(input_state const &input, flight::time_step const st
   }
 }
 
-void session::advance(input_state const &input) {
+void session::advance(input_state const &input, std::optional<std::function_ref<void()>> const draw_frame) {
   /// One original five-unit frame is forty fast PIT ticks; T advances physical time without replacing frame timers
   if(map) {
     fast_ticks += 40;
     clock.advance(40);
     map->advance(input.stick, input.map);
+    if(draw_frame) (*draw_frame)();
     return;
   }
   if(paused || visiting_tower || finished()) return;
@@ -585,6 +586,7 @@ void session::advance(input_state const &input) {
 
   weapons.collisions(observer);
   update_scenery();
+  if(draw_frame) (*draw_frame)();
   auto const transfer{std::exchange(pending_portal, portal_transfer::none)};
   if(transfer != portal_transfer::none) {
     transfer_portal(aircraft.position, theatre.start, transfer, random);
@@ -665,6 +667,11 @@ void session::advance(input_state const &input) {
       steering_warned = true;
     }
   }
+}
+
+maths::random_source &session::random_stream() noexcept {
+  /// Rendering and gameplay consume the same original RAND_W stream, once per simulation pass
+  return random;
 }
 
 graphics::camera session::camera() const {

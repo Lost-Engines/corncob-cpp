@@ -204,7 +204,7 @@ void scene_renderer::background(view_parameters const &view, maths::rotation con
 }
 
 void scene_renderer::draw_ground_and_stars(world::theatre const &theatre, camera const &observer, maths::rotation const &rotation,
-                                          std::span<view_parameters const> const views) {
+                                          std::span<view_parameters const> const views, random_source &random) {
   /// GRNDPT maintains eighty world-anchored dots within sixty-four observer heights and refreshes off-screen points
   if(!observer.ground_detail) return;
   bool const dark{(palette[11].red >> 2) + (palette[11].green >> 2) + (palette[11].blue >> 2) <= 48};
@@ -248,10 +248,10 @@ void scene_renderer::draw_ground_and_stars(world::theatre const &theatre, camera
 }
 
 void scene_renderer::draw_model(resources::model_address const address, unsigned int const octant, maths::rotation const &matrix,
-                                maths::fixed_vector const &origin, unsigned int const reduction, std::span<view_parameters const> const views) {
+                                maths::fixed_vector const &origin, unsigned int const reduction, std::span<view_parameters const> const views, random_source &random) {
   /// Execute the authored primitive sequence; software rendering uses no depth buffer or polygon sorting
   for(auto const &command : geometry.commands(address, octant)) {
-    std::visit([this, &matrix, &origin, reduction, views](auto const &shape){
+    std::visit([this, &matrix, &origin, &random, reduction, views](auto const &shape){
       using shape_type = std::remove_cvref_t<decltype(shape)>;
       for(auto const &view : views) {
         raster draw{indexed, view.bounds, random};
@@ -323,7 +323,7 @@ std::array<render::rgba_pixel, 16> const &scene_renderer::colours() const noexce
   return palette;
 }
 render_statistics scene_renderer::render(world::theatre const &theatre, camera const &observer, unsigned int const frame,
-                                        uint16_t const timer, render::framebuffer &output, instrument_telemetry const *const telemetry) {
+                                        uint16_t const timer, random_source &random, render::framebuffer &output, instrument_telemetry const *const telemetry) {
   /// Render the original world through fixed-point transforms into a 640x350 indexed software surface
   output.width = render::screen_layout::width;
   output.height = render::screen_layout::height;
@@ -369,14 +369,14 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
   auto const rotation{maths::make_rotation(observer.attitude)};
   for(auto const &view : views) background(view, rotation);
 
-  draw_ground_and_stars(theatre, observer, rotation, views);
+  draw_ground_and_stars(theatre, observer, rotation, views, random);
   auto sky{theatre.sky};
   if((palette[11].red >> 2) + (palette[11].green >> 2) + (palette[11].blue >> 2) <= 48) sky.sun_colour = 15;
   geometry.configure_sun(sky);
   maths::angle const sun_angle{theatre.sky.sun_angle};
   maths::fixed_vector const sun_relative{0, maths::multiply(maths::negate(maths::sine(sun_angle)), 1000), maths::multiply(maths::cosine(sun_angle), 1000)};
   auto const sun_origin{maths::transform(rotation, sun_relative)};
-  draw_model(resources::geometry_bank::sun_model, 0, rotation, sun_origin, 0, views);
+  draw_model(resources::geometry_bank::sun_model, 0, rotation, sun_origin, 0, views, random);
 
   std::vector<visible_object> visible;
   for(auto const &object : theatre.objects) {
@@ -403,7 +403,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     auto const inverse{maths::make_inverse_rotation(object.attitude)};
     auto const matrix{item.tier < geometry.definition(object.type).rotate_below_tier ? maths::compose(rotation, inverse) : rotation};
     auto const origin{maths::transform(rotation, item.relative)};
-    draw_model(item.model, model_octant(item.relative, inverse), matrix, origin, item.reduction, views);
+    draw_model(item.model, model_octant(item.relative, inverse), matrix, origin, item.reduction, views, random);
     ++statistics.objects;
   }
   if(observer.map_mode && (observer.position.z >> 16) >= 8) {
@@ -418,7 +418,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     definition.models = {address, address, address};
     definition.limits = {977'625'289, 977'625'289, 977'625'289};
     if(auto const item{visibility(marker, definition, observer.position, definition.models, true)}) {
-      draw_model(address, 0, rotation, maths::transform(rotation, item->relative), item->reduction, views.first(1));
+      draw_model(address, 0, rotation, maths::transform(rotation, item->relative), item->reduction, views.first(1), random);
     }
   }
   if(telemetry && telemetry->aircraft.throttle <= 50) {
@@ -439,7 +439,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
       auto const inverse{maths::make_inverse_rotation(propeller.attitude)};
       auto const matrix{maths::compose(rotation, inverse)};
       auto const origin{maths::transform(rotation, item->relative)};
-      draw_model(item->model, model_octant(item->relative, inverse), matrix, origin, item->reduction, views.first(1));
+      draw_model(item->model, model_octant(item->relative, inverse), matrix, origin, item->reduction, views.first(1), random);
     }
   }
   if(telemetry) {
@@ -477,6 +477,14 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
   if(observer.palette_phase == vec3<uint16_t>{0, 0, 0}) render::fade_palette(palette, observer.palette_brightness);
   for(unsigned int i{0}; i != output.pixels.size(); ++i) output.pixels[i] = palette[indexed.pixels[i] & 15u];
   return statistics;
+}
+
+render_statistics scene_renderer::preview(world::theatre const &theatre, camera const &observer, unsigned int const frame,
+                                         uint16_t const timer, random_source const &random, render::framebuffer &output, instrument_telemetry const *const telemetry) const {
+  /// Paused and developer previews must not move ground points, damp instruments or consume the simulation's random stream
+  scene_renderer preview{*this};
+  random_source continuation{random};
+  return preview.render(theatre, observer, frame, timer, continuation, output, telemetry);
 }
 
 } // namespace corncob::graphics

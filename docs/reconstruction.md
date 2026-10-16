@@ -44,8 +44,13 @@ concealed sites, orbiting/swaying enemies, forcefields, generator attraction and
 mindbender palette effects. Aircraft damage retains its separate engine, wing,
 rudder and stability channels rather than generic hit points.
 
-Aircraft damage/ejection, actors and weapon constructors share one gameplay random
-stream. The saucer's modes select retreat, circling, approach and coasting around
+Aircraft damage/ejection, actors, weapon constructors and scene drawing share one
+random stream. Each simulation pass draws once, after nearby handlers and before
+portal transfer/player physics; additional host refreshes reuse the retained
+flight page. Paused/developer previews copy visual state and randomness instead
+of advancing the sortie. Connected comparisons verify identical gameplay and
+simulation frames despite extra previews. Exact interleaving of individual
+original painter-table handlers and primitives remains under investigation. The saucer's modes select retreat, circling, approach and coasting around
 the current airbase. Its death uses debris-before-spin random ordering; ground
 impact produces upward fragments and fifteen incendiaries. Barrage balloons
 survive ordinary contacts. Bees retain the accidental RAND_W carry-flag dependency
@@ -309,7 +314,8 @@ match without stubs; the connected rescue scenario still passes.
   collision ordering.
 - Broaden connected special transitions against longer DOS sessions. Scripted
   coverage is not proof of every transition.
-- Reconcile rendering's separate visual random stream with original complete-frame
-  draw order before claiming identical whole-session random continuation.
+- Refine original painter-table handler/primitive interleaving before claiming
+  identical whole-session random continuation; display refreshes now preserve the
+  shared simulation stream.
 - Compare the complete soundscape and confirm platform/device behaviour beyond
   the Linux development host. Music remains outside the current implementation.

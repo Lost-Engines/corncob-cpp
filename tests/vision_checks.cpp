@@ -50,6 +50,7 @@ int main(int const argc, char const *const argv[]) {
   }
   corncob::resources::geometry_bank geometry{corncob::resources::engine_data_asset()};
   auto const cockpit{corncob::resources::decode_cockpit_mask(corncob::resources::cockpit_asset())};
+  corncob::maths::random_source scene_random;
   corncob::graphics::scene_renderer renderer{geometry, cockpit};
   corncob::render::framebuffer image;
   corncob::graphics::camera observer{
@@ -59,10 +60,10 @@ int main(int const argc, char const *const argv[]) {
     .ground_detail{false},
     .palette_brightness{0},
   };
-  renderer.render({}, observer, 0, 0, image);
+  renderer.render({}, observer, 0, 0, scene_random, image);
   if(!std::ranges::all_of(image.pixels, [](auto const &pixel){return pixel.red == 0 && pixel.green == 0 && pixel.blue == 0;})) throw std::runtime_error{"zero visual intensity did not reach the scene renderer"};
   observer.palette_brightness = 255;
-  renderer.render({}, observer, 1, 40, image);
+  renderer.render({}, observer, 1, 40, scene_random, image);
   if(!std::ranges::any_of(image.pixels, [](auto const &pixel){return pixel.red != 0 || pixel.green != 0 || pixel.blue != 0;})) throw std::runtime_error{"normal scene intensity remained black"};
   std::cout << states << " native visual-state cases and " << palettes << " full palettes match; scene intensity connected" << std::endl;
   return EXIT_SUCCESS;

@@ -69,7 +69,7 @@ int main() {
       ++updates;
       if(tick % 127 == 0) {
         geometry.animate(flight.frame_number());
-        renderer.render(flight.world(), flight.camera(), flight.frame_number(), static_cast<uint16_t>(flight.timer()), output);
+        renderer.render(flight.world(), flight.camera(), flight.frame_number(), static_cast<uint16_t>(flight.timer()), flight.random_stream(), output);
         ++frames;
       }
     }

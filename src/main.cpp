@@ -159,9 +159,9 @@ auto main(int const argc, char const *const argv[])->int {
     observer.cockpit = !no_cockpit;
   }
   if(cockpit_preview) corncob::resources::draw_cockpit_preview(cockpit, frame);
-  else renderer->render(game->world(), observer, 0, 0, frame);
+  else renderer->preview(game->world(), observer, 0, 0, game->random_stream(), frame);
 #else
-  renderer->render(game->world(), observer, 0, 0, frame);
+  renderer->preview(game->world(), observer, 0, 0, game->random_stream(), frame);
 #endif // NDEBUG
 #ifndef NDEBUG
   if(arguments.contains("screenshot")) {
@@ -303,6 +303,8 @@ auto main(int const argc, char const *const argv[])->int {
   corncob::audio::effects sound{interface_assets};
   std::unique_ptr<corncob::platform::audio_output> audio_output;
   corncob::platform::framebuffer_presenter presenter{*window};
+  corncob::render::framebuffer flight_frame;
+  bool flight_frame_valid{false};
   unsigned int frame_number{0};
   double previous_time{glfwGetTime()}, accumulated_time{0.0};
   double constexpr simulation_period{40.0 * 1024.0 / 1'193'182.0};
@@ -339,6 +341,7 @@ auto main(int const argc, char const *const argv[])->int {
       if(launch->training) game->set_invincible(launch->training->invincible);
       game->set_beginner_flight(front.flight_controls().beginner_flight);
       front.begin_flight();
+      flight_frame_valid = false;
       clock_was_flying = true;
       accumulated_time = 0.0;
     }
@@ -381,6 +384,29 @@ auto main(int const argc, char const *const argv[])->int {
 #ifndef NDEBUG
     inspect = free_camera || cockpit_preview;
 #endif // NDEBUG
+    auto draw_flight{[&](bool const preview){
+      observer = game->camera();
+#ifndef NDEBUG
+      if(no_cockpit) observer.cockpit = false;
+#endif // NDEBUG
+      corncob::graphics::instrument_telemetry const telemetry{
+        .aircraft{game->craft()},
+        .controls{input.stick},
+        .paused{game->is_paused()},
+        .completed{game->statistics().objectives_completed != 0},
+        .autopilot{game->autopilot_engaged()},
+        .low_altitude{game->low_altitude_warning()},
+        .timer{static_cast<uint16_t>(game->timer())},
+        .bombs{game->bomb_supply()},
+        .rocket_colour{game->rocket_indicator_colour()},
+        .damage{&game->aircraft_damage()},
+      };
+      auto const *const panel{!game->in_map() && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
+      if(preview) renderer->preview(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), game->random_stream(), flight_frame, panel);
+      else renderer->render(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), game->random_stream(), flight_frame, panel);
+      flight_frame_valid = true;
+      frame = flight_frame;
+    }};
     if(!inspect && front.in_flight()) {
       if(glfwGetWindowAttrib(window.get(), GLFW_FOCUSED)) {
         auto held{[&window](int const key){ return glfwGetKey(window.get(), key) == GLFW_PRESS; }};
@@ -423,8 +449,9 @@ auto main(int const argc, char const *const argv[])->int {
           corncob::game::apply_joystick(input, *joystick, input.view.modifier || game->looking_around());
       }
       accumulated_time += elapsed;
+      auto draw_one{[&]{ draw_flight(false); }};
       while(accumulated_time >= simulation_period) {
-        game->advance(input);
+        game->advance(input, std::function_ref<void()>{draw_one});
         accumulated_time -= simulation_period;
       }
       observer = game->camera();
@@ -449,6 +476,8 @@ auto main(int const argc, char const *const argv[])->int {
     if(front.in_flight() && !inspect && game->take_tower()) front.show_intelligence(game->world());
     if(front.in_flight() && !inspect) if(auto const notice{game->take_radio()}) front.show_radio(*notice, frame);
     if(!front.in_flight() && !inspect) {
+      if(clock_was_flying) game->suspend_clock();
+      clock_was_flying = false;
       accumulated_time = 0.0;
       front.render(frame);
       presenter.present(frame);
@@ -456,25 +485,16 @@ auto main(int const argc, char const *const argv[])->int {
       glfwWaitEventsTimeout(1.0 / 60.0);
       continue;
     }
-    corncob::graphics::instrument_telemetry const telemetry{
-      .aircraft{game->craft()},
-      .controls{input.stick},
-      .paused{game->is_paused()},
-      .completed{game->statistics().objectives_completed != 0},
-      .autopilot{game->autopilot_engaged()},
-      .low_altitude{game->low_altitude_warning()},
-      .timer{static_cast<uint16_t>(game->timer())},
-      .bombs{game->bomb_supply()},
-      .rocket_colour{game->rocket_indicator_colour()},
-      .damage{&game->aircraft_damage()},
-    };
-    auto const *const panel{!inspect && !game->in_map() && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
 #ifndef NDEBUG
-    if(!cockpit_preview) renderer->render(game->world(), observer, inspect ? frame_number : game->frame_number(),
-      static_cast<uint16_t>(inspect ? static_cast<uint64_t>(now * 1'193'182.0 / 1024.0) : game->timer()), frame, panel);
-#else
-    renderer->render(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), frame, panel);
+    if(inspect) {
+      if(!cockpit_preview) renderer->preview(game->world(), observer, frame_number,
+        static_cast<uint16_t>(static_cast<uint64_t>(now * 1'193'182.0 / 1024.0)), game->random_stream(), frame);
+    } else
 #endif // NDEBUG
+    {
+      if(!flight_frame_valid || game->is_paused()) draw_flight(true);
+      frame = flight_frame;
+    }
     ++frame_number;
     presenter.present(frame);
     glfwWaitEventsTimeout(1.0 / 60.0);

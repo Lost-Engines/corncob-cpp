@@ -9,6 +9,7 @@ int main() {
   /// Exercise every theatre across octants, near-plane intersections and cockpit/rear view layouts
   corncob::resources::geometry_bank geometry{corncob::resources::engine_data_asset()};
   auto const cockpit{corncob::resources::decode_cockpit_mask(corncob::resources::cockpit_asset())};
+  corncob::maths::random_source scene_random;
   corncob::graphics::scene_renderer renderer{geometry, cockpit};
   corncob::render::framebuffer output;
   unsigned int frames{0}, objects{0}, polygons{0}, discs{0};
@@ -31,7 +32,7 @@ int main() {
         };
         observer.cockpit = (quadrant & 1u) == 0;
         observer.rear_view = quadrant == 0;
-        auto const drawn{renderer.render(theatre, observer, frames++, 1024, output)};
+        auto const drawn{renderer.render(theatre, observer, frames++, 1024, scene_random, output)};
         objects += drawn.objects;
         polygons += drawn.polygons;
         discs += drawn.discs;

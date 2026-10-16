@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <optional>
 #include <string>
 #include "flight/landing.h"
@@ -143,7 +144,12 @@ private:
 public:
   session(resources::geometry_bank const &geometry, world::theatre theatre);
   void press(action command);
-  void advance(input_state const &input);
+  session(session const &) = delete;
+  session &operator=(session const &) = delete;
+  session(session &&) = delete;
+  session &operator=(session &&) = delete;
+  void advance(input_state const &input, std::optional<std::function_ref<void()>> draw_frame = std::nullopt);
+  maths::random_source &random_stream() noexcept;
   graphics::camera camera() const;
   world::theatre const &world() const noexcept;
   player_mode player() const noexcept;

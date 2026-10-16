@@ -75,7 +75,7 @@ int main(int const argc, char const *const argv[]) {
       .aircraft{game.craft()},
       .controls{},
     };
-    renderer.render(game.world(), game.camera(), game.frame_number(), static_cast<uint16_t>(game.timer()), image, &telemetry);
+    renderer.render(game.world(), game.camera(), game.frame_number(), static_cast<uint16_t>(game.timer()), game.random_stream(), image, &telemetry);
     std::ofstream capture{argv[1], std::ios::binary};
     capture.exceptions(std::ios::failbit | std::ios::badbit);
     capture << "P6\n640 350\n255\n";
