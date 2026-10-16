@@ -93,6 +93,7 @@ private:
   bool ground_detail{true};
   bool paused{false};
   bool experimental_clearance{false};
+  bool invincible{false};
   uint32_t fast_ticks{0};
   unsigned int frame{0};
   std::string notice;
@@ -124,6 +125,8 @@ public:
   bool is_paused() const noexcept;
   flight::damage_state const &aircraft_damage() const noexcept;
   combat_statistics const &statistics() const noexcept;
+  void relocate(world::mission_start const &start);
+  void set_invincible(bool value) noexcept;
   void set_experimental_clearance(bool permitted) noexcept;
   sortie_statistics results(bool aborted = false) const;
   world::theatre snapshot() const;

@@ -103,6 +103,7 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
   if(!selected) return;
   auto &pilot{roster.pilots[*selected]};
   pilot.finish_sortie(result);
+  if(theatre == "training") { save_roster(); return; }
   std::vector<uint8_t> saved(theatre_header_bytes);
   auto const title{std::string{theatre}};
   std::ranges::copy(title.substr(0, 27), saved.begin());

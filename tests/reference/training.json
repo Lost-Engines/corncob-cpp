@@ -1,0 +1,10 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "c7736def8c772714bd10f0d01ddc876733a9d196ed0dae11064f0c3fb39b4f64",
+  "cases": 32,
+  "routine": "0x904f INITPERMS",
+  "stubs": [
+    "0x9fdb EXPSTRT: copies the requested native 74-byte template into a separate live slot"
+  ],
+  "scope": "Original training layout, random coordinates, defence counts/qualities, flags, timers and motion templates"
+}

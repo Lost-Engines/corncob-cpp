@@ -112,8 +112,31 @@ std::vector<uint8_t> encode_theatre(theatre const &source) {
 
 void apply_briefing(theatre &theatre, std::span<uint8_t const> const source) {
   /// TWR's optional first-line X directive controls the actual sun, atmosphere and star settings
+  theatre.missions.clear();
   if(source.empty()) { theatre.briefing.clear(); return; }
   theatre.briefing.assign(reinterpret_cast<char const*>(source.data()), source.size());
+  std::istringstream lines{theatre.briefing};
+  std::string line, title;
+  while(std::getline(lines, line)) {
+    if(!line.empty() && line.back() == '\r') line.pop_back();
+    if(line.find("Mission Code Name") != std::string::npos) {
+      auto const colon{line.find(':')};
+      if(colon != std::string::npos) {
+        title = line.substr(colon + 1);
+        title.erase(0, title.find_first_not_of(' '));
+      }
+    }
+    if(line.starts_with("Sxyth")) {
+      std::istringstream record{line.substr(5)};
+      mission_start start{
+        .title{title.empty() ? "Mission " + std::to_string(theatre.missions.size() + 1) : title},
+      };
+      int32_t heading{0};
+      if(!(record >> start.position.x >> start.position.y >> start.position.z >> heading)) throw std::invalid_argument{"invalid mission start directive"};
+      start.heading = static_cast<maths::angle>(heading);
+      theatre.missions.push_back(std::move(start));
+    }
+  }
   if(source.front() != 'X') return;
   std::istringstream input{theatre.briefing.substr(1, theatre.briefing.find('\n'))};
   int angle{0}, diameter{0}, colour{0}, gravity{0}, density{0}, stars{0}, height{0};

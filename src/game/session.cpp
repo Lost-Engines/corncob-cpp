@@ -52,6 +52,16 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
     object.motion = definition.motion;
   }
   notice = "On foot - keypad 5/0 walks; arrows turn; walk into an aircraft to board";
+  if(this->theatre.training) {
+    if(auto const index{weapons.spawn(world::object_type::aircraft, this->theatre.start)}) {
+      enter_aircraft(*index);
+      aircraft.position.y -= 8000;
+      aircraft.attitude = {};
+      aircraft.world_to_body = maths::make_rotation(aircraft.attitude);
+      aircraft.body_to_world = maths::make_inverse_rotation(aircraft.attitude);
+      retain_aircraft();
+    }
+  }
 }
 
 void session::press(action const command) {
@@ -139,7 +149,8 @@ void session::find_surfaces() {
     }
     if(mode != player_mode::on_foot || !within_xy(person.position)) continue;
     if(std::abs(static_cast<int64_t>(person.position.z) - object.position.z) >= definition.collision_extents.z) continue;
-    if(has(definition, world::object_property::kills_person)) {
+    if(has(definition, world::object_property::kills_person) && !invincible) {
+      fatal_contact = object.type;
       mode = player_mode::dead;
       notice = "Killed on foot";
     } else if(has(definition, world::object_property::captures_person)) {
@@ -242,6 +253,7 @@ void session::enter_aircraft(unsigned int const index) {
   angular = {};
   landing = {};
   damage = {};
+  damage.invincible = invincible;
   airframe_destroyed = false;
   left_ground = false;
   object.flags &= static_cast<uint16_t>(~std::to_underlying(world::object_flag::present));
@@ -432,7 +444,7 @@ void session::update_person(input_state const &input, flight::time_step const st
   person.velocity.z = maths::word(person.velocity.z - drag / (person.parachute ? 900 : 4800));
   if(person.position.z < floor) {
     int const descent{-static_cast<int>(person.velocity.z)};
-    if(descent >= 1800 && (person.parachute || descent >= 3200)) {
+    if(descent >= 1800 && (person.parachute || descent >= 3200) && !invincible) {
       mode = player_mode::dead;
       notice = "Fatal fall";
     } else {
@@ -593,6 +605,8 @@ world::theatre session::snapshot() const {
   result.sky = theatre.sky;
   result.environment = theatre.environment;
   result.briefing = theatre.briefing;
+  result.missions = theatre.missions;
+  result.training = theatre.training;
   for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
     auto const &object{theatre.objects[i]};
     auto const &definition{geometry.definition(object.type)};
@@ -611,6 +625,35 @@ world::theatre session::snapshot() const {
 bool session::finished() const noexcept {
   /// Terminal sortie states leave flight input and simulation to the result/front-end flow
   return mode != player_mode::on_foot && mode != player_mode::in_aircraft;
+}
+void session::relocate(world::mission_start const &start) {
+  /// DONEWMISS retains pitch/roll, assigns the intelligence start and launches with 5000 forward airflow
+  if(mode != player_mode::in_aircraft) {
+    notice = "You must be in an aircraft to start in the air";
+    return;
+  }
+  if(damage.total >= 16) {
+    notice = "Aircraft too damaged for a mission jump";
+    return;
+  }
+  aircraft.position = maths::world_position{start.position};
+  aircraft.attitude.heading = start.heading;
+  aircraft.world_to_body = maths::make_rotation(aircraft.attitude);
+  aircraft.body_to_world = maths::make_inverse_rotation(aircraft.attitude);
+  aircraft.body_velocity = maths::fixed_vector{5000, 0, 0};
+  aircraft.scaled_body_velocity = maths::fixed_vector{312, 0, 0};
+  aircraft.velocity = maths::transform(aircraft.body_to_world, aircraft.body_velocity);
+  aircraft.throttle = damage.maximum_throttle;
+  aircraft.on_ground = false;
+  landing = {};
+  left_ground = true;
+  retain_aircraft();
+  notice = start.title;
+}
+void session::set_invincible(bool const value) noexcept {
+  /// Training's invulnerability setting is the original damage immunity flag
+  invincible = value;
+  damage.invincible = value;
 }
 void session::set_experimental_clearance(bool const permitted) noexcept {
   /// Campaign rank grants access to the black experimental aircraft's throttle

@@ -110,6 +110,7 @@ auto main(int const argc, char const *const argv[])->int {
       saved->sky = theatre.sky;
       saved->environment = theatre.environment;
       saved->briefing = std::move(theatre.briefing);
+      saved->missions = std::move(theatre.missions);
       theatre = std::move(*saved);
     }
   } catch(std::exception const &error) {
@@ -222,7 +223,9 @@ auto main(int const argc, char const *const argv[])->int {
     }
     switch(key) {
     case GLFW_KEY_ESCAPE: front.ask_to_end_sortie(); break;
-    case GLFW_KEY_F1: front.show_menu(); break;
+    case GLFW_KEY_F1: front.show_intelligence(game->world()); break;
+    case GLFW_KEY_F2: front.show_missions(game->world()); break;
+    case GLFW_KEY_F3: front.show_current_score(game->results()); break;
     case GLFW_KEY_F4: front.show_flight_help(); break;
     case GLFW_KEY_R: game->press(corncob::game::action::toggle_rear); break;
     case GLFW_KEY_L: game->press(corncob::game::action::toggle_cockpit); break;
@@ -252,19 +255,22 @@ auto main(int const argc, char const *const argv[])->int {
     if(front.quitting()) break;
     if(auto const launch{front.take_launch()}) {
       theatre_name = launch->theatre;
-      auto world{load_theatre(theatre_name)};
-      if(auto saved{campaign->load_world(theatre_name)}) {
+      auto world{launch->training ? corncob::world::generate_training(geometry, *launch->training) : load_theatre(theatre_name)};
+      if(auto saved{launch->training ? std::nullopt : campaign->load_world(theatre_name)}) {
         saved->sky = world.sky;
         saved->environment = world.environment;
         saved->briefing = std::move(world.briefing);
+        saved->missions = std::move(world.missions);
         world = std::move(*saved);
       }
       game = std::make_unique<corncob::game::session>(geometry, std::move(world));
       if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
       renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit);
+      if(launch->training) game->set_invincible(launch->training->invincible);
       front.begin_flight();
       accumulated_time = 0.0;
     }
+    if(auto const relocation{front.take_relocation()}) game->relocate(*relocation);
     double const now{glfwGetTime()};
     double const elapsed{std::min(now - previous_time, 0.1)};
     previous_time = now;

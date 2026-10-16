@@ -30,7 +30,8 @@ The window uses the largest integer multiple of its 640 x 480 display that fits
 within the available desktop. The native 640 x 350 EGA framebuffer is presented
 at the intended 4:3 CRT aspect ratio, using nearest-neighbour sampling. The window
 floats and remains resizable. `--scale 1` selects the initial scale explicitly;
-Escape asks to end the current sortie; F1 opens the menu, F4 opens flight help,
+Escape asks to end the current sortie; F1 opens airbase intelligence, F2 selects
+an airborne mission start, F3 shows the current score, F4 opens flight help,
 and R toggles the rear view. `--skip-intro` opens the menu directly.
 
 You start on foot. Keypad 5 walks forward and keypad 0 walks backwards; arrows
@@ -42,6 +43,11 @@ The experimental aircraft at White Sands requires campaign clearance before
 its throttle operates. Create or activate a pilot through the duty roster to save
 your career and changes to each theatre. The default trainee does not save progress.
 `--save-dir` overrides the platform user-data directory.
+
+The training menu generates the original practice world with selectable defence
+counts and qualities. Combat theatres also retain their original intelligence
+briefings and airborne starts; mission jumps require an aircraft with less than
+16 damage and keep the current world intact.
 
 Choose a world in the menu, or start directly with `--theatre white_sands`, `morning`, `dusk` or `wasteland`.
 Debug and RelWithDebInfo also provide `--free-camera` for scenery inspection:

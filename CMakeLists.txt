@@ -93,6 +93,8 @@ add_library(corncob_core STATIC
   src/resources/geometry_bank.h
   src/world/motion.cpp
   src/world/motion.h
+  src/world/training.cpp
+  src/world/training.h
   src/world/world.cpp
   src/world/world.h
   src/resources/cockpit_mask.cpp
@@ -245,4 +247,11 @@ if(BUILD_TESTING)
   configure_first_party(campaign_checks)
   target_link_libraries(campaign_checks PRIVATE corncob_core)
   add_test(NAME persistent_campaign COMMAND campaign_checks "${PROJECT_BINARY_DIR}/campaign-checks")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(training_checks tests/training_checks.cpp)
+  configure_first_party(training_checks)
+  target_link_libraries(training_checks PRIVATE corncob_core)
+  add_test(NAME native_training COMMAND training_checks "${PROJECT_SOURCE_DIR}/tests/reference/training.bin")
 endif()

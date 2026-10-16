@@ -114,6 +114,12 @@ struct environment_parameters {
   uint16_t atmosphere_height{5957};
 };
 
+struct mission_start {
+  std::string title;
+  maths::world_position position{0, 0, 0};
+  maths::angle heading{0};
+};
+
 struct theatre {
   static unsigned int constexpr columns{8};
   static unsigned int constexpr rows{8};
@@ -125,6 +131,8 @@ struct theatre {
   sky_parameters sky{};
   environment_parameters environment{};
   std::string briefing;
+  std::vector<mission_start> missions;
+  bool training{false};
 };
 
 bool in_active_neighbourhood(maths::world_position const &position, maths::world_position const &observer) noexcept;

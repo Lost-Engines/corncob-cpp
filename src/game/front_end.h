@@ -4,6 +4,7 @@
 #include <string>
 #include "game/session.h"
 #include "game/campaign.h"
+#include "world/training.h"
 #include "graphics/interface.h"
 #include "resources/cockpit_mask.h"
 
@@ -26,11 +27,14 @@ enum class interface_page {
   story,
   menu,
   theatres,
+  training,
+  missions,
   roster,
   pilots,
   pilot_name,
   records,
   sortie_summary,
+  current_score,
   briefing,
   help,
   quit_confirmation,
@@ -39,6 +43,7 @@ enum class interface_page {
 };
 struct launch_request {
   std::string theatre;
+  std::optional<world::training_setup> training{};
 };
 
 class front_end {
@@ -52,6 +57,9 @@ private:
   std::string feedback;
   bool renaming{false};
   bool pending_finish{false};
+  world::training_setup training;
+  std::vector<world::mission_start> mission_starts;
+  std::optional<world::mission_start> pending_relocation;
   std::optional<sortie_statistics> latest_result;
   std::vector<resources::presentation_panel> stories;
   std::vector<resources::presentation_panel> outcomes;
@@ -71,6 +79,7 @@ private:
 
   void accept();
   unsigned int choice_count() const;
+  void adjust_training(int direction);
   void draw_menu(graphics::interface_canvas &canvas, std::string_view title, std::span<std::string_view const> choices) const;
 
 public:
@@ -82,6 +91,10 @@ public:
   void command(interface_command command);
   void begin_flight();
   void show_menu();
+  void show_intelligence(world::theatre const &world);
+  void show_missions(world::theatre const &world);
+  void show_current_score(sortie_statistics const &result);
+  std::optional<world::mission_start> take_relocation();
   void show_flight_help();
   void ask_to_end_sortie();
   void show_outcome(unsigned int index);

@@ -201,3 +201,18 @@ selection and every career bookkeeping field are not claimed fully interoperable
 yet. Four definition files round-trip exactly, and persistence checks reopen a
 changed theatre, verify rank/score, rename its pilot and switch between independent
 careers. Files are replaced after a complete temporary-file write.
+
+## Generated training and intelligence starts
+
+INITPERMS is translated directly rather than replacing training with a saved
+example world. Its fixed airstrip, random fuel targets and defence sites,
+quality selection, obstacles and supporting scenery reproduce 2,157 placements
+from 32 original generator runs. The native fixture supplies object allocation
+only; construction and random arithmetic execute unchanged. Training begins
+aboard the runway aircraft, retaining a separate spare aircraft in the world.
+
+TWR mission names and Sxyth start coordinates are decoded as explicit data.
+The F2 selector relocates the retained aircraft rather than recreating a theatre.
+DONEWMISS's aircraft/damage gate, forward airflow, full throttle and retained
+pitch/roll are preserved. F1 displays current airbase intelligence and F3
+inspects the current score without ending or recording a sortie.
