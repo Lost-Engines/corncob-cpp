@@ -23,6 +23,7 @@ public:
   explicit campaign_store(std::filesystem::path directory);
   std::span<pilot_record const> pilots() const noexcept;
   pilot_record const *active_pilot() const noexcept;
+  bool can_fly() const;
   score_tables const &high_scores() const noexcept;
   unsigned int create_pilot(std::string_view name);
   void activate(unsigned int index);

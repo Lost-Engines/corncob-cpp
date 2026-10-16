@@ -130,6 +130,27 @@ is still being investigated. Renaming updates live high-score names; deletion
 removes owned worlds and sets the original retired word in all three score lists.
 A reused name starts a distinct career.
 
+Career records retain distinct latest sortie, highest-scoring sortie, individual
+peaks and cumulative totals; PgUp/PgDn switches between them. Native comparisons
+cover all 540 bytes of counters/statistics/scores, including signed peaks and word
+wrapping. Cumulative damage adds each sortie's maximum, rather than storing a
+second peak. MOAG's campaign score is intentionally separate from ISCORE's flight
+report: it adds successful suicide-objective credit and its ejection-factor test
+contains an always-false mask. Both original paths are preserved.
+
+The original campaign scan is now executed independently for 512 promotion,
+medal and court-martial reference cases, including cached theatre lookup and
+native string comparisons. Saved theatres keep their own career totals instead
+of a copy of the global career. The completion word at header offset 46 prevents
+repeat awards; offset 40 stores remaining objectives. A completion needs at least
+one credited objective, and only the current, newly completed theatre grants
+Theatre Combat/Distinguished Flying Cross medals. The latter requires no aircraft
+lost across that theatre, rather than merely a clean final sortie. Combat Master
+requires all three normal theatres and a surviving pilot. Friendly losses suspend
+a living pilot for one day per loss, extend an existing sentence and skip that
+sortie's awards. The release date survives restarts. Killed/captured pilots remain
+eligible for the original resurrection operation; living pilots do not.
+
 ## Rendering, presentation and sound
 
 The software renderer retains 640 x 350 indexed EGA output, three distance/detail
@@ -207,7 +228,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
 | Title | 1,024 original animation-state/PRNG passes and 6,144 VGA letter-mask pixels |
 | Ending | All 768 initial stars and 64 complete indexed native star frames |
-| Score/persistence | 512 ISCORE calculations and 256 complete MOAG career updates; 16,384 original mask bytes; original control/model/new-pilot fixtures; exact native high-score retirement; roster/world restart, rename and deletion scenarios |
+| Score/persistence | 512 ISCORE calculations, 256 complete MOAG career updates and 512 complete promotion/medal decisions; 16,384 original mask bytes; original control/model/new-pilot fixtures; exact native high-score retirement; roster/world restart, rename and deletion scenarios |
 | Sound | 512 engine/register-write cases and finite, non-silent PCM from the actual engine patch |
 
 Connected scenarios cover takeoff, ejection/parachute/remote control, weapons and
@@ -221,7 +242,7 @@ Private GLFW/X11 checks traversed pilot creation, mission selection, radio boxes
 map, boss screen, help, score, abort/report, tower intelligence, repair/resume and
 Escape warnings, followed by both story fades and the animated title/credits.
 Captures were inspected without changing supplied DOS installs.
-The complete 37-check Debug, Release and sanitizer suites pass, including the
+The complete 38-check Debug, Release and sanitizer suites pass, including the
 longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title. Wire rasterisation, complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.
@@ -237,9 +258,9 @@ match without stubs; the connected rescue scenario still passes.
 
 - Extend whole-frame title comparisons beyond native motion, palette masking and
   the inspected presentation captures.
-- Complete remaining front-end/bookkeeping details: scanner/award qualifications,
-  theatre-header campaign words, training setup persistence and any remaining
-  original configuration bits.
+- Complete remaining front-end/bookkeeping details: training setup persistence,
+  remaining theatre-header words and original configuration bits; broaden
+  original configuration comparisons.
 - Verify remaining special-site handlers against
   full native executions, and broaden complete campaign comparisons.
 - Finish remaining auxiliary instrument states; compare wire rasterisation and
@@ -250,11 +271,3 @@ match without stubs; the connected rescue scenario still passes.
   draw order before claiming identical whole-session random continuation.
 - Compare the complete soundscape and confirm platform/device behaviour beyond
   the Linux development host. Music remains outside the current implementation.
-
-Career records retain distinct latest sortie, highest-scoring sortie, individual
-peaks and cumulative totals; PgUp/PgDn switches between them. Native comparisons
-cover all 540 bytes of counters/statistics/scores, including signed peaks and word
-wrapping. Cumulative damage adds each sortie's maximum, rather than storing a
-second peak. MOAG's campaign score is intentionally separate from ISCORE's flight
-report: it adds successful suicide-objective credit and its ejection-factor test
-contains an always-false mask. Both original paths are preserved.

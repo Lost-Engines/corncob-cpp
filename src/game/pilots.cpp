@@ -125,6 +125,10 @@ uint8_t pilot_record::awards(medal const kind) const {
   /// Medal counts are individual bytes, not word counters or bits
   return data.at(std::to_underlying(kind));
 }
+int32_t pilot_record::suspended_until() const {
+  /// MOAG stores a signed Unix-time release date after court-martial for friendly losses
+  return dword(619);
+}
 int32_t pilot_record::career_score() const {
   /// Report the cumulative native signed career score
   return dword(career_score_offset);
@@ -162,7 +166,7 @@ void pilot_record::award(medal const kind) {
   ++data.at(std::to_underlying(kind));
 }
 void pilot_record::finish_sortie(sortie_statistics const &result) {
-  /// Store the latest result and update normal-game promotion and sortie medal conditions
+  /// Accumulate one counted sortie; the subsequent theatre scan owns promotions and awards
   if(!result.counts_for_career()) return;
   auto const raw{result.encode()};
   std::ranges::copy(raw, data.begin() + latest_statistics_offset);
@@ -186,21 +190,49 @@ void pilot_record::finish_sortie(sortie_statistics const &result) {
   int32_t const recent_time{dword(latest_statistics_offset + retained_time_offset)};
   if(recent_time > dword(peak_statistics_offset + retained_time_offset)) dword(peak_statistics_offset + retained_time_offset, recent_time);
   dword(career_statistics_offset + retained_time_offset, maths::dword(static_cast<int64_t>(dword(career_statistics_offset + retained_time_offset)) + recent_time));
-  auto const totals{career()};
   if(result.has(sortie_status::killed)) word(flags_offset, static_cast<uint16_t>(word(flags_offset) | 2u));
   if(result.has(sortie_status::captured)) word(flags_offset, static_cast<uint16_t>(word(flags_offset) | 8u));
+}
+void pilot_record::review_career(std::span<theatre_progress> const theatres, uint16_t const theatre_aircraft_lost, int32_t const now) {
+  /// MOAG scans the pilot's saved theatres after recording the sortie, except when friendly losses suspend a living pilot
+  auto const result{last_sortie()};
+  if(!unavailable() && result.friendly_destroyed != 0) {
+    int32_t const sentence{maths::dword(static_cast<int64_t>(maths::word(result.friendly_destroyed)) * 86'400)};
+    dword(619, maths::dword(static_cast<int64_t>(std::max(suspended_until(), now)) + sentence));
+    return;
+  }
+  bool all_completed{true}, newly_completed{false};
+  static std::array<std::string_view, 4> constexpr definitions{"morning", "dusk", "wasteland", "white_sands"};
+  for(auto const definition : definitions) {
+    bool completed{false};
+    for(auto &theatre : theatres) {
+      if(theatre.definition != definition || theatre.objectives_remaining != 0 || theatre.objectives_completed <= 0) continue;
+      completed = true;
+      if(theatre.current && !theatre.completion_recorded) {
+        newly_completed = theatre.completion_recorded = true;
+      }
+    }
+    if(definition != "white_sands" && !completed) all_completed = false;
+  }
+  auto const totals{career()};
   auto new_rank{rank()};
-  if(totals.objectives_completed >= 1) new_rank = std::max(new_rank, pilot_rank::first_lieutenant);
-  if(totals.objectives_completed >= 7) new_rank = std::max(new_rank, pilot_rank::captain);
+  if(maths::word(totals.objectives_completed) >= 1) new_rank = std::max(new_rank, pilot_rank::first_lieutenant);
+  if(maths::word(totals.objectives_completed) >= 7) new_rank = std::max(new_rank, pilot_rank::captain);
   if(result.has(sortie_status::earth_saved)) new_rank = std::max(new_rank, pilot_rank::major);
   data[rank_offset] = std::to_underlying(new_rank);
-  if(result.maximum_damage >= 27 && result.has(sortie_status::home) && result.aircraft_lost == 0 && !result.has(sortie_status::crashed_away)) award(medal::purple_heart);
+  if(newly_completed) {
+    award(medal::theatre_combat);
+    if(theatre_aircraft_lost == 0) award(medal::distinguished_flying_cross);
+  }
+  if(all_completed && awards(medal::combat_master) == 0 && (word(flags_offset) & 2u) == 0) award(medal::combat_master);
+  int32_t const score{last_sortie_score()};
+  if(maths::word(result.maximum_damage) >= 27 && result.has(sortie_status::home) && result.aircraft_lost == 0 && !result.has(sortie_status::crashed_away)) award(medal::purple_heart);
   if(score > 100'000) award(medal::stellar_cluster);
   else if(score > 50'000) award(medal::gold_star);
   else if(score > 20'000) award(medal::silver_star);
   else if(score > 10'000) award(medal::bronze_star);
-  if(result.objectives_completed >= 5) award(medal::distinguished_service_cross);
-  if(sorties() >= (awards(medal::service_award) + 1) * 10 && !result.has(sortie_status::killed)) award(medal::service_award);
+  if(maths::word(result.objectives_completed) >= 5) award(medal::distinguished_service_cross);
+  if(maths::word(sorties()) >= (awards(medal::service_award) + 1) * 10 && !result.has(sortie_status::killed)) award(medal::service_award);
 }
 bool pilot_roster::keyboard_control() const {
   /// The global roster header's third byte selects keyboard rather than joystick control in both retained layouts

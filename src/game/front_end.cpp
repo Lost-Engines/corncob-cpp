@@ -64,8 +64,9 @@ void front_end::accept() {
       if(selection == 0) page = interface_page::flight;
       else if(selection == 1) show_flight_help();
       else ask_to_end_sortie();
-    } else if((selection == 1 || selection == 2) && campaign.active_pilot() && campaign.active_pilot()->unavailable()) {
-      feedback = "Activate a living pilot or resurrect this pilot first";
+    } else if((selection == 1 || selection == 2) && !campaign.can_fly()) {
+      feedback = campaign.active_pilot()->unavailable() ? "Activate a living pilot or resurrect this pilot first"
+        : "Pilot suspended after friendly losses - select another pilot";
     } else switch(selection) {
     case 0: page = interface_page::roster; break;
     case 1: page = interface_page::theatres; break;

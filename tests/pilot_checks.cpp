@@ -80,6 +80,7 @@ int main(int const argc, char const *const argv[]) {
     .objectives_completed{7},
   };
   pilot.finish_sortie(result);
+  pilot.review_career({}, 0, 0);
   if(pilot.rank() != corncob::game::pilot_rank::captain || pilot.career().objectives_completed != 7)
     throw std::runtime_error{"normal captain promotion or cumulative objectives failed"};
   if(pilot.awards(corncob::game::medal::distinguished_service_cross) != 1) throw std::runtime_error{"five-objective medal failed"};

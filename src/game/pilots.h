@@ -102,6 +102,14 @@ inline std::array<medal_definition, 10> constexpr medal_definitions{
   },
 };
 
+struct theatre_progress {
+  std::string definition;
+  int16_t objectives_remaining{0};
+  int16_t objectives_completed{0};
+  bool completion_recorded{false};
+  bool current{false};
+};
+
 class pilot_record {
 private:
   std::array<uint8_t, 623> data{};
@@ -127,6 +135,7 @@ public:
   uint16_t sorties() const;
   uint16_t resurrections() const;
   uint8_t awards(medal kind) const;
+  int32_t suspended_until() const;
   int32_t career_score() const;
   int32_t last_sortie_score() const;
   int32_t best_sortie_score() const;
@@ -137,6 +146,7 @@ public:
   std::span<uint8_t const> native_data() const noexcept;
   void finish_sortie(sortie_statistics const &result);
   void award(medal kind);
+  void review_career(std::span<theatre_progress> theatres, uint16_t theatre_aircraft_lost, int32_t now);
 };
 
 class pilot_roster {

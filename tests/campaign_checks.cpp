@@ -7,6 +7,7 @@
 #include "resources/assets.h"
 #include "game/session.h"
 #include "platform/storage.h"
+#include "resources/binary_reader.h"
 
 namespace {
 
@@ -152,6 +153,46 @@ int main(int const argc, char const *const argv[]) {
     require(!campaign.load_world("morning"), "reused pilot name inherited the deleted career's world");
     campaign.delete_pilot(1);
     require(!campaign.active_pilot(), "deleting the active pilot left a dangling selection");
+  }
+  {
+    /// A lost aircraft in another theatre must not disqualify a clean completion, and saved theatre totals cannot inherit the whole career
+    auto const isolated{directory / "award-rules"};
+    game::campaign_store campaign{isolated};
+    campaign.create_pilot("Award rules");
+    bool living_resurrection_rejected{false};
+    try { campaign.resurrect(0); } catch(std::invalid_argument const &) { living_resurrection_rejected = true; }
+    require(living_resurrection_rejected, "resurrection was allowed for a living pilot");
+    game::sortie_statistics loss{
+      .aircraft_lost{1},
+      .objectives_completed{1},
+    };
+    campaign.finish_sortie("dusk", world::decode_theatre(corncob::resources::dusk_asset()), loss);
+    auto completed{world::decode_theatre(corncob::resources::morning_asset())};
+    for(auto &object : completed.objects) object.flags |= std::to_underlying(world::object_flag::objective_complete);
+    game::sortie_statistics clean{
+      .objectives_completed{4},
+    };
+    campaign.finish_sortie("morning", completed, clean);
+    require(campaign.active_pilot()->awards(game::medal::distinguished_flying_cross) == 1, "another theatre's losses disqualified a clean completion");
+    auto const saved{corncob::platform::read_binary(isolated / "THT/2.THT")};
+    corncob::resources::binary_reader const input{saved};
+    game::pilot_record const theatre_pilot{std::span{saved}.subspan(48,623)};
+    require(theatre_pilot.career().objectives_completed == 4 && theatre_pilot.career().aircraft_lost == 0, "saved theatre copied global career statistics");
+    require(input.word(40) == 0 && input.word(46) == 1, "native remaining/completion header words were not saved");
+    game::sortie_statistics friendly_loss{
+      .objectives_completed{5},
+      .friendly_destroyed{2},
+    };
+    campaign.finish_sortie("morning", completed, friendly_loss);
+    require(!campaign.can_fly() && campaign.active_pilot()->awards(game::medal::distinguished_service_cross) == 0, "friendly losses failed to suspend the pilot and skip awards");
+    require(campaign.active_pilot()->career().objectives_completed == 10, "suspension incorrectly discarded sortie statistics");
+    game::campaign_store reopened{isolated};
+    require(!reopened.can_fly(), "court-martial sentence did not survive restart");
+    reopened.create_pilot("Replacement");
+    require(reopened.can_fly(), "another pilot inherited the suspension");
+    bool activation_rejected{false};
+    try { reopened.activate(0); } catch(std::invalid_argument const &) { activation_rejected = true; }
+    require(activation_rejected && reopened.active_pilot()->name() == "Replacement", "suspended pilot activation replaced the current pilot");
   }
   std::filesystem::remove_all(directory);
   std::cout << "Native masked roster, career progression and independent live theatre persistence survive restart" << std::endl;
