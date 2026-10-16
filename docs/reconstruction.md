@@ -163,15 +163,36 @@ offset 38. Deleting one compacts its
 pilot's references and preserves any other active world. Trainee worlds remain
 available for the current run and are discarded when it closes. Cached menu
 summaries avoid reading and decoding every saved world on each rendered frame.
-Combat now shows the starting-airfield screen before launch, and training shows
-its original preflight briefing. The airfield detail survey is rebuilt from live
-objects rather than using the played-install TOWERS.INF; its numeric formatting
-and ordering have not yet had the complete native comparison given to the twenty
-reference screens. The analog-centering menu entries retain their original
-wording and session choices; GLFW supplies digital axes without DOS port timing
-or drift calibration. Conditional dialogs, populated score/medal pages and the
-in-flight score helper layout need broader visual comparison before
-claiming every possible front-end screen is pixel-identical.
+Combat shows the original starting-airfield screen and training its preflight
+briefing. The live survey follows INT's vocabulary, objective descriptions,
+integer ranges/bearings/altitudes, grouping and Borland sort order. Its complete
+Morning text matches TOWERS.INF byte for byte, backed by 1,952 original object
+formatter executions and 96 full grouping/sort cases. A single-airfield base
+world reports all 64 tiles in the original 15-line scrolling document.
+
+Empty fields count unwrecked planes in INT's start box. P boards a lower-powered
+Dumpy at the saved start; Enter continues on foot. A credited return consumes one
+stored plane, preserving THT word 38 across restarts. Aborted/invulnerable returns
+do not consume stock; trainee reserves remain transient. Completed theaters warn
+before launch and require Y before deletion. Activation offers resurrection for
+dead/captured pilots; manual resurrection separately asks about activation.
+Stockade confinement cannot be bypassed by resurrection.
+
+F3 reproduces ISCORE's preliminary report on a temporary record, including its
+assumed safe landing, time, score factors and record hearts. Training uses the
+global pilot even when a combat theater remains active. Returns show the mission
+report with the prior rank, promotions/medals in their original order, and the
+post-mission career overview. Decorations use abbreviations and repeated glyphs
+with fourteen per line. Unavailable pilots revert to the trainee after reports.
+
+Eleven further unchanged-DOS screens match RGB pixels: populated score tables,
+preliminary and mission reports, promotion, decoration, the post-mission overview,
+survey, starting airfield and reserve warning. Availability, resurrection,
+exhausted stock and deletion also have state/persistence tests. This does not
+claim pixel identity for every possible record/dialog combination. The original
+analog-centering labels remain; GLFW supplies digital axes without DOS drift
+calibration. Reference provenance and research details are in the sibling
+corncob-reverse tree's analysis/airfield-campaign.md.
 
 F1 retains BOSS.TXT's DOS-prompt disguise. F2 and walking into a tower now use
 the reconstructed TOWER.EXE briefing reader. It selects one of nine form-feed
@@ -191,8 +212,8 @@ The captured expectations are retained in `tests/reference/tower_briefings.h`;
 `tools/generate_tower_briefing_reference.py` imports them from the research
 repository's `capture_native_tower.py` output. The game and tests require no DOS
 executable or Python at runtime. These checks cover the helper's text and
-selection behaviour; the live TOWERS.INF survey and reserve-aircraft allocation
-belong to MOAG, and remain separate work.
+selection behaviour; MOAG's live TOWERS.INF survey and reserve-aircraft allocation
+are covered separately above.
 
 The flight engine ignores a selected airborne start while the pilot is on foot,
 and damaged aircraft retain the original jump restriction and message. An
@@ -470,7 +491,8 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Sortie clock | 512 unchanged two-segment DOS-clock conversions, including pause boundaries and wrapping; connected flight/pause/map timing |
 | Score/persistence | 512 ISCORE calculations, 256 complete MOAG career updates and 512 complete promotion/medal decisions; 16,384 original mask bytes; original control/model/new-pilot fixtures; 96 full 5,040-byte native high-score insertion/tie/padding cases and exact retirement; roster/world restart, rename and deletion scenarios |
 | Tower intelligence | Forty-nine complete unchanged-DOS screen/mission-return comparisons, all nine briefing sections, original scrolling and boss continuation |
-| Menus | Twenty complete unchanged-DOS screen comparisons, original navigation and text readers, nested training editors, duplicate/transient/deleted theater ownership |
+| Menus | Thirty-one complete unchanged-DOS screens, populated reports and honors, navigation/readers, training editors, theater ownership, reserve exhaustion and resurrection/stockade transitions |
+| Airfield survey | 1,952 original descriptions, 96 original grouping/sort cases and byte-identical Morning TOWERS.INF |
 | Music | Three native-driver recordings; complete title/menu repeats, arbitrary 1–512-frame callbacks, saved native music flags and older-roster import |
 | Sound | 512 engine/register-write cases; 10,535 proximity writes across 512 connected frames; 384 ordered actor-proximity passes; finite, non-silent PCM |
 
@@ -521,7 +543,7 @@ match without stubs; the connected rescue scenario still passes.
   for the reporter; no cause or corrective gameplay change has been established.
 - Extend whole-frame title comparisons beyond native motion, palette masking and
   the inspected presentation captures.
-- Broaden front-end/bookkeeping comparisons: remaining theatre-header words, reserve-aircraft accounting and original configuration bits; conditional dialogs, populated reports and live airfield survey grouping/ranges.
+- Broaden conditional-dialog/record screenshot combinations and longer campaign runs; unlabelled theatre-header/configuration bytes remain preserved rather than reinterpreted.
 - Broaden complete campaign comparisons against native executions.
 - Broaden complete cockpit/gauge-frame comparisons and whole scene painter/
   collision ordering.

@@ -146,7 +146,7 @@ private:
   void retain_aircraft();
 
 public:
-  session(resources::geometry_bank const &geometry, world::theatre theatre);
+  session(resources::geometry_bank const &geometry, world::theatre theatre, bool reserve_aircraft = false);
   void press(action command);
   session(session const &) = delete;
   session &operator=(session const &) = delete;

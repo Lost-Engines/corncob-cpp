@@ -370,11 +370,14 @@ std::optional<world::theatre> campaign_store::load_world(std::string_view const 
   if(stored_definition(data) != expected) throw std::invalid_argument{"saved theatre refers to a different definition: " + path.string()};
   return world::decode_theatre(std::span{data}.subspan(theatre_header_bytes));
 }
-void campaign_store::finish_sortie(std::string_view const theatre, world::theatre const &world, sortie_statistics const &result) {
+void campaign_store::finish_sortie(std::string_view const theatre, world::theatre const &world, sortie_statistics const &result, bool const reserve_aircraft) {
   /// Accumulate distinct global and per-theatre records, then run MOAG's original completion and award scan
   if(!selected) {
-    if(theatre != "training" && trainee_active_theatre && trainee_theatres[*trainee_active_theatre].definition == theatre)
-      trainee_theatres[*trainee_active_theatre].state = world;
+    if(theatre != "training" && trainee_active_theatre && trainee_theatres[*trainee_active_theatre].definition == theatre) {
+      auto &saved{trainee_theatres[*trainee_active_theatre]};
+      saved.state = world;
+      if(reserve_aircraft && result.counts_for_career() && saved.reserve_aircraft != 0) --saved.reserve_aircraft;
+    }
     save_scores(theatre, result);
     return;
   }
@@ -399,6 +402,11 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
       pilot_record blank{std::span<uint8_t const>{saved}.subspan(embedded_pilot_offset, 623)};
       blank.rename(pilot.name());
       std::ranges::copy(blank.native_data(), saved.begin() + embedded_pilot_offset);
+    }
+    if(reserve_aircraft && result.counts_for_career()) {
+      resources::binary_reader const input{saved};
+      unsigned int const remaining{input.word(stored_aircraft_offset)};
+      if(remaining != 0) store_word(saved, stored_aircraft_offset, static_cast<uint16_t>(remaining - 1));
     }
     pilot_record theatre_pilot{std::span<uint8_t const>{saved}.subspan(embedded_pilot_offset, 623)};
     theatre_pilot.finish_sortie(result);

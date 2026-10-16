@@ -1,6 +1,8 @@
 #include "front_end.h"
 #include <algorithm>
 #include <cctype>
+#include <chrono>
+#include "game/report_format.h"
 #include <format>
 #include <sstream>
 #include <utility>
@@ -96,7 +98,14 @@ void front_end::launch_combat() {
     .invincible{combat_invulnerable},
     .comments{comments_enabled},
   };
-  navigate(interface_page::starting_airfield);
+  navigate(prepared_world && resources::survey_airfield(*prepared_world).objectives == 0
+    ? interface_page::no_objectives : interface_page::starting_airfield);
+}
+void front_end::finish_reports() {
+  /// MOAG returns an unavailable named pilot to the roster and resumes with the disposable trainee
+  if(!campaign.can_fly()) campaign.deactivate();
+  sync_pilot();
+  navigate(interface_page::menu);
 }
 void front_end::accept() {
   /// Reproduce MOAG's menu hierarchy while retaining one native session and save store
@@ -148,18 +157,26 @@ void front_end::accept() {
     case interface_page::pilots:
       pilot_index = selection;
       switch(pilot_action) {
-      case roster_action::activate: campaign.activate(pilot_index); sync_pilot(); navigate(interface_page::roster); break;
+      case roster_action::activate:
+        if(campaign.pilots()[pilot_index].unavailable() || campaign.pilots()[pilot_index].suspended_until() > report_time()) navigate(interface_page::unavailable_pilot);
+        else { campaign.activate(pilot_index); sync_pilot(); navigate(interface_page::roster); }
+        break;
       case roster_action::remove: navigate(interface_page::pilot_delete); break;
       case roster_action::rename: renaming = true; entered_name = campaign.pilots()[pilot_index].name(); navigate(interface_page::pilot_name); break;
       case roster_action::resurrect:
-        if(!campaign.pilots()[pilot_index].unavailable()) notice("This pilot is not dead or captured.\nYou can only resurrect dead or captured pilots.");
+        if(!campaign.pilots()[pilot_index].unavailable()) navigate(interface_page::unavailable_pilot);
         else navigate(interface_page::pilot_resurrect);
         break;
       case roster_action::records: detailed_records = false; navigate(interface_page::records); break;
       }
       break;
     case interface_page::pilot_delete: campaign.delete_pilot(pilot_index); sync_pilot(); navigate(interface_page::roster); break;
-    case interface_page::pilot_resurrect: campaign.resurrect(pilot_index); navigate(interface_page::roster); break;
+    case interface_page::pilot_resurrect:
+      campaign.resurrect(pilot_index);
+      navigate(campaign.pilots()[pilot_index].selected() ? interface_page::roster : interface_page::resurrect_activate);
+      break;
+    case interface_page::unavailable_pilot: navigate(interface_page::roster); break;
+    case interface_page::resurrect_activate: navigate(interface_page::roster); break;
     case interface_page::pilot_name:
       if(renaming) { campaign.rename_pilot(pilot_index, entered_name); navigate(interface_page::roster); }
       else {
@@ -174,7 +191,15 @@ void front_end::accept() {
     case interface_page::medals: navigate(interface_page::roster); break;
     case interface_page::boss: page = boss_return; break;
     case interface_page::current_score: page = interface_page::flight; break;
-    case interface_page::sortie_summary: sync_pilot(); navigate(interface_page::menu); break;
+    case interface_page::sortie_summary:
+      announcement_index = 0;
+      if(announcements.empty()) navigate(interface_page::post_mission_report);
+      else navigate(interface_page::career_announcement);
+      break;
+    case interface_page::post_mission_report: finish_reports(); break;
+    case interface_page::career_announcement:
+      if(++announcement_index == announcements.size()) navigate(interface_page::post_mission_report);
+      break;
     case interface_page::control_setup:
       if(selection == 0 || selection == 1) {
         controls.joystick_device = selection == 0 ? -2 : -1;
@@ -244,13 +269,21 @@ void front_end::accept() {
       }
       break;
     case interface_page::open_theatre: campaign.activate_theatre(selection); navigate(interface_page::theatres); break;
-    case interface_page::theatre_delete: campaign.delete_theatre(selection); saved_theatres = campaign.theatres(); navigate(interface_page::theatres); break;
+    case interface_page::theatre_delete:
+      if(saved_theatres[selection].objectives_remaining == 0) { unsigned int const chosen{selection}; navigate(interface_page::completed_theatre); selection = chosen; break; }
+      [[fallthrough]];
+    case interface_page::completed_theatre:
+      campaign.delete_theatre(selection); saved_theatres = campaign.theatres(); navigate(interface_page::theatres); break;
+    case interface_page::no_objectives: navigate(interface_page::starting_airfield); break;
     case interface_page::theatre_records:
       if(detailed_records) { detailed_records = false; navigate(interface_page::theatres); }
       else detailed_records = true;
       break;
-    case interface_page::mission_briefing:
     case interface_page::starting_airfield:
+      if(prepared_world && resources::survey_airfield(*prepared_world).planes == 0) { navigate(interface_page::no_aircraft); break; }
+      [[fallthrough]];
+    case interface_page::no_aircraft:
+    case interface_page::mission_briefing:
       pending_launch = std::exchange(prepared_launch, std::nullopt);
       break;
     case interface_page::airfield_information: navigate(interface_page::starting_airfield); break;
@@ -313,13 +346,14 @@ void front_end::command(interface_command const command) {
     }
     return;
   }
+  if(page == interface_page::completed_theatre) { navigate(interface_page::theatres); return; }
   bool const confirmation{page == interface_page::pilot_delete || page == interface_page::pilot_resurrect || page == interface_page::score_delete_confirmation};
   if(confirmation && command != interface_command::accept) {
     navigate(page == interface_page::score_delete_confirmation ? interface_page::score_delete : interface_page::roster);
     return;
   }
   bool const reading{page == interface_page::menu_information || page == interface_page::documentation || page == interface_page::registration || page == interface_page::airfield_information};
-  unsigned int const visible_lines{page == interface_page::airfield_information ? 9u : page == interface_page::menu_information ? 15u : 22u};
+  unsigned int const visible_lines{page == interface_page::airfield_information ? 15u : page == interface_page::menu_information ? 15u : 22u};
   auto scroll_to{[&](unsigned int const line){
     unsigned int count{static_cast<unsigned int>(document_lines.size())};
     scroll = std::min(line, count > visible_lines ? count - visible_lines : 0u);
@@ -366,11 +400,14 @@ void front_end::command(interface_command const command) {
     case interface_page::help: navigate(return_page); break;
     case interface_page::menu: if(session_running) page = interface_page::flight; else quit_requested = true; break;
     case interface_page::mission_briefing: prepared_launch.reset(); navigate(interface_page::training); break;
+    case interface_page::no_objectives:
+    case interface_page::no_aircraft:
     case interface_page::starting_airfield: prepared_launch.reset(); navigate(interface_page::theatres); break;
     case interface_page::airfield_information: navigate(interface_page::starting_airfield); break;
     case interface_page::pilots: case interface_page::pilot_name: case interface_page::pilot_delete:
     case interface_page::records: case interface_page::medals: case interface_page::pilot_resurrect: navigate(interface_page::roster); break;
     case interface_page::pilot_activate: selection = 1; accept(); break;
+    case interface_page::completed_theatre:
     case interface_page::new_theatre: case interface_page::open_theatre: case interface_page::theatre_delete:
     case interface_page::theatre_records: detailed_records = false; navigate(interface_page::theatres); break;
     case interface_page::training_counts: case interface_page::training_wickedness: navigate(interface_page::training); break;
@@ -382,6 +419,8 @@ void front_end::command(interface_command const command) {
       if(document_chapter != 0) { document_chapter = 0; document(assets.text("corncob.doc"), 0); }
       else navigate(interface_page::menu);
       break;
+    case interface_page::unavailable_pilot: case interface_page::resurrect_activate: navigate(interface_page::roster); break;
+    case interface_page::post_mission_report: case interface_page::career_announcement: case interface_page::sortie_summary: accept(); break;
     case interface_page::notice: accept(); break;
     case interface_page::title: case interface_page::story: title.reset(); navigate(interface_page::menu); break;
     case interface_page::boss: page = boss_return; break;
@@ -583,8 +622,9 @@ void front_end::show_boss() {
   boss_return = page == interface_page::briefing ? interface_page::briefing : interface_page::flight;
   page = interface_page::boss;
 }
-void front_end::show_current_score(sortie_statistics const &result) {
+void front_end::show_current_score(sortie_statistics const &result, bool const training) {
   /// F3 inspects this sortie without finalizing or saving it
+  training_report = training;
   latest_result = result;
   session_running = true;
   page = interface_page::current_score;
@@ -616,9 +656,33 @@ void front_end::character(uint32_t const codepoint) {
     if(codepoint >= 32 && codepoint < 127 && entered_name.size() < 20) entered_name += static_cast<char>(codepoint);
     return;
   }
-  if(codepoint == 32) return;
+  if(codepoint == 32 && (page == interface_page::high_scores || page == interface_page::notice || page == interface_page::help || page == interface_page::story || page == interface_page::title)) return;
   if(page == interface_page::training_value || (page == interface_page::documentation && document_chapter == 0)) {
     if(codepoint >= '0' && codepoint <= '9' && numeric_input.size() < 2) numeric_input += static_cast<char>(codepoint);
+    return;
+  }
+  if(page == interface_page::unavailable_pilot || page == interface_page::resurrect_activate) {
+    bool const resurrecting{page == interface_page::unavailable_pilot};
+    if((codepoint == 'y' || codepoint == 'Y') && (!resurrecting || campaign.pilots()[pilot_index].unavailable())) {
+      if(resurrecting) campaign.resurrect(pilot_index);
+      campaign.activate(pilot_index);
+      sync_pilot();
+    }
+    navigate(interface_page::roster);
+    return;
+  }
+  if(page == interface_page::completed_theatre) {
+    if(codepoint == 'y' || codepoint == 'Y') accept();
+    else navigate(interface_page::theatres);
+    return;
+  }
+  if(page == interface_page::post_mission_report || page == interface_page::no_objectives || page == interface_page::career_announcement) { accept(); return; }
+  if(page == interface_page::no_aircraft) {
+    auto const active{campaign.active_theatre()};
+    if((codepoint == 'p' || codepoint == 'P') && active && saved_theatres[*active].stored_aircraft != 0) {
+      prepared_launch->reserve_aircraft = true;
+      accept();
+    } else navigate(interface_page::starting_airfield);
     return;
   }
   if(page == interface_page::starting_airfield && (codepoint == 'i' || codepoint == 'I')) {
@@ -632,7 +696,7 @@ void front_end::character(uint32_t const codepoint) {
     if(codepoint == 'y' || codepoint == 'Y' || codepoint == 'n' || codepoint == 'N') { selection = codepoint == 'n' || codepoint == 'N' ? 1 : 0; accept(); }
     return;
   }
-  if(page == interface_page::high_scores || page == interface_page::notice) { accept(); return; }
+  if(page == interface_page::high_scores || page == interface_page::notice || page == interface_page::current_score || page == interface_page::sortie_summary) { accept(); return; }
   std::string_view shortcuts;
   switch(page) {
   case interface_page::menu: if(!session_running) shortcuts = "dcthrjmvpix"; break;
@@ -658,9 +722,44 @@ bool front_end::take_finish() {
   /// Consume one confirmed end request; the application records and presents the actual result
   return std::exchange(pending_finish, false);
 }
-void front_end::finish_sortie(sortie_statistics const &result) {
+void front_end::finish_sortie(sortie_statistics const &result, pilot_record const *const previous, pilot_record const *const previous_theatre) {
   /// Match native result priority before showing the sortie statistics in the same executable
   latest_result = result;
+  mission_prior = previous_theatre ? *previous_theatre : previous ? *previous : pilot_record{};
+  returned_pilot = campaign.active_pilot() ? std::optional{*campaign.active_pilot()} : std::nullopt;
+  mission_report_title = "MISSION REPORT";
+  if(previous_theatre) {
+    auto const active{campaign.active_theatre()};
+    auto const worlds{campaign.theatres()};
+    if(active && *active < worlds.size()) mission_report_title += ":  " + worlds[*active].title + " Theater of Operations";
+  }
+  announcements.clear();
+  if(previous) if(auto const *pilot{campaign.active_pilot()}) {
+    bool const posthumous{result.has(sortie_status::killed)};
+    std::string const salutation{pilot->resurrections() != 0 ? std::format(" ({} res.),", pilot->resurrections()) : posthumous ? "," : "!"};
+    auto const greeting{std::string{posthumous ? "" : "Congratulations "} + std::string{rank_abbreviation(pilot->rank())} + " " + pilot->name() + salutation};
+    unsigned int const promotions{static_cast<unsigned int>(std::to_underlying(pilot->rank()) - std::to_underlying(previous->rank()))};
+    std::array<std::string_view, 4> constexpr praise{"", "dazzling ", "fantastic ", "really-beyond-belief "};
+    if(promotions != 0) announcements.push_back({
+      .lines{(posthumous ? "Former " : "Congratulations former ") + std::string{rank_abbreviation(previous->rank())} + " " + pilot->name() + salutation,
+        std::string{posthumous ? "For a " : "For your "} + std::string{praise[std::min(promotions - 1, 3u)]} + "display of combat",
+        posthumous ? "prowess, is posthumously promoted to the rank of" : "prowess, you have been promoted to the rank of"},
+      .promotion{pilot->rank()},
+    });
+    std::array<medal, 10> constexpr presentation_order{medal::service_award, medal::purple_heart, medal::bronze_star, medal::silver_star, medal::gold_star,
+      medal::stellar_cluster, medal::distinguished_service_cross, medal::theatre_combat, medal::distinguished_flying_cross, medal::combat_master};
+    std::array<std::string_view, 10> constexpr citations{
+      "surviving extreme injury in combat", "inflicting heavy damage to the enemy", "inflicting severe damage to the enemy",
+      "inflicting extreme damage to the enemy", "extraordinary accomplishment of objectives", "surviving numerous combat sorties",
+      "inflicting catastrophic damage to the enemy", "Completely obliterating the Alien threat",
+      "extraordinary services without losing a plane", "completing all mission objectives within a T-of-O",
+    };
+    for(auto const kind : presentation_order) if(pilot->awards(kind) != previous->awards(kind)) announcements.push_back({
+      .lines{greeting, "For " + std::string{citations[std::to_underlying(kind) - std::to_underlying(medal::purple_heart)]} + (posthumous ? "," : ""),
+        std::string{posthumous ? "is posthumously " : "you have been "} + (kind == medal::combat_master ? "designated a" : "awarded the")},
+      .decoration{kind},
+    });
+  }
   session_running = false;
   unsigned int panel{9};
   if(result.has(sortie_status::earth_saved)) panel = 14;

@@ -1,0 +1,17 @@
+{
+  "reference_sha256": "6d8c922d59a873073796b367a2a40993fcaa5e763ed2ca907a945981f0c5bc32",
+  "fixture_sha256": "f82e4f2726b807816db068d27035f753723e8d09ec28c29f54c390975919c7d1",
+  "descriptions": 1952,
+  "grouping_cases": 96,
+  "routines": [
+    "0x1725f object description/range/bearing",
+    "0x16f31 grouping",
+    "0x16e32 comparator",
+    "0x7ef2 Borland qsort"
+  ],
+  "stubs": [
+    "fprintf output sink",
+    "malloc/free backing memory"
+  ],
+  "complete_survey_sha256": "f659f6cde27b1e70f92c314ce12d7dddfe2e28beaafbb6747fd36d05906b2c5e"
+}

@@ -1,0 +1,50 @@
+{
+  "moag_sha256": "6d8c922d59a873073796b367a2a40993fcaa5e763ed2ca907a945981f0c5bc32",
+  "screens": [
+    {
+      "name": "preliminary",
+      "rgb_sha256": "aae700e53c014d3d17cfb87348ab50acb8154fc64ccf1d133d95b0e6d79a6eba"
+    },
+    {
+      "name": "starting",
+      "rgb_sha256": "6f0c800e3fa669c54b8e7912abc54682c0cec33095af0be37bb1a1edb569b91c"
+    },
+    {
+      "name": "survey",
+      "rgb_sha256": "a75ac881692dfba707baeab0c6883ce152a783927f48f8506a6cba36cb5e93e6"
+    },
+    {
+      "name": "reserve",
+      "rgb_sha256": "7e47cbffe3a56cc8da3d278bf8c126b0358b301838ec08853b0828f8810027ff"
+    },
+    {
+      "name": "populated-scores",
+      "rgb_sha256": "eab9ef5bb259b79574878b2a15b7212e11bca804511e2e5c42ead46aa63cc9f9"
+    },
+    {
+      "name": "populated-careers",
+      "rgb_sha256": "1c02069215afb2d205faed83f8cc69399fa032c1eb1277a6ce82353b2d4da299"
+    },
+    {
+      "name": "populated-fastest",
+      "rgb_sha256": "795fe50caf503e49b122a804a5b32ac0a0c64b881b4d9a11634e7c04d58f1e3b"
+    },
+    {
+      "name": "mission-report",
+      "rgb_sha256": "23cb0360956a90f7636f7760cdef17e0f1c53b5d2cbef8c1ee7c6be8139e3edd"
+    },
+    {
+      "name": "decoration",
+      "rgb_sha256": "42e1ec0d2e16d74ea8978522c54de8b423304d1df6bed27ed2a3cc55c344108b"
+    },
+    {
+      "name": "post-mission",
+      "rgb_sha256": "e25dc93e0f75a2705a611f0a386445dd0d5749418e5b3b1d5175fc905965b599"
+    },
+    {
+      "name": "promotion",
+      "rgb_sha256": "9b9670d2cca10a368cff1b95918f6e7b7c3cde9f2151bf8c78b01529e76c7c9d"
+    }
+  ],
+  "scope": "Unchanged MOAG/ISCORE rendering with controlled original-format input files; no original flight was simulated for the synthetic award case."
+}

@@ -8,3 +8,6 @@
 assets/*.twr binary
 
 assets/music/*.ogg binary
+
+# Native TOWERS.INF reference retains its DOS line endings
+tests/reference/*.inf binary

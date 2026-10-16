@@ -11,6 +11,13 @@
 
 namespace corncob::game {
 
+enum class pilot_condition {
+  ready,
+  killed,
+  captured,
+  stockade,
+};
+
 enum class pilot_rank : uint8_t {
   second_lieutenant,
   first_lieutenant,
@@ -128,6 +135,7 @@ public:
   bool selected() const;
   void select(bool value);
   bool unavailable() const;
+  pilot_condition condition(int32_t now) const;
   std::span<uint8_t const> theatres() const;
   void add_theatre(uint8_t number);
   void remove_theatre(uint8_t number);
@@ -154,7 +162,7 @@ public:
   sortie_statistics best_sortie() const;
   sortie_statistics individual_records() const;
   std::span<uint8_t const> native_data() const noexcept;
-  void finish_sortie(sortie_statistics const &result);
+  void finish_sortie(sortie_statistics const &result, score_context context = score_context::campaign);
   void award(medal kind);
   void review_career(std::span<theatre_progress> theatres, uint16_t theatre_aircraft_lost, int32_t now);
 };
@@ -179,5 +187,6 @@ public:
 };
 
 std::string_view rank_name(pilot_rank rank) noexcept;
+std::string_view rank_abbreviation(pilot_rank rank);
 
 } // namespace corncob::game

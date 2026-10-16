@@ -24,7 +24,7 @@ int16_t timed_word(int16_t const value, flight::time_step const step) noexcept {
 
 } // anonymous namespace
 
-session::session(resources::geometry_bank const &geometry, world::theatre theatre) :
+session::session(resources::geometry_bank const &geometry, world::theatre theatre, bool const reserve_aircraft) :
   geometry{geometry},
   theatre{std::move(theatre)},
   weapons{geometry, this->theatre},
@@ -52,12 +52,15 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
     object.motion = definition.motion;
   }
   notice = "On foot - keypad 5/0 walks; arrows turn; walk into an aircraft to board";
-  if(this->theatre.training) {
+  if(this->theatre.training || reserve_aircraft) {
     parking.new_arrival = false;
     if(auto const index{weapons.spawn(world::object_type::aircraft, this->theatre.start)}) {
+      if(reserve_aircraft) this->theatre.objects[*index].flags |= 0x1000;
       enter_aircraft(*index);
-      aircraft.position.y -= 8000;
-      aircraft.attitude = {};
+      if(this->theatre.training) {
+        aircraft.position.y -= 8000;
+        aircraft.attitude = {};
+      }
       aircraft.world_to_body = maths::make_rotation(aircraft.attitude);
       aircraft.body_to_world = maths::make_inverse_rotation(aircraft.attitude);
       retain_aircraft();

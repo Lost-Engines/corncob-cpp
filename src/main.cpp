@@ -123,6 +123,7 @@ auto main(int const argc, char const *const argv[])->int {
   if(seconds < 0.0 || !std::isfinite(seconds)) return startup_failure("--seconds must be a finite non-negative number");
 #endif // NDEBUG
   auto theatre_name{arguments["theatre"].as<std::string>()};
+  bool reserve_aircraft{false};
   std::unique_ptr<corncob::game::campaign_store> campaign;
   try {
     campaign = std::make_unique<corncob::game::campaign_store>(arguments["save-dir"].as<std::string>());
@@ -328,7 +329,7 @@ auto main(int const argc, char const *const argv[])->int {
       break;
     case GLFW_KEY_F1: front.show_boss(); break;
     case GLFW_KEY_F2: front.show_intelligence(game->world()); break;
-    case GLFW_KEY_F3: front.show_current_score(game->results()); break;
+    case GLFW_KEY_F3: front.show_current_score(game->results(), game->world().training); break;
     case GLFW_KEY_F4: front.show_flight_help(); break;
     case GLFW_KEY_S: state.sound_enabled = !state.sound_enabled; break;
     case GLFW_KEY_A: game->press(corncob::game::action::toggle_autopilot); break;
@@ -397,6 +398,7 @@ auto main(int const argc, char const *const argv[])->int {
     if(auto const launch{front.take_launch()}) {
       sound.reset();
       theatre_name = launch->theatre;
+      reserve_aircraft = launch->reserve_aircraft;
       auto world{launch->training ? corncob::world::generate_training(geometry, *launch->training) : load_theatre(theatre_name)};
       if(auto saved{launch->training ? std::nullopt : campaign->load_world(theatre_name)}) {
         saved->sky = world.sky;
@@ -405,7 +407,7 @@ auto main(int const argc, char const *const argv[])->int {
         saved->missions = std::move(world.missions);
         world = std::move(*saved);
       }
-      game = std::make_unique<corncob::game::session>(geometry, std::move(world));
+      game = std::make_unique<corncob::game::session>(geometry, std::move(world), reserve_aircraft);
       if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
       renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit);
       renderer->initialise(game->camera().position, game->random_stream());
@@ -548,8 +550,12 @@ auto main(int const argc, char const *const argv[])->int {
     update_audio();
     if(!inspect && (front.take_finish() || (front.in_flight() && game->finished()))) {
       auto const result{game->results(front.take_abort())};
-      campaign->finish_sortie(theatre_name, game->snapshot(), result);
-      front.finish_sortie(result);
+      auto const previous{campaign->active_pilot() ? std::optional{*campaign->active_pilot()} : std::nullopt};
+      auto const active_theatre{campaign->active_theatre()};
+      auto const theatres{campaign->theatres()};
+      auto const previous_theatre{theatre_name != "training" && active_theatre && *active_theatre < theatres.size() ? std::optional{theatres[*active_theatre].pilot} : std::nullopt};
+      campaign->finish_sortie(theatre_name, game->snapshot(), result, reserve_aircraft);
+      front.finish_sortie(result, previous ? &*previous : nullptr, previous_theatre ? &*previous_theatre : nullptr);
       if(result.has(corncob::game::sortie_status::earth_saved)) front.begin_ending(renderer->indexed_frame(), renderer->colours());
     }
     if(front.in_flight() && !inspect && game->take_tower()) front.show_intelligence(game->world());

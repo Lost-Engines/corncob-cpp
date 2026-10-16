@@ -56,9 +56,9 @@ sortie_statistics sortie_statistics::decode(std::span<uint8_t const> const sourc
   for(auto &value : result.orb_kills) value = word();
   return result;
 }
-int32_t calculate_score(sortie_statistics const &statistics, score_context const context) {
+score_factors calculate_score_factors(sortie_statistics const &statistics, score_context const context) {
   /// ISCORE retains signed word intermediates and wrapping dword multiplication before its final signed division
-  if(statistics.has(sortie_status::aborted)) return 0;
+  if(statistics.has(sortie_status::aborted)) return {};
   bool const campaign{context == score_context::campaign};
   bool const suicide{campaign && statistics.has(sortie_status::suicide_objective)};
   // MOAG adds successful suicide-objective credit and contains an always-false TEST ...,0 in its ejection test
@@ -76,7 +76,17 @@ int32_t calculate_score(sortie_statistics const &statistics, score_context const
   int32_t score{maths::dword(static_cast<int64_t>(maths::dword(static_cast<int64_t>(primary) * danger)) * 5) / 10};
   for(unsigned int q{0}; q != 8; ++q) score = maths::dword(static_cast<int64_t>(score)
     + maths::word((q + 1) * (statistics.kla_kills[q] + statistics.vehicle_kills[q])));
-  score = maths::dword(static_cast<int64_t>(score) * present_factor * sortie_factor);
+  return {
+    .present{present_factor},
+    .mission{sortie_factor},
+    .base{score},
+  };
+}
+int32_t calculate_score(sortie_statistics const &statistics, score_context const context) {
+  /// Share ISCORE's displayed PMSF, MSF and MOBF with its unchanged wrapping score calculation
+  if(statistics.has(sortie_status::aborted)) return 0;
+  auto const factors{calculate_score_factors(statistics, context)};
+  int32_t const score{maths::dword(static_cast<int64_t>(factors.base) * factors.present * factors.mission)};
   int16_t const losses{maths::word(statistics.aircraft_lost + 1)};
   if(losses == 0) throw std::invalid_argument{"native sortie score has an invalid aircraft-loss divisor"};
   return maths::dword(static_cast<int64_t>(score) / losses);

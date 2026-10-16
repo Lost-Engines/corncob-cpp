@@ -65,7 +65,7 @@ public:
   void inflight_comments(bool value);
   void clear_scores(unsigned int list);
   std::optional<world::theatre> load_world(std::string_view theatre) const;
-  void finish_sortie(std::string_view theatre, world::theatre const &world, sortie_statistics const &result);
+  void finish_sortie(std::string_view theatre, world::theatre const &world, sortie_statistics const &result, bool reserve_aircraft = false);
   std::filesystem::path const &save_directory() const noexcept;
 };
 

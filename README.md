@@ -54,6 +54,8 @@ button 2 fires missiles, and Space also fires missiles in joystick mode. Arrow
 keys override the stick unless used for head views. `--joystick none` keeps
 keyboard controls; `--list-joysticks` lists devices for `--joystick N`.
 The original menus support arrow keys, Enter and the highlighted letter shortcuts.
+At an airfield with no aircraft, P draws a lower-powered reserve plane from storage;
+Enter continues on foot. The detailed airfield survey lists nearby groups and objectives.
 Keyboard/joystick setup selects the flight controls; Combat Missions selects the
 original beginner or advanced flight model. Beginner gently assists the pitch toward level
 flight and is the original launcher default. Control choice and each named pilot’s

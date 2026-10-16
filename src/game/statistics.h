@@ -53,6 +53,13 @@ enum class score_context {
   campaign,
 };
 
+struct score_factors {
+  int present;
+  int mission;
+  int32_t base;
+};
+
+score_factors calculate_score_factors(sortie_statistics const &statistics, score_context context = score_context::flight_report);
 int32_t calculate_score(sortie_statistics const &statistics, score_context context = score_context::flight_report);
 
 } // namespace corncob::game

@@ -92,6 +92,8 @@ add_library(corncob_core STATIC
   src/game/front_end_menus.cpp
   src/resources/airfield_survey.cpp
   src/resources/airfield_survey.h
+  src/resources/survey_types.h
+  src/game/report_format.h
   src/game/front_end.h
   src/game/campaign.cpp
   src/game/campaign.h
@@ -253,6 +255,8 @@ if(BUILD_TESTING)
   corncob_check(actor_checks native_actors "${PROJECT_SOURCE_DIR}/tests/reference/actors.bin")
   corncob_check(scenario_checks scripted_scenarios)
   corncob_check(interface_checks native_interface "${PROJECT_BINARY_DIR}/interface-checks")
+  corncob_check(campaign_interface_checks campaign_interface "${PROJECT_SOURCE_DIR}/tests/reference/campaign_menus.txt" "${PROJECT_BINARY_DIR}/campaign-interface-checks")
+  corncob_check(airfield_checks native_airfield_survey "${PROJECT_SOURCE_DIR}/tests/reference/airfield.bin")
   corncob_check(tower_checks native_tower_briefings "${PROJECT_BINARY_DIR}/tower-checks")
   corncob_check(menu_checks native_menu_pixels "${PROJECT_SOURCE_DIR}/tests/reference/menus.txt" "${PROJECT_BINARY_DIR}/menu-checks")
   corncob_check(score_checks native_score "${PROJECT_SOURCE_DIR}/tests/reference/score.bin")

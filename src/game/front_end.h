@@ -49,6 +49,13 @@ enum class interface_page {
   control_setup,
   mission_briefing,
   starting_airfield,
+  no_aircraft,
+  no_objectives,
+  completed_theatre,
+  unavailable_pilot,
+  resurrect_activate,
+  career_announcement,
+  post_mission_report,
   airfield_information,
   roster,
   pilots,
@@ -81,6 +88,7 @@ struct launch_request {
   std::optional<world::training_setup> training{};
   bool invincible{false};
   bool comments{true};
+  bool reserve_aircraft{false};
 };
 
 struct control_setup {
@@ -108,12 +116,23 @@ private:
   std::string feedback;
   bool renaming{false};
   bool pending_finish{false};
+  bool training_report{false};
+  pilot_record mission_prior;
+  std::optional<pilot_record> returned_pilot;
+  std::string mission_report_title;
   world::training_setup training;
   control_setup controls;
   tower_briefing tower;
   interface_page boss_return{interface_page::flight};
   std::optional<world::mission_start> pending_relocation;
   std::optional<sortie_statistics> latest_result;
+  struct career_announcement {
+    std::vector<std::string> lines;
+    std::optional<medal> decoration{};
+    std::optional<pilot_rank> promotion{};
+  };
+  std::vector<career_announcement> announcements;
+  unsigned int announcement_index{0};
   std::vector<resources::presentation_panel> stories;
   std::vector<resources::presentation_panel> outcomes;
   std::vector<resources::cockpit_mask> help_screens;
@@ -155,6 +174,7 @@ private:
   void document(std::string_view text, unsigned int section);
   void notice(std::string message);
   void launch_combat();
+  void finish_reports();
   void render_menus(render::framebuffer &target) const;
   unsigned int choice_count() const;
   void draw_menu(graphics::interface_canvas &canvas, std::string_view title, std::span<std::string_view const> choices) const;
@@ -173,12 +193,12 @@ public:
   void abort_sortie();
   void leave_sortie();
   void show_radio(resources::radio_notice notice, render::framebuffer const &backdrop, bool enter_map = false);
-  void finish_sortie(sortie_statistics const &result);
+  void finish_sortie(sortie_statistics const &result, pilot_record const *previous = nullptr, pilot_record const *previous_theatre = nullptr);
   void command(interface_command command);
   void begin_flight();
   void show_menu();
   void show_intelligence(world::theatre const &world, unsigned int airfield = tower_briefing::central_airfield);
-  void show_current_score(sortie_statistics const &result);
+  void show_current_score(sortie_statistics const &result, bool training = false);
   void show_boss();
   std::optional<world::mission_start> take_relocation();
   void show_flight_help();

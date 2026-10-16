@@ -163,6 +163,12 @@ void pilot_record::beginner_flight(bool const value) {
   /// Preserve comments and the other original setup bits when changing only the flight model
   data[0x23b] = static_cast<uint8_t>(value ? data[0x23b] & ~0x20u : data[0x23b] | 0x20u);
 }
+pilot_condition pilot_record::condition(int32_t const now) const {
+  /// Captivity and death take precedence over any unexpired court-martial sentence
+  if((word(flags_offset) & 8u) != 0) return pilot_condition::captured;
+  if((word(flags_offset) & 2u) != 0) return pilot_condition::killed;
+  return suspended_until() > now ? pilot_condition::stockade : pilot_condition::ready;
+}
 bool pilot_record::unavailable() const {
   /// Original campaign processing distinguishes killed and captured pilots from active ones
   return (word(flags_offset) & 0xau) != 0;
@@ -228,12 +234,12 @@ void pilot_record::award(medal const kind) {
   /// Original medal counts wrap as bytes
   ++data.at(std::to_underlying(kind));
 }
-void pilot_record::finish_sortie(sortie_statistics const &result) {
+void pilot_record::finish_sortie(sortie_statistics const &result, score_context const context) {
   /// Accumulate one counted sortie; the subsequent theatre scan owns promotions and awards
-  if(!result.counts_for_career()) return;
+  if(context == score_context::campaign && !result.counts_for_career()) return;
   auto const raw{result.encode()};
   std::ranges::copy(raw, data.begin() + latest_statistics_offset);
-  int32_t const score{calculate_score(result, score_context::campaign)};
+  int32_t const score{calculate_score(result, context)};
   dword(latest_score_offset, score);
   dword(career_score_offset, maths::dword(static_cast<int64_t>(career_score()) + score));
   word(sorties_offset, static_cast<uint16_t>(sorties() + 1));
@@ -369,6 +375,10 @@ std::vector<uint8_t> pilot_roster::encode() const {
   mask(plain, seed);
   result.insert(result.end(), plain.begin(), plain.end());
   return result;
+}
+std::string_view rank_abbreviation(pilot_rank const rank) {
+  std::array<std::string_view, 7> constexpr names{"2nd Lt.", "1st Lt.", "Capt.", "Major", "Lt. Col.", "Colonel", "General"};
+  return names.at(std::to_underlying(rank));
 }
 std::string_view rank_name(pilot_rank const rank) noexcept {
   /// Use the original rank labels for roster and record displays
