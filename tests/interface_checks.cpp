@@ -30,7 +30,10 @@ int main(int const argc, char const *const argv[]) {
   auto const stories{assets.story()}, outcomes{assets.outcomes()};
   if(stories.size() != 2 || outcomes.size() != 15) throw std::runtime_error{"original presentation count changed"};
   corncob::render::framebuffer frame;
-  game::front_end front{assets};
+  std::filesystem::path const scratch{std::filesystem::temp_directory_path() / "corncob-interface-checks"};
+  std::filesystem::remove_all(scratch);
+  game::campaign_store career{scratch};
+  game::front_end front{assets, career};
   front.render(frame);
   if(frame.width != 320 || frame.height != 200) throw std::runtime_error{"title lost its original VGA resolution"};
   if(argc == 2) std::filesystem::create_directories(argv[1]);
@@ -50,6 +53,13 @@ int main(int const argc, char const *const argv[]) {
   if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / "menu.ppm");
   front.command(game::interface_command::accept);
   front.command(game::interface_command::accept);
+  for(unsigned int c : std::string{"Test Pilot"}) front.character(c);
+  front.command(game::interface_command::accept);
+  if(!career.active_pilot() || career.active_pilot()->name() != "Test Pilot") throw std::runtime_error{"roster name entry failed"};
+  front.command(game::interface_command::cancel);
+  front.command(game::interface_command::down);
+  front.command(game::interface_command::accept);
+  front.command(game::interface_command::accept);
   front.render(frame);
   if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / "briefing.ppm");
   front.command(game::interface_command::accept);
@@ -66,6 +76,11 @@ int main(int const argc, char const *const argv[]) {
   front.ask_to_end_sortie();
   front.command(game::interface_command::cancel);
   if(!front.in_flight()) throw std::runtime_error{"quit cancellation lost the flight"};
+  front.ask_to_end_sortie();
+  front.command(game::interface_command::up);
+  front.command(game::interface_command::accept);
+  if(!front.take_finish() || front.take_finish()) throw std::runtime_error{"end-sortie request lost or repeated"};
+  std::filesystem::remove_all(scratch);
   std::cout << "Two story panels, fifteen outcomes, ten help pages and native menu navigation exercised" << std::endl;
   return EXIT_SUCCESS;
 }

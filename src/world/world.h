@@ -97,7 +97,7 @@ struct world_tile {
   unsigned int first_object{0};
   unsigned int object_count{0};
   uint8_t storage_flags{0};
-  std::array<uint8_t, 5> packed_colours;
+  std::array<uint8_t, 5> packed_colours{};
 };
 
 struct sky_parameters {
@@ -119,7 +119,7 @@ struct theatre {
   static unsigned int constexpr rows{8};
   static int32_t constexpr tile_size{32 * 65'536};
   static int32_t constexpr origin{-128 * 65'536};
-  std::array<world_tile, columns * rows> tiles;
+  std::array<world_tile, columns * rows> tiles{};
   std::vector<placed_object> objects;
   maths::world_position start{0, 0, 0};
   sky_parameters sky{};

@@ -56,6 +56,12 @@ add_library(corncob_core STATIC
   src/game/combat.h
   src/game/front_end.cpp
   src/game/front_end.h
+  src/game/campaign.cpp
+  src/game/campaign.h
+  src/platform/storage.cpp
+  src/platform/storage.h
+  src/game/pilots.cpp
+  src/game/pilots.h
   src/game/statistics.cpp
   src/game/statistics.h
   src/game/session.cpp
@@ -224,4 +230,19 @@ if(BUILD_TESTING)
   target_include_directories(score_checks PRIVATE "${PROJECT_SOURCE_DIR}")
   target_link_libraries(score_checks PRIVATE corncob_core)
   add_test(NAME native_score COMMAND score_checks "${PROJECT_SOURCE_DIR}/tests/reference/score.bin")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(pilot_checks tests/pilot_checks.cpp)
+  configure_first_party(pilot_checks)
+  target_include_directories(pilot_checks PRIVATE "${PROJECT_SOURCE_DIR}")
+  target_link_libraries(pilot_checks PRIVATE corncob_core)
+  add_test(NAME native_pilots COMMAND pilot_checks "${PROJECT_SOURCE_DIR}/tests/reference/pilots.bin")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(campaign_checks tests/campaign_checks.cpp)
+  configure_first_party(campaign_checks)
+  target_link_libraries(campaign_checks PRIVATE corncob_core)
+  add_test(NAME persistent_campaign COMMAND campaign_checks "${PROJECT_BINARY_DIR}/campaign-checks")
 endif()

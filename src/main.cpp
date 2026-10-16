@@ -13,6 +13,7 @@
 #include <GLFW/glfw3.h>
 #include "graphics/scene.h"
 #include "platform/framebuffer_presenter.h"
+#include "platform/storage.h"
 #include "render/framebuffer.h"
 #include "resources/assets.h"
 #include "resources/cockpit_mask.h"
@@ -63,6 +64,7 @@ auto main(int const argc, char const *const argv[])->int {
     ("version", "show the native reconstruction version")
     ("skip-intro", "open the main menu without the title and story")
     ("theatre", boost::program_options::value<std::string>()->default_value("white_sands"), "original theatre: white_sands, morning, dusk or wasteland")
+    ("save-dir", boost::program_options::value<std::string>()->default_value(corncob::platform::default_save_directory().string()), "directory for pilot careers and persistent theatres")
     ("scale", boost::program_options::value<int>(), "initial window scale: positive multiple of 640 x 480 (default: fit available screen)");
 #ifndef NDEBUG
   options.add_options()
@@ -96,11 +98,21 @@ auto main(int const argc, char const *const argv[])->int {
   double const seconds{arguments["seconds"].as<double>()};
   if(seconds < 0.0 || !std::isfinite(seconds)) return startup_failure("--seconds must be a finite non-negative number");
 #endif // NDEBUG
-  auto const theatre_name{arguments["theatre"].as<std::string>()};
+  auto theatre_name{arguments["theatre"].as<std::string>()};
+  std::unique_ptr<corncob::game::campaign_store> campaign;
+  try {
+    campaign = std::make_unique<corncob::game::campaign_store>(arguments["save-dir"].as<std::string>());
+  } catch(std::exception const &error) { return startup_failure(error.what()); }
   corncob::world::theatre theatre;
   try {
     theatre = load_theatre(theatre_name);
-  } catch(std::invalid_argument const &error) {
+    if(auto saved{campaign->load_world(theatre_name)}) {
+      saved->sky = theatre.sky;
+      saved->environment = theatre.environment;
+      saved->briefing = std::move(theatre.briefing);
+      theatre = std::move(*saved);
+    }
+  } catch(std::exception const &error) {
     return startup_failure(error.what());
   }
   corncob::render::framebuffer frame;
@@ -109,7 +121,8 @@ auto main(int const argc, char const *const argv[])->int {
   auto renderer{std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit)};
   auto game{std::make_unique<corncob::game::session>(geometry, std::move(theatre))};
   corncob::resources::collection interface_assets{corncob::resources::front_end_asset()};
-  corncob::game::front_end front{interface_assets, arguments.contains("skip-intro"), !arguments["theatre"].defaulted()};
+  corncob::game::front_end front{interface_assets, *campaign, arguments.contains("skip-intro"), !arguments["theatre"].defaulted()};
+  if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
   auto observer{game->camera()};
 #ifndef NDEBUG
   bool const no_cockpit{arguments.contains("no-cockpit")};
@@ -198,7 +211,9 @@ auto main(int const argc, char const *const argv[])->int {
       case GLFW_KEY_RIGHT: front.command(next); break;
       case GLFW_KEY_PAGE_UP: front.command(page_up); break;
       case GLFW_KEY_PAGE_DOWN: front.command(page_down); break;
-      case GLFW_KEY_ENTER: case GLFW_KEY_KP_ENTER: case GLFW_KEY_SPACE: front.command(accept); break;
+      case GLFW_KEY_ENTER: case GLFW_KEY_KP_ENTER: front.command(accept); break;
+      case GLFW_KEY_SPACE: if(!front.editing_name()) front.command(accept); break;
+      case GLFW_KEY_BACKSPACE: front.command(backspace); break;
       case GLFW_KEY_ESCAPE: front.command(cancel); break;
       case GLFW_KEY_F4: front.command(help); break;
       default: break;
@@ -224,6 +239,10 @@ auto main(int const argc, char const *const argv[])->int {
     default: break;
     }
   });
+  glfwSetCharCallback(window.get(), [](GLFWwindow *const window, unsigned int const codepoint){
+    auto &state{*static_cast<window_state*>(glfwGetWindowUserPointer(window))};
+    state.front.character(codepoint);
+  });
   corncob::platform::framebuffer_presenter presenter{*window};
   unsigned int frame_number{0};
   double previous_time{glfwGetTime()}, accumulated_time{0.0};
@@ -232,7 +251,16 @@ auto main(int const argc, char const *const argv[])->int {
     glfwPollEvents();
     if(front.quitting()) break;
     if(auto const launch{front.take_launch()}) {
-      game = std::make_unique<corncob::game::session>(geometry, load_theatre(launch->theatre));
+      theatre_name = launch->theatre;
+      auto world{load_theatre(theatre_name)};
+      if(auto saved{campaign->load_world(theatre_name)}) {
+        saved->sky = world.sky;
+        saved->environment = world.environment;
+        saved->briefing = std::move(world.briefing);
+        world = std::move(*saved);
+      }
+      game = std::make_unique<corncob::game::session>(geometry, std::move(world));
+      if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
       renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit);
       front.begin_flight();
       accumulated_time = 0.0;
@@ -310,6 +338,11 @@ auto main(int const argc, char const *const argv[])->int {
         glfwSetWindowTitle(window.get(), title.c_str());
       }
     }
+    if(!inspect && (front.take_finish() || (front.in_flight() && game->finished()))) {
+      auto const result{game->results()};
+      campaign->finish_sortie(theatre_name, game->snapshot(), result);
+      front.finish_sortie(result);
+    }
     if(!front.in_flight() && !inspect) {
       accumulated_time = 0.0;
       front.render(frame);
@@ -317,8 +350,6 @@ auto main(int const argc, char const *const argv[])->int {
       ++frame_number;
       continue;
     }
-    if(front.in_flight() && game->player() == corncob::game::player_mode::dead) front.show_outcome(4);
-    else if(front.in_flight() && game->player() == corncob::game::player_mode::captured) front.show_outcome(8);
     corncob::graphics::instrument_telemetry const telemetry{
       .aircraft{game->craft()},
       .controls{input.stick},

@@ -3,10 +3,11 @@
 A native C++26 reconstruction of Corncob 3D, beginning with the normal 3.42 game.
 One executable will join the original front end, flight, scoring and ending.
 
-**Work in progress:** the native software renderer displays the four original
-base-game theatres, cockpit and rear view. This is a scene reconstruction, not
-a playable game yet: aircraft dynamics, combat, campaigns and sound are still
-being implemented. Music is deferred.
+**Work in progress:** the four original theatres now support walking, flight,
+ejection and remote control, player weapons, active enemies, persistent named
+pilots and sortie reports. The original story, outcome artwork and flight help
+are integrated into the same executable. Several original systems are still
+being completed and checked against the DOS game. Music is deferred.
 
 ## Build and run
 
@@ -38,7 +39,9 @@ operate the rudder, F toggles flaps, I uses rocket boost, and . brakes. E leaves
 the aircraft; Space opens a parachute while falling. Caps Lock enables remote
 flight after ejection. L toggles the cockpit, G ground detail, and P pauses.
 The experimental aircraft at White Sands requires campaign clearance before
-its throttle operates; campaign progression is still being connected.
+its throttle operates. Create or activate a pilot through the duty roster to save
+your career and changes to each theatre. The default trainee does not save progress.
+`--save-dir` overrides the platform user-data directory.
 
 Choose a world in the menu, or start directly with `--theatre white_sands`, `morning`, `dusk` or `wasteland`.
 Debug and RelWithDebInfo also provide `--free-camera` for scenery inspection:

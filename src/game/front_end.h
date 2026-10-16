@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include "game/session.h"
+#include "game/campaign.h"
 #include "graphics/interface.h"
 #include "resources/cockpit_mask.h"
 
@@ -18,12 +19,18 @@ enum class interface_command {
   help,
   page_up,
   page_down,
+  backspace,
 };
 enum class interface_page {
   title,
   story,
   menu,
   theatres,
+  roster,
+  pilots,
+  pilot_name,
+  records,
+  sortie_summary,
   briefing,
   help,
   quit_confirmation,
@@ -37,6 +44,15 @@ struct launch_request {
 class front_end {
 private:
   resources::collection const &assets;
+  campaign_store &campaign;
+  enum class roster_action { activate, records, rename, resurrect };
+  roster_action pilot_action{roster_action::activate};
+  unsigned int pilot_index{0};
+  std::string entered_name;
+  std::string feedback;
+  bool renaming{false};
+  bool pending_finish{false};
+  std::optional<sortie_statistics> latest_result;
   std::vector<resources::presentation_panel> stories;
   std::vector<resources::presentation_panel> outcomes;
   std::vector<resources::cockpit_mask> help_screens;
@@ -54,10 +70,15 @@ private:
   bool session_running{false};
 
   void accept();
+  unsigned int choice_count() const;
   void draw_menu(graphics::interface_canvas &canvas, std::string_view title, std::span<std::string_view const> choices) const;
 
 public:
-  front_end(resources::collection const &assets, bool skip_intro = false, bool start_in_flight = false);
+  front_end(resources::collection const &assets, campaign_store &campaign, bool skip_intro = false, bool start_in_flight = false);
+  void character(uint32_t codepoint);
+  bool editing_name() const noexcept;
+  bool take_finish();
+  void finish_sortie(sortie_statistics const &result);
   void command(interface_command command);
   void begin_flight();
   void show_menu();

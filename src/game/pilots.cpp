@@ -1,0 +1,204 @@
+#include "pilots.h"
+#include <algorithm>
+#include <bit>
+#include <stdexcept>
+#include <utility>
+#include "maths/integer.h"
+#include "resources/binary_reader.h"
+
+namespace corncob::game {
+
+namespace {
+
+unsigned int constexpr latest_statistics_offset{28}, latest_score_offset{158};
+unsigned int constexpr career_statistics_offset{430}, career_score_offset{560};
+unsigned int constexpr rank_offset{598}, flags_offset{22}, sorties_offset{24}, resurrection_offset{26};
+unsigned int constexpr maximum_name_length{20};
+
+} // anonymous namespace
+
+uint16_t pilot_record::word(unsigned int const offset) const {
+  /// Preserve unlabelled native record bytes while exposing verified fields through typed accessors
+  return resources::binary_reader{data}.word(offset);
+}
+void pilot_record::word(unsigned int const offset, uint16_t const value) {
+  /// Native fields are little-endian regardless of host layout
+  data.at(offset) = static_cast<uint8_t>(value);
+  data.at(offset + 1) = static_cast<uint8_t>(value >> 8);
+}
+int32_t pilot_record::dword(unsigned int const offset) const {
+  /// Scores retain signed original dword representation
+  return resources::binary_reader{data}.signed_dword(offset);
+}
+void pilot_record::dword(unsigned int const offset, int32_t const value) {
+  /// Write wrapping scores without depending on object representation
+  word(offset, static_cast<uint16_t>(value));
+  word(offset + 2, static_cast<uint16_t>(static_cast<uint32_t>(value) >> 16));
+}
+pilot_record::pilot_record(std::string_view const name) {
+  /// New native pilots begin at second lieutenant with empty statistics and medals
+  rename(name);
+}
+pilot_record::pilot_record(std::span<uint8_t const> const source) {
+  /// Imported records retain every byte, including timestamps and fields not yet independently labelled
+  if(source.size() != data.size()) throw std::invalid_argument{"invalid native pilot record length"};
+  std::ranges::copy(source, data.begin());
+}
+std::string pilot_record::name() const {
+  /// A record reserves twenty-two bytes although the original name prompt permits twenty characters
+  auto const end{std::find(data.begin(), data.begin() + 22, 0)};
+  return {reinterpret_cast<char const*>(data.data()), static_cast<size_t>(end - data.begin())};
+}
+void pilot_record::rename(std::string_view const name) {
+  /// Keep DOS-compatible names bounded and terminated inside their original field
+  if(name.empty() || name.size() > maximum_name_length || name.find_first_of("\r\n\t") != std::string_view::npos || name.find('\0') != std::string_view::npos)
+    throw std::invalid_argument{"pilot names must contain 1 to 20 characters"};
+  std::fill_n(data.begin(), 22, 0);
+  std::copy(name.begin(), name.end(), data.begin());
+}
+bool pilot_record::selected() const {
+  /// The front-end selection marker is independent of survival and rank
+  return (word(flags_offset) & 0x8000u) != 0;
+}
+void pilot_record::select(bool const value) {
+  /// Change only the original selected-record bit
+  word(flags_offset, static_cast<uint16_t>(value ? word(flags_offset) | 0x8000u : word(flags_offset) & ~0x8000u));
+}
+bool pilot_record::unavailable() const {
+  /// Original campaign processing distinguishes killed and captured pilots from active ones
+  return (word(flags_offset) & 0xau) != 0;
+}
+void pilot_record::resurrect() {
+  /// Resurrection preserves the career but clears the pilot's killed/captured status
+  word(flags_offset, static_cast<uint16_t>(word(flags_offset) & ~0xau));
+  word(resurrection_offset, static_cast<uint16_t>(word(resurrection_offset) + 1));
+}
+pilot_rank pilot_record::rank() const {
+  /// Preserve all original rank labels even though normal retail promotion only reaches Major
+  return static_cast<pilot_rank>(std::min<unsigned int>(data[rank_offset], std::to_underlying(pilot_rank::general)));
+}
+uint16_t pilot_record::sorties() const {
+  /// The native mission counter belongs to the career, not an individual theatre
+  return word(sorties_offset);
+}
+uint8_t pilot_record::awards(medal const kind) const {
+  /// Medal counts are individual bytes, not word counters or bits
+  return data.at(std::to_underlying(kind));
+}
+int32_t pilot_record::career_score() const {
+  /// Report the cumulative native signed career score
+  return dword(career_score_offset);
+}
+sortie_statistics pilot_record::last_sortie() const {
+  /// The latest result block starts immediately after the name, flags and career counters
+  return sortie_statistics::decode(std::span{data}.subspan(latest_statistics_offset, sortie_statistics::native_bytes));
+}
+sortie_statistics pilot_record::career() const {
+  /// Keep the verified cumulative statistics block distinct from the latest result
+  return sortie_statistics::decode(std::span{data}.subspan(career_statistics_offset, sortie_statistics::native_bytes));
+}
+std::span<uint8_t const> pilot_record::native_data() const noexcept {
+  /// Save containers can preserve the complete original record without mutable access to its invariants
+  return data;
+}
+void pilot_record::award(medal const kind) {
+  /// Original medal counts wrap as bytes
+  ++data.at(std::to_underlying(kind));
+}
+void pilot_record::finish_sortie(sortie_statistics const &result) {
+  /// Store the latest result and update normal-game promotion and sortie medal conditions
+  auto const raw{result.encode()};
+  std::ranges::copy(raw, data.begin() + latest_statistics_offset);
+  int32_t const score{calculate_score(result)};
+  dword(latest_score_offset, score);
+  dword(career_score_offset, maths::dword(static_cast<int64_t>(career_score()) + score));
+  word(sorties_offset, static_cast<uint16_t>(sorties() + 1));
+  auto totals{career()};
+  auto const before{totals.encode()};
+  std::array<uint8_t, sortie_statistics::native_bytes> combined{};
+  resources::binary_reader const old{before}, recent{raw};
+  for(unsigned int offset{0}; offset != combined.size(); offset += 2) {
+    auto const sum{static_cast<uint16_t>(old.word(offset) + recent.word(offset))};
+    combined[offset] = static_cast<uint8_t>(sum);
+    combined[offset + 1] = static_cast<uint8_t>(sum >> 8);
+  }
+  totals = sortie_statistics::decode(combined);
+  totals.status = static_cast<uint16_t>(old.word(0) | result.status);
+  totals.contacting_type = result.contacting_type;
+  totals.maximum_damage = std::max(career().maximum_damage, result.maximum_damage);
+  auto const total_bytes{totals.encode()};
+  std::ranges::copy(total_bytes, data.begin() + career_statistics_offset);
+  if(result.has(sortie_status::killed)) word(flags_offset, static_cast<uint16_t>(word(flags_offset) | 2u));
+  if(result.has(sortie_status::captured)) word(flags_offset, static_cast<uint16_t>(word(flags_offset) | 8u));
+  auto new_rank{rank()};
+  if(totals.objectives_completed >= 1) new_rank = std::max(new_rank, pilot_rank::first_lieutenant);
+  if(totals.objectives_completed >= 7) new_rank = std::max(new_rank, pilot_rank::captain);
+  if(result.has(sortie_status::earth_saved)) new_rank = std::max(new_rank, pilot_rank::major);
+  data[rank_offset] = std::to_underlying(new_rank);
+  if(result.maximum_damage >= 27 && result.has(sortie_status::home) && result.aircraft_lost == 0 && !result.has(sortie_status::crashed_away)) award(medal::purple_heart);
+  if(score > 100'000) award(medal::stellar_cluster);
+  else if(score > 50'000) award(medal::gold_star);
+  else if(score > 20'000) award(medal::silver_star);
+  else if(score > 10'000) award(medal::bronze_star);
+  if(result.objectives_completed >= 5) award(medal::distinguished_service_cross);
+  if(sorties() >= (awards(medal::service_award) + 1) * 10 && !result.has(sortie_status::killed)) award(medal::service_award);
+}
+void pilot_roster::mask(std::span<uint8_t> const bytes, uint16_t const seed) noexcept {
+  /// Pilot files use the Borland library rand stream, distinct from the flight engine's multiplicative PRNG
+  uint32_t state{seed};
+  for(auto &byte : bytes) {
+    state = state * 0x015a4e35u + 1;
+    byte ^= static_cast<uint8_t>(((state >> 16) & 32'767u) / 128u);
+  }
+}
+pilot_roster pilot_roster::decode(std::span<uint8_t const> const source) {
+  /// Validate both known original header sizes and preserve the interleaved extra byte verbatim
+  resources::binary_reader const input{source};
+  if(input.word(0) != 24 || source.size() < 28) throw std::invalid_argument{"unsupported native pilot file"};
+  pilot_roster result;
+  result.seed = input.word(2);
+  std::vector<uint8_t> plain{source.begin() + 4, source.end()};
+  mask(plain, result.seed);
+  resources::binary_reader const decoded{plain};
+  unsigned int header_length{0}, count{0};
+  for(unsigned int const length : {24u, 23u}) {
+    if(plain.size() >= length + 1) {
+      unsigned int const records{decoded.word(length - 2)};
+      if(plain.size() == length + 1 + records * 623u) {
+        header_length = length;
+        count = records;
+        break;
+      }
+    }
+  }
+  if(header_length == 0) throw std::invalid_argument{"native pilot file count does not match its complete length"};
+  result.header.assign(plain.begin(), plain.begin() + header_length);
+  result.retained_byte = plain[header_length + (count == 0 ? 0 : 623)];
+  for(unsigned int i{0}; i != count; ++i) result.pilots.emplace_back(std::span{plain}.subspan(header_length + i * 623 + (i == 0 ? 0 : 1), 623));
+  return result;
+}
+std::vector<uint8_t> pilot_roster::encode() const {
+  /// Reproduce native masking and record boundaries without interpreting or discarding unknown header bytes
+  if(pilots.size() > 65'535) throw std::invalid_argument{"native pilot file has too many records"};
+  std::vector<uint8_t> result{24, 0, static_cast<uint8_t>(seed), static_cast<uint8_t>(seed >> 8)};
+  auto plain{header};
+  plain[header.size() - 2] = static_cast<uint8_t>(pilots.size());
+  plain[header.size() - 1] = static_cast<uint8_t>(pilots.size() >> 8);
+  for(unsigned int i{0}; i != pilots.size(); ++i) {
+    auto const record{pilots[i].native_data()};
+    plain.insert(plain.end(), record.begin(), record.end());
+    if(i == 0) plain.push_back(retained_byte);
+  }
+  if(pilots.empty()) plain.push_back(retained_byte);
+  mask(plain, seed);
+  result.insert(result.end(), plain.begin(), plain.end());
+  return result;
+}
+std::string_view rank_name(pilot_rank const rank) noexcept {
+  /// Use the original rank labels for roster and record displays
+  static std::array<std::string_view, 7> constexpr names{"2nd Lieutenant", "1st Lieutenant", "Captain", "Major", "Lt. Colonel", "Colonel", "General"};
+  auto const index{std::to_underlying(rank)};
+  return names[index < names.size() ? index : 0];
+}
+
+} // namespace corncob::game

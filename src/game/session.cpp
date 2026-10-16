@@ -72,7 +72,7 @@ void session::press(action const command) {
     cockpit = !cockpit;
     return;
   }
-  if(paused || mode == player_mode::dead || mode == player_mode::captured) return;
+  if(paused || finished()) return;
   bool const flying{mode == player_mode::in_aircraft || (remote && controlled_aircraft)};
   switch(command) {
   case action::throttle_up:
@@ -192,6 +192,7 @@ void session::check_aircraft_collisions(flight::time_step const step) {
       continue;
     }
     auto const attacker{object};
+    fatal_contact = object.type;
     bool const fatal_orb{object.type == world::object_type::generator_orb && object.quality() == 4};
     if(has(definition, world::object_property::collision_callback)) weapons.damage(i, attacker, true);
     else if(object.has(world::object_flag::collision_callback)) object.timer = 0;
@@ -209,6 +210,8 @@ void session::check_aircraft_collisions(flight::time_step const step) {
     flight::apply_damage(damage, aircraft, hits, random, step);
     notice = "Aircraft damaged - E ejects";
     if(fatal_orb && mode == player_mode::in_aircraft && !damage.invincible) {
+      airframe_destroyed = true;
+      ++aircraft_losses;
       mode = player_mode::dead;
       notice = "Fatal impact - objective complete";
     }
@@ -239,6 +242,8 @@ void session::enter_aircraft(unsigned int const index) {
   angular = {};
   landing = {};
   damage = {};
+  airframe_destroyed = false;
+  left_ground = false;
   object.flags &= static_cast<uint16_t>(~std::to_underlying(world::object_flag::present));
   mode = player_mode::in_aircraft;
   remote = false;
@@ -289,12 +294,13 @@ void session::leave_aircraft() {
   reentry_allowed = false;
   mode = player_mode::on_foot;
   remote = false;
+  if(!person.standing) sortie_flags |= std::to_underlying(sortie_status::ejected);
   notice = person.standing ? "On foot - move away before returning to the aircraft" : "Ejected - Space opens parachute";
 }
 
 void session::update_aircraft(input_state const &input, flight::time_step const step) {
   /// Preserve the original ordering: old axes feed control/forces, then landing precedes position integration
-  if(!controlled_aircraft) return;
+  if(!controlled_aircraft || airframe_destroyed) return;
   unsigned int const pressure_target{static_cast<unsigned int>(aircraft.throttle) * 32'768 / 200 * aircraft.power_factor >> 16};
   aircraft.oil_pressure = static_cast<uint16_t>(aircraft.oil_pressure + (static_cast<int>(pressure_target) - aircraft.oil_pressure) / 40);
   if(landing.stopped) return;
@@ -311,6 +317,8 @@ void session::update_aircraft(input_state const &input, flight::time_step const 
   if(!fatal && altitude < flight::landing_state::aircraft_height + flight::landing_state::half_wheel_span) fatal = !flight::find_wheel_height(aircraft, landing);
   auto const contact{fatal ? flight::landing_result::fatal : flight::advance_landing(aircraft, angular, landing, stick, step)};
   if(contact == flight::landing_result::fatal) {
+    if(!airframe_destroyed) ++aircraft_losses;
+    airframe_destroyed = true;
     landing.crash_landing = true;
     landing.stopped = true;
     aircraft.throttle = 20;
@@ -329,6 +337,10 @@ void session::update_aircraft(input_state const &input, flight::time_step const 
     aircraft.position.z = landing.surface_height + flight::landing_state::aircraft_height;
     if(std::abs(static_cast<int>(aircraft.velocity.x)) + std::abs(static_cast<int>(aircraft.velocity.y)) <= 200) landing.stopped = true;
     notice = "Crash landed - E to leave the aircraft";
+  }
+  if(!aircraft.on_ground) left_ground = true;
+  if(left_ground && aircraft.on_ground && landing.stopped) {
+    sortie_flags |= std::to_underlying(landing.crash_landing ? at_home() ? sortie_status::crashed_home : sortie_status::crashed_away : sortie_status::landed);
   }
   if(!landing.stopped) flight::advance_position(aircraft, step);
   retain_aircraft();
@@ -350,6 +362,12 @@ void session::update_scenery() {
           weapons.complete(object);
           notice = "Contact established - objective complete";
         }
+      }
+      break;
+    case world::object_type::tower_doorway:
+      if(mode == player_mode::on_foot && distance_squared(object.position, person.position) <= 2000ll * 2000) {
+        mode = player_mode::returned;
+        notice = "Returned to headquarters";
       }
       break;
     case world::object_type::radar_dish:
@@ -427,7 +445,7 @@ void session::update_person(input_state const &input, flight::time_step const st
 
 void session::advance(input_state const &input) {
   /// One original five-unit frame is forty fast PIT ticks; T advances physical time without replacing frame timers
-  if(paused || mode == player_mode::dead || mode == player_mode::captured) return;
+  if(paused || finished()) return;
   if(input.throttle_up) press(action::throttle_up);
   if(input.throttle_down) press(action::throttle_down);
   fast_ticks += 40;
@@ -445,12 +463,21 @@ void session::advance(input_state const &input) {
     .on_foot{mode == player_mode::on_foot},
     .timer{fast_ticks},
   }, step)};
+  if(effects.rescued) {
+    mode = player_mode::rescued;
+    notice = "Rescued";
+  }
   if(effects.captured) {
     mode = player_mode::captured;
     notice = "Captured";
   }
   weapons.collisions(observer);
   update_scenery();
+  if(controlled_aircraft && experimental_clearance && aircraft.variant == flight::aircraft_variant::experimental
+    && (aircraft.position.z >> 8) >= atmosphere.height * 3 / 5) {
+    mode = player_mode::earth_saved;
+    notice = "You have saved Earth from alien attack!";
+  }
   find_surfaces();
   check_aircraft_collisions(step);
   angular.wing_damage = damage.wing;
@@ -524,6 +551,66 @@ flight::damage_state const &session::aircraft_damage() const noexcept {
 combat_statistics const &session::statistics() const noexcept {
   /// Expose earned totals without permitting the presentation layer to edit gameplay state
   return weapons.stats();
+}
+bool session::at_home() const {
+  /// HOMEDETECT uses the nearby control tower's three-dimensional range at the original one-sixty-fourth scale
+  auto const &position{(mode == player_mode::in_aircraft || (mode == player_mode::dead && airframe_destroyed)) ? aircraft.position : person.position};
+  for(auto const &object : theatre.objects) {
+    if(object.type != world::object_type::control_tower || !object.has(world::object_flag::present)) continue;
+    maths::fixed_vector relative{0, 0, 0};
+    bool nearby{true};
+    for(unsigned int axis{0}; axis != 3; ++axis) {
+      auto const delta{static_cast<int64_t>(object.position[axis]) - position[axis]};
+      if(std::abs(delta) >= 1'048'576) nearby = false;
+      relative[axis] = maths::word(static_cast<int32_t>(delta >> 6));
+    }
+    if(nearby && maths::magnitude(relative) <= 4200) return true;
+  }
+  return false;
+}
+sortie_statistics session::results(bool const aborted) const {
+  /// Combine combat credit with the pilot's actual present and historical sortie state
+  sortie_statistics result{weapons.stats()};
+  result.status = sortie_flags;
+  result.maximum_damage = damage.worst;
+  result.aircraft_lost = aircraft_losses;
+  result.contacting_type = std::to_underlying(fatal_contact);
+  if(at_home() || mode == player_mode::returned) result.mark(sortie_status::home);
+  if(mode == player_mode::dead) {
+    result.mark(sortie_status::killed);
+  }
+  if(mode == player_mode::captured) result.mark(sortie_status::captured);
+  if(mode == player_mode::rescued) result.mark(sortie_status::rescued);
+  if(mode == player_mode::earth_saved) result.mark(sortie_status::earth_saved);
+  if(aborted) result.mark(sortie_status::aborted);
+  return result;
+}
+world::theatre session::snapshot() const {
+  /// Preserve permanent live placements and return the retained aircraft to the saved world, excluding ephemeral particles and bullets
+  world::theatre result;
+  result.tiles = theatre.tiles;
+  result.start = maths::world_position{theatre.start};
+  result.sky = theatre.sky;
+  result.environment = theatre.environment;
+  result.briefing = theatre.briefing;
+  for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
+    auto const &object{theatre.objects[i]};
+    auto const &definition{geometry.definition(object.type)};
+    if(i >= weapons.stored_objects() && (definition.properties & std::to_underlying(world::object_property::temporary)) != 0) continue;
+    if(controlled_aircraft == i) {
+      auto retained{object};
+      retained.flags |= std::to_underlying(world::object_flag::present);
+      retained.position = maths::world_position{aircraft.position};
+      retained.attitude = aircraft.attitude;
+      if(landing.crash_landing || airframe_destroyed) retained.flags = static_cast<uint16_t>((retained.flags | 0x104u) & ~8u);
+      result.objects.push_back(std::move(retained));
+    } else if(object.has(world::object_flag::present)) result.objects.push_back(object);
+  }
+  return result;
+}
+bool session::finished() const noexcept {
+  /// Terminal sortie states leave flight input and simulation to the result/front-end flow
+  return mode != player_mode::on_foot && mode != player_mode::in_aircraft;
 }
 void session::set_experimental_clearance(bool const permitted) noexcept {
   /// Campaign rank grants access to the black experimental aircraft's throttle
