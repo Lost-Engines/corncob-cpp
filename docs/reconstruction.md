@@ -152,6 +152,13 @@ second peak. MOAG's campaign score is intentionally separate from ISCORE's fligh
 report: it adds successful suicide-objective credit and its ejection-factor test
 contains an always-false mask. Both original paths are preserved.
 
+Elapsed flying time is recorded in sortie and career statistics. Map inspection
+counts toward flying time; pause, help, radio, tower and menu handoffs commit
+whole seconds and stop the clock. Time advance affects physics without multiplying
+flying time. The original elapsed-time helper ignores hours within each uninterrupted
+segment and wraps its flight result at sixteen bits; both quirks are retained.
+The two adjacent saved words are treated as a cumulative dword by MOAG.
+
 The original campaign scan is now executed independently for 512 promotion,
 medal and court-martial reference cases, including cached theatre lookup and
 native string comparisons. Saved theatres keep their own career totals instead
@@ -261,6 +268,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
 | Title | 1,024 original animation-state/PRNG passes and 6,144 VGA letter-mask pixels |
 | Ending | All 768 initial stars and 64 complete indexed native star frames |
+| Sortie clock | 512 unchanged two-segment DOS-clock conversions, including pause boundaries and wrapping; connected flight/pause/map timing |
 | Score/persistence | 512 ISCORE calculations, 256 complete MOAG career updates and 512 complete promotion/medal decisions; 16,384 original mask bytes; original control/model/new-pilot fixtures; exact native high-score retirement; roster/world restart, rename and deletion scenarios |
 | Sound | 512 engine/register-write cases and finite, non-silent PCM from the actual engine patch |
 

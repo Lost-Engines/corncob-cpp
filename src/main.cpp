@@ -306,8 +306,11 @@ auto main(int const argc, char const *const argv[])->int {
   unsigned int frame_number{0};
   double previous_time{glfwGetTime()}, accumulated_time{0.0};
   double constexpr simulation_period{40.0 * 1024.0 / 1'193'182.0};
+  bool clock_was_flying{front.in_flight()};
   while(!glfwWindowShouldClose(window.get())) {
     glfwPollEvents();
+    if(clock_was_flying && !front.in_flight()) game->suspend_clock();
+    clock_was_flying = front.in_flight();
     if(front.quitting()) break;
     if(sound_enabled && !audio_output) {
       try {
@@ -336,6 +339,7 @@ auto main(int const argc, char const *const argv[])->int {
       if(launch->training) game->set_invincible(launch->training->invincible);
       game->set_beginner_flight(front.flight_controls().beginner_flight);
       front.begin_flight();
+      clock_was_flying = true;
       accumulated_time = 0.0;
     }
     if(front.in_flight()) game->resume_from_tower();

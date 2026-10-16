@@ -96,6 +96,7 @@ add_library(corncob_core STATIC
   src/game/pilots.h
   src/game/statistics.cpp
   src/game/statistics.h
+  src/game/sortie_clock.cpp
   src/game/portal.cpp
   src/game/rocket.cpp
   src/game/session.cpp
@@ -245,6 +246,7 @@ if(BUILD_TESTING)
   corncob_check(endurance_checks sustained_gameplay)
   corncob_check(joystick_checks native_joystick "${PROJECT_SOURCE_DIR}/tests/reference/joystick.bin")
   corncob_check(vehicle_checks native_vehicles "${PROJECT_SOURCE_DIR}/tests/reference/vehicles.bin")
+  corncob_check(sortie_clock_checks native_sortie_clock "${PROJECT_SOURCE_DIR}/tests/reference/sortie_clock.bin")
   corncob_check(portal_checks native_portals "${PROJECT_SOURCE_DIR}/tests/reference/portals.bin")
   corncob_check(rocket_checks native_rocket "${PROJECT_SOURCE_DIR}/tests/reference/rocket.bin")
   corncob_check(button_checks native_cockpit_buttons "${PROJECT_SOURCE_DIR}/tests/reference/buttons.bin")

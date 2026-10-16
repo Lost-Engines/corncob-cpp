@@ -8,6 +8,7 @@
 #include "game/vision.h"
 #include "game/rocket.h"
 #include "game/portal.h"
+#include "game/sortie_clock.h"
 #include "flight/damage.h"
 #include "game/combat.h"
 #include "game/actors.h"
@@ -113,6 +114,7 @@ private:
   uint16_t orb_distortion{0};
   vec3<uint16_t> palette_phase{0, 0, 0};
   uint32_t fast_ticks{0};
+  sortie_clock clock;
   rocket_charge rocket_timer;
   portal_transfer pending_portal{portal_transfer::none};
   bool rocket_requested{false};
@@ -149,6 +151,7 @@ public:
   person_state const &pilot() const noexcept;
   std::string const &message() const noexcept;
   uint32_t timer() const noexcept;
+  void suspend_clock() noexcept;
   unsigned int frame_number() const noexcept;
   bool is_paused() const noexcept;
   bool autopilot_engaged() const noexcept;

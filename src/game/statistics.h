@@ -38,7 +38,7 @@ struct sortie_statistics {
   uint16_t maximum_damage{0};
   quality_counts peak_aaa{};
   quality_counts peak_kla{};
-  std::array<uint16_t, 2> retained_words{};
+  uint32_t elapsed_seconds{0};
   quality_counts orb_kills{};
 
   bool has(sortie_status flag) const noexcept;

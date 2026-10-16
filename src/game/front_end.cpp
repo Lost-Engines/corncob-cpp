@@ -506,7 +506,9 @@ void front_end::render(render::framebuffer &target) const {
     canvas.text(72, 200, "Aircraft lost: " + std::to_string(result.aircraft_lost), grey);
     canvas.text(72, 224, "Friendly losses: " + std::to_string(result.friendly_destroyed), grey);
     canvas.text(72, 248, std::string{record_page && records == record_view::career ? "Accumulated damage: " : "Maximum damage: "} + std::to_string(result.maximum_damage), grey);
-    if(pilot) canvas.text(72, 272, "Career sorties: " + std::to_string(pilot->sorties()), grey);
+    auto const seconds{result.elapsed_seconds};
+    canvas.text(72, 272, std::format("Flying time: {}:{:02}:{:02}", seconds / 3600, seconds / 60 % 60, seconds % 60)
+      + (pilot ? "   Career sorties: " + std::to_string(pilot->sorties()) : ""), grey);
     canvas.text(72, 304, page == interface_page::records ? "PgUp/PgDn: records  Left/Right: medals  Enter: roster" : "Press Enter to continue", yellow);
   } else if(page == interface_page::medals) {
     draw_menu(canvas, "Pilot medals", {});

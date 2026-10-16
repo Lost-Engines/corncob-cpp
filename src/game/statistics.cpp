@@ -30,12 +30,13 @@ std::array<uint8_t, sortie_statistics::native_bytes> sortie_statistics::encode()
   for(auto const *counts : {&kla_kills, &aaa_kills, &vehicle_kills, &site_kills}) for(auto const value : *counts) word(value);
   for(auto const value : {objectives_completed, friendly_destroyed, maximum_damage}) word(value);
   for(auto const *counts : {&peak_aaa, &peak_kla}) for(auto const value : *counts) word(value);
-  for(auto const value : retained_words) word(value);
+  word(static_cast<uint16_t>(elapsed_seconds));
+  word(static_cast<uint16_t>(elapsed_seconds >> 16));
   for(auto const value : orb_kills) word(value);
   return result;
 }
 sortie_statistics sortie_statistics::decode(std::span<uint8_t const> const source) {
-  /// Retain every native statistics word, including the two fields not yet assigned a speculative label
+  /// Retain every native statistics word; MOAG accumulates the flight engine's elapsed word as a dword
   if(source.size() != native_bytes) throw std::invalid_argument{"invalid native sortie statistics length"};
   resources::binary_reader const input{source};
   unsigned int offset{0};
@@ -50,7 +51,8 @@ sortie_statistics sortie_statistics::decode(std::span<uint8_t const> const sourc
   result.friendly_destroyed = word();
   result.maximum_damage = word();
   for(auto *counts : {&result.peak_aaa, &result.peak_kla}) for(auto &value : *counts) value = word();
-  for(auto &value : result.retained_words) value = word();
+  uint32_t const elapsed_low{word()}, elapsed_high{word()};
+  result.elapsed_seconds = elapsed_low | (elapsed_high << 16);
   for(auto &value : result.orb_kills) value = word();
   return result;
 }

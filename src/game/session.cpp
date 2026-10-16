@@ -81,6 +81,7 @@ void session::press(action const command) {
   }
   if(map) return;
   if(command == action::pause) {
+    if(!paused) clock.suspend();
     paused = !paused;
     return;
   }
@@ -447,6 +448,7 @@ void session::update_scenery() {
       break;
     case world::object_type::tower_doorway:
       if(mode == player_mode::on_foot && distance_squared(object.position, person.position) <= 2000ll * 2000) {
+        clock.suspend();
         tower_request = visiting_tower = true;
         notice = "Airbase intelligence";
       }
@@ -530,6 +532,7 @@ void session::advance(input_state const &input) {
   /// One original five-unit frame is forty fast PIT ticks; T advances physical time without replacing frame timers
   if(map) {
     fast_ticks += 40;
+    clock.advance(40);
     map->advance(input.stick, input.map);
     return;
   }
@@ -537,6 +540,7 @@ void session::advance(input_state const &input) {
   if(input.throttle_up) press(action::throttle_up);
   if(input.throttle_down) press(action::throttle_down);
   fast_ticks += 40;
+  clock.advance(40);
   ++frame;
   vision.advance(aircraft.body_force.z, mode != player_mode::in_aircraft, frame, {
     .elapsed{static_cast<int16_t>(input.advance_time ? 50 : 5)},
@@ -700,6 +704,10 @@ std::string const &session::message() const noexcept {
   /// Keep transient game notices out of the console
   return notice;
 }
+void session::suspend_clock() noexcept {
+  /// Front-end text/help/score screens replace the original external-program handoff and restart its elapsed-time segment
+  clock.suspend();
+}
 uint32_t session::timer() const noexcept {
   /// Preserve the fast original timer used by flash colours and weapon delays
   return fast_ticks;
@@ -783,6 +791,7 @@ sortie_statistics session::results(bool const aborted) const {
   result.maximum_damage = damage.worst;
   result.aircraft_lost = aircraft_losses;
   result.contacting_type = std::to_underlying(fatal_contact);
+  result.elapsed_seconds = clock.elapsed();
   if(at_home() || mode == player_mode::returned) result.mark(sortie_status::home);
   if(mode == player_mode::dead) {
     result.mark(sortie_status::killed);
