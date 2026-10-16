@@ -413,11 +413,22 @@ void actors::update_balloon(world::placed_object &object, flight::time_step cons
 void actors::update_orb(world::placed_object &object, actor_context const &context, flight::time_step const step) {
   /// Orb objectives consume the preceding active census; destruction leaves the objective anchor in place
   object.timer = 32'000;
-  if(object.quality() == 4) object.health = 65;
+  effects.orb_distortion = 0;
+  if(object.type == world::object_type::destroyed_generator_orb && object.has(world::object_flag::objective_complete)) {
+    unsigned int constexpr collapse_height{11'200}, resting_height{3100};
+    if((static_cast<uint32_t>(object.position.z) >> 16) != 0 || static_cast<uint16_t>(object.position.z) > collapse_height) {
+      object.motion.spin = maths::fixed_vector{static_cast<int16_t>(random.below(60) + 20), static_cast<int16_t>(random.below(40) + 10), static_cast<int16_t>(random.below(110) + 30)};
+      object.motion.gravity = maths::word((static_cast<uint16_t>(object.motion.gravity) & 0xff00u) | 35u);
+    } else {
+      object.position.z = resting_height;
+      object.velocity = maths::fixed_vector{0, 0, 0};
+      object.motion.dispersion = object.motion.drag_divisor = 0;
+    }
+  }
   if(object.type == world::object_type::generator_orb) {
     auto const target{relative_target(object.position, context.observer)};
     if(target && target->distance <= 2000) {
-      effects.orb_distortion = std::max<uint16_t>(effects.orb_distortion, static_cast<uint16_t>(std::min(35, 71 - target->distance * 70 / 2000)));
+      effects.orb_distortion = static_cast<uint16_t>(std::min(35, 71 - target->distance * 70 / 2000));
       if(object.has(world::object_flag::special) && !context.on_foot) {
         unsigned int const divisor{std::max(10u, static_cast<unsigned int>(target->distance) * target->distance / 5000u)};
         for(unsigned int axis{0}; axis != 3; ++axis) {
@@ -429,6 +440,7 @@ void actors::update_orb(world::placed_object &object, actor_context const &conte
     }
   }
   if(!objective_in_range(object, geometry.definition(object.type), context.observer)) return;
+  if(object.quality() == 4) object.health = 65;
   auto population{[&](world::object_type const type){return previous_counts[std::to_underlying(type)];}};
   using enum world::object_type;
   bool complete{false};
@@ -485,7 +497,7 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
     if(!object.has(world::object_flag::updates)) continue;
     if(i < weapons.stored_objects()) {
       if(object.timer != 0) --object.timer;
-      if(definition.motion.spin != maths::fixed_vector{0, 0, 0} || definition.motion.gravity != 0 || object.velocity != maths::fixed_vector{0, 0, 0})
+      if(object.motion.spin != maths::fixed_vector{0, 0, 0} || object.motion.gravity != 0 || object.motion.dispersion != 0 || object.velocity != maths::fixed_vector{0, 0, 0})
         world::advance_motion(object, definition.rotate_below_tier != 0, random, step);
     }
     ++counts[std::to_underlying(object.type)];
@@ -516,7 +528,9 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
     case destroyed_generator_orb: update_orb(object, context, step); break;
     case mindbender:
       ++object.timer;
+      effects.hallucination = 0;
       if(auto const target{relative_target(object.position, context.observer)}; target && target->distance <= 1000) {
+        object.flags |= 4u;
         int const proximity{1000 - target->distance};
         effects.hallucination = static_cast<uint16_t>(proximity * proximity / 31);
       }

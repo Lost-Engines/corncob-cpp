@@ -56,7 +56,14 @@ three reset periods; saucers retain their original 32,000-frame lifetime and
 unshifted constructor position. A pass captures its existing active actors before
 handlers run, so a newly constructed child first updates when admitted on the
 following pass, as with EXPMOV's original painter-table insertion. The new-object
-bit is consumed by effect movement. Remaining actor equivalence is under comparison.
+bit is consumed by effect movement. Completed destroyed orbs retain DHQTIM's repeated spin/gravity assignment and
+settle at 3,100 cm after crossing its 11,200 cm threshold. Stored objects use their
+mutated motion fields, so the drop actually progresses across frames. Near/far
+orbs and mindbenders overwrite their shared visual effects in handler order;
+objective callbacks retain the previous census and one-time credit. All 768 native
+orb/objective/mindbender cases match without stubs, including preceding-orb effects,
+all qualities, attraction, regenerated health and PRNG continuation. Remaining
+actor equivalence is under comparison.
 
 The original autopilot includes pitch-by-speed feedback and altitude capture.
 Optional beginner aerodynamics adds the original weaker PITCHLOCK correction.
@@ -193,7 +200,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Joystick | 512 SPKE/JOYTD response cases, plus keyboard/button/head-view integration |
 | Person | 512 free-fall damping and 512 parachute swing cases |
 | Motion/collision | 512 generic movement, 512 strict boxes, 512 fast and 512 ordinary projectile contacts |
-| Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools |
+| Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools; 768 orb/objective/mindbender passes without stubs |
 | Debris/training | 530 particles from 64 constructor runs; 2,157 generated placements from 32 training runs |
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks and 12 polygon hashes; four original definition round trips; one 252-object plain saved world |
 | Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
@@ -214,9 +221,8 @@ Private GLFW/X11 checks traversed pilot creation, mission selection, radio boxes
 map, boss screen, help, score, abort/report, tower intelligence, repair/resume and
 Escape warnings, followed by both story fades and the animated title/credits.
 Captures were inspected without changing supplied DOS installs.
-The complete 35-check Release and sanitizer suites pass, including the longer
-scenarios, ground-vehicle handler, visual feedback and animated title. All 36 Debug
-checks pass after the launch-site and actor-admission corrections. Wire rasterisation, complete frame ordering,
+The complete 37-check Debug, Release and sanitizer suites pass, including the
+longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title. Wire rasterisation, complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.
 

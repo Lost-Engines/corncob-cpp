@@ -1,0 +1,59 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "788cb9062abb59f73dc47406363fffa883f727964b3a822213902211a4c47506",
+  "cases": 768,
+  "routines": [
+    "0x8dbc generator orb / 0xbc83 HQTIM",
+    "0xbb97 destroyed orb",
+    "0xc5df mindbender"
+  ],
+  "stubs": [],
+  "scope": "All eight objective qualities, renderer-supplied distance tiers, previous populations, attraction, completed-orb fall/spin, health regeneration, distortion, hallucination and full PRNG continuation.",
+  "population_order": [
+    [
+      27,
+      60478
+    ],
+    [
+      52,
+      60515
+    ],
+    [
+      11,
+      61715
+    ],
+    [
+      23,
+      61776
+    ],
+    [
+      12,
+      61672
+    ],
+    [
+      13,
+      61674
+    ],
+    [
+      50,
+      60497
+    ],
+    [
+      51,
+      60501
+    ],
+    [
+      1,
+      60513
+    ],
+    [
+      57,
+      60503
+    ],
+    [
+      null,
+      60507
+    ]
+  ],
+  "preceding_orb": "Each case includes a flag for a preceding live, non-attracting orb at the observer; its original handler executes before the tested object to check visual-effect overwrite ordering."
+}
