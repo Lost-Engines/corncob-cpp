@@ -25,26 +25,31 @@ int32_t wide_word(int16_t const value) noexcept {
   return maths::dword(static_cast<int64_t>(value) * 65'536 + (value < 0 ? 65'535 : 0));
 }
 
+bool pitch_locked(aircraft_state const &aircraft, angular_response &response) {
+  /// PITCHLOCK's speed table is shared by the gentle beginner assistance and the stronger autopilot capture
+  if(std::abs(static_cast<int>(aircraft.velocity.z)) < 150) return true;
+  unsigned int const magnitude{maths::magnitude(aircraft.velocity)};
+  if(magnitude < 3900) {
+    response.autopilot.engaged = false;
+    return false;
+  }
+  unsigned int const speed{std::clamp(magnitude, 3901u, 15'500u)};
+  unsigned int const scaled{speed * 8}, index{scaled / 15'591 - 2}, remainder{scaled % 15'591};
+  std::array<int16_t, 8> constexpr pitch_by_speed{-2109, -1507, -1005, -772, -671, -571, -500, -450};
+  int const target{pitch_by_speed[index] + (pitch_by_speed[index + 1] - pitch_by_speed[index]) * static_cast<int>(remainder) / 15'591};
+  int16_t const error{static_cast<int16_t>(std::clamp<int>(maths::word(aircraft.attitude.pitch - target), -2000, 3200))};
+  int16_t const divisor{static_cast<int16_t>(!response.autopilot.engaged && response.beginner_flight && !aircraft.stalled ? 280 : 70)};
+  response.pitch = add(response.pitch, maths::rounded_divide(wide_word(error), divisor));
+  return false;
+}
+
 } // anonymous namespace
 
 void advance_autopilot(aircraft_state const &aircraft, angular_response &response) {
-  /// PITCHLOCK first levels the flight path, then the original feedback loop captures and holds altitude
+  /// Beginner assistance calls PITCHLOCK independently; an engaged autopilot then makes its own original call
+  if(response.beginner_flight && !aircraft.stalled) (void)pitch_locked(aircraft, response);
   auto &pilot{response.autopilot};
-  if(!pilot.engaged) return;
-  if(std::abs(static_cast<int>(aircraft.velocity.z)) >= 150) {
-    unsigned int const magnitude{maths::magnitude(aircraft.velocity)};
-    if(magnitude < 3900) {
-      pilot.engaged = false;
-      return;
-    }
-    unsigned int const speed{std::clamp(magnitude, 3901u, 15'500u)};
-    unsigned int const scaled{speed * 8}, index{scaled / 15'591 - 2}, remainder{scaled % 15'591};
-    std::array<int16_t, 8> constexpr pitch_by_speed{-2109, -1507, -1005, -772, -671, -571, -500, -450};
-    int const target{pitch_by_speed[index] + (pitch_by_speed[index + 1] - pitch_by_speed[index]) * static_cast<int>(remainder) / 15'591};
-    int16_t const error{static_cast<int16_t>(std::clamp<int>(maths::word(aircraft.attitude.pitch - target), -2000, 3200))};
-    response.pitch = add(response.pitch, maths::rounded_divide(wide_word(error), 70));
-    return;
-  }
+  if(!pilot.engaged || !pitch_locked(aircraft, response)) return;
   int16_t const change{static_cast<int16_t>(std::clamp<int>(maths::word(aircraft.body_velocity.z - pilot.previous_vertical_airflow), -150, 150))};
   // MOV DX,AX repeats the word before SAR/RCR; this is deliberately not a sign extension
   int32_t const paired{std::bit_cast<int32_t>(static_cast<uint32_t>(static_cast<uint16_t>(change)) * 65'537u)};

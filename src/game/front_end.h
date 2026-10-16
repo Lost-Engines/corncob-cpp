@@ -31,6 +31,7 @@ enum class interface_page {
   menu,
   theatres,
   training,
+  control_setup,
   missions,
   roster,
   pilots,
@@ -53,6 +54,11 @@ struct launch_request {
   std::optional<world::training_setup> training{};
 };
 
+struct control_setup {
+  int joystick_device{-1};
+  bool beginner_flight{false};
+};
+
 class front_end {
 private:
   resources::collection const &assets;
@@ -73,6 +79,7 @@ private:
   bool renaming{false};
   bool pending_finish{false};
   world::training_setup training;
+  control_setup controls;
   std::vector<world::mission_start> mission_starts;
   std::optional<world::mission_start> pending_relocation;
   std::optional<sortie_statistics> latest_result;
@@ -95,10 +102,12 @@ private:
   void accept();
   unsigned int choice_count() const;
   void adjust_training(int direction);
+  void adjust_controls();
   void draw_menu(graphics::interface_canvas &canvas, std::string_view title, std::span<std::string_view const> choices) const;
 
 public:
-  front_end(resources::collection const &assets, campaign_store &campaign, bool skip_intro = false, bool start_in_flight = false);
+  front_end(resources::collection const &assets, campaign_store &campaign, bool skip_intro = false, bool start_in_flight = false, control_setup controls = {});
+  control_setup const &flight_controls() const noexcept;
   void advance(double seconds);
   void begin_ending(graphics::indexed_framebuffer const &backdrop, std::array<render::rgba_pixel, 16> const &colours);
   void character(uint32_t codepoint);

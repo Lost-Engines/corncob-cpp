@@ -30,6 +30,7 @@ struct angular_response {
   uint16_t almost_stall_angle{2548};
   uint16_t last_protected_pitch_rate{0};
   bool stall_protection{false};
+  bool beginner_flight{false};
   autopilot_state autopilot{};
 };
 

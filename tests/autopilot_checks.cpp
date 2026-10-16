@@ -7,7 +7,7 @@
 int main(int const argc, char const *const argv[]) {
   /// Match original autopilot feedback, pitch-table interpolation and the unsigned altitude-capture quirk
   if(argc != 2) throw std::invalid_argument{"autopilot_checks requires its native fixture"};
-  corncob::tests::reference_reader input{argv[1], "CORNAUT1"};
+  corncob::tests::reference_reader input{argv[1], "CORNAUT2"};
   auto const count{input.dword()};
   for(unsigned int i{0}; i != count; ++i) {
     corncob::flight::aircraft_state aircraft;
@@ -21,6 +21,8 @@ int main(int const argc, char const *const argv[]) {
     aircraft.position.z = input.signed_dword();
     response.autopilot.height = input.signed_dword();
     response.autopilot.previous_vertical_airflow = input.signed_word();
+    response.beginner_flight = input.word() != 0;
+    aircraft.stalled = input.word() != 0;
     corncob::flight::advance_autopilot(aircraft, response);
     auto const expected_pitch{input.signed_dword()};
     bool const engaged{input.byte() != 0}, locked{input.byte() != 0};

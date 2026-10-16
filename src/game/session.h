@@ -104,6 +104,7 @@ private:
   maths::angles head_angles;
   std::optional<map_view> map;
   bool experimental_clearance{false};
+  bool beginner_flight{false};
   bool invincible{false};
   uint16_t orb_distortion{0};
   vec3<uint16_t> palette_phase{0, 0, 0};
@@ -157,6 +158,7 @@ public:
   bool remote_control() const noexcept;
   void relocate(world::mission_start const &start);
   void set_invincible(bool value) noexcept;
+  void set_beginner_flight(bool enabled) noexcept;
   void set_experimental_clearance(bool permitted) noexcept;
   sortie_statistics results(bool aborted = false) const;
   world::theatre snapshot() const;

@@ -24,10 +24,11 @@ std::span<uint8_t const> briefing_data(std::string_view const name) {
 
 } // anonymous namespace
 
-front_end::front_end(resources::collection const &assets, campaign_store &campaign, bool const skip_intro, bool const start_in_flight) :
+front_end::front_end(resources::collection const &assets, campaign_store &campaign, bool const skip_intro, bool const start_in_flight, control_setup const controls) :
   assets{assets},
   campaign{campaign},
   menu_font{assets.menu_font()},
+  controls{controls},
   stories{assets.story()},
   outcomes{assets.outcomes()} {
   /// One state machine replaces the original title, menu, help and outcome helper processes
@@ -73,11 +74,7 @@ void front_end::accept() {
       } else feedback = "Create or activate a pilot in the duty roster first";
       break;
     case 4: page = interface_page::high_scores; score_list = 0; break;
-    case 5:
-      return_page = page;
-      page = interface_page::help;
-      help_index = 0;
-      break;
+    case 5: page = interface_page::control_setup; break;
     case 6: page = interface_page::story; story_index = 0; break;
     default: page = interface_page::quit_confirmation; break;
     }
@@ -143,6 +140,14 @@ void front_end::accept() {
   case interface_page::sortie_summary:
     page = interface_page::menu;
     selection = 0;
+    break;
+  case interface_page::control_setup:
+    if(selection < 2) adjust_controls();
+    else if(selection == 2) {
+      return_page = page;
+      page = interface_page::help;
+      help_index = 0;
+    } else { page = interface_page::menu; selection = 0; }
     break;
   case interface_page::training:
     if(selection == 7) pending_launch = launch_request{
@@ -231,6 +236,7 @@ void front_end::command(interface_command const command) {
     else if(page == interface_page::records) page = interface_page::medals;
     if(page == interface_page::high_scores) score_list = (score_list + 2) % 3;
     if(page == interface_page::training) adjust_training(-1);
+    if(page == interface_page::control_setup) adjust_controls();
     if(page == interface_page::help && help_index != 0) --help_index;
     break;
   case interface_command::next:
@@ -238,6 +244,7 @@ void front_end::command(interface_command const command) {
     else if(page == interface_page::records) page = interface_page::medals;
     if(page == interface_page::high_scores) score_list = (score_list + 1) % 3;
     if(page == interface_page::training) adjust_training(1);
+    if(page == interface_page::control_setup) adjust_controls();
     if(page == interface_page::help || page == interface_page::story || page == interface_page::title) accept();
     break;
   case interface_command::cancel:
@@ -339,7 +346,8 @@ void front_end::draw_menu(graphics::interface_canvas &canvas, std::string_view c
   canvas.box(172, 4, 460, 72, white);
   canvas.text(272, 12, "Corncob 3D", white);
   canvas.text(316 - static_cast<int>(title.size()) * 4, 44, title, grey);
-  if(!choices.empty()) canvas.text(80, 92, "Use arrow keys and Enter to choose an action:", {85, 255, 255});
+  if(!choices.empty()) canvas.text(80, 92, page == interface_page::training || page == interface_page::control_setup
+    ? "Left/Right changes values; Enter selects" : "Use arrow keys and Enter to choose an action:", {85, 255, 255});
   unsigned int const first{selection < 8 ? 0 : selection - 7};
   for(unsigned int n{first}; n < choices.size() && n < first + 8; ++n) {
     int const y{112 + static_cast<int>(n - first) * 24};
@@ -396,11 +404,24 @@ void front_end::render(render::framebuffer &target) const {
   bool const intelligence{page == interface_page::briefing};
   graphics::interface_canvas canvas{target, intelligence ? assets.file("font14.bin") : std::span<uint8_t const>{menu_font}, intelligence ? 14u : 16u, 640, intelligence ? 350u : 400u};
   if(page == interface_page::menu) {
-    static std::array<std::string_view, 8> constexpr choices{"Duty roster", "Combat missions", "Training missions", "Pilot records", "High-score tables", "Flight controls and help", "Introduction", "Quit"};
+    static std::array<std::string_view, 8> constexpr choices{"Duty roster", "Combat missions", "Training missions", "Pilot records", "High-score tables", "Controls and flight setup", "Introduction", "Quit"};
     static std::array<std::string_view, 3> constexpr resume{"Resume flight", "Flight controls and help", "End current sortie"};
     draw_menu(canvas, "Main menu", session_running ? std::span<std::string_view const>{resume} : std::span<std::string_view const>{choices});
     auto const *pilot{campaign.active_pilot()};
     canvas.text(72, 304, pilot ? pilot->name() + " - " + std::string{rank_name(pilot->rank())} : "Trainee - progress is not saved", grey);
+  } else if(page == interface_page::control_setup) {
+    std::string const device{controls.joystick_device == -2 ? "keyboard only" : controls.joystick_device == -1 ? "automatic joystick" : "joystick " + std::to_string(controls.joystick_device)};
+    std::array<std::string, 4> const labels{
+      "Controls: " + device,
+      std::string{"Flight model: "} + (controls.beginner_flight ? "beginner" : "advanced"),
+      "Flight controls and help", "Return to main menu",
+    };
+    std::array<std::string_view, 4> choices;
+    std::ranges::copy(labels, choices.begin());
+    draw_menu(canvas, "Controls and flight setup", choices);
+    canvas.text(64, 240, "Beginner: gentle pitch assistance toward level flight", grey);
+    canvas.text(64, 264, "Joystick buttons 1/2: guns/missiles", grey);
+    canvas.text(64, 288, "Keyboard arrows override the stick during flight", grey);
   } else if(page == interface_page::training) {
     auto quality{[](int const q){return q < 0 ? std::string{"random"} : std::to_string(q + 1);}};
     std::array<std::string, 9> const labels{
@@ -411,7 +432,7 @@ void front_end::render(render::framebuffer &target) const {
     };
     std::array<std::string_view, 9> choices;
     std::ranges::copy(labels, choices.begin());
-    draw_menu(canvas, "Training - Left/Right changes values", choices);
+    draw_menu(canvas, "Training missions", choices);
   } else if(page == interface_page::missions) {
     std::vector<std::string_view> choices{"Read full airbase intelligence"};
     for(auto const &start : mission_starts) choices.push_back(start.title);
@@ -502,11 +523,21 @@ unsigned int front_end::choice_count() const {
   case interface_page::roster: return 7;
   case interface_page::theatres: return 4;
   case interface_page::training: return 9;
+  case interface_page::control_setup: return 4;
   case interface_page::missions: return static_cast<unsigned int>(mission_starts.size()) + 1;
   case interface_page::pilots: return std::max(1u, static_cast<unsigned int>(campaign.pilots().size()));
   case interface_page::quit_confirmation: return 2;
   default: return 1;
   }
+}
+void front_end::adjust_controls() {
+  /// The original front end selects keyboard/joystick control and beginner/advanced aerodynamics before a flight
+  if(selection == 0) controls.joystick_device = controls.joystick_device == -2 ? -1 : -2;
+  else if(selection == 1) controls.beginner_flight = !controls.beginner_flight;
+}
+control_setup const &front_end::flight_controls() const noexcept {
+  /// New sessions and platform polling consume the same settings shown by the front end
+  return controls;
 }
 void front_end::adjust_training(int const direction) {
   /// Training configures original site counts and qualities; no extra difficulty rules are invented

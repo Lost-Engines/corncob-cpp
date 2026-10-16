@@ -43,7 +43,11 @@ operate the rudder, F toggles flaps, I uses rocket boost, and . brakes.
 A connected joystick is selected automatically for flight. Button 1 fires guns,
 button 2 fires missiles, and Space also fires missiles in joystick mode. Arrow
 keys override the stick unless used for head views. `--joystick none` keeps
-keyboard controls; `--list-joysticks` lists devices for `--joystick N`. E leaves
+keyboard controls; `--list-joysticks` lists devices for `--joystick N`.
+The main menu's controls setup also selects keyboard/joystick input and the original
+beginner or advanced flight model. Beginner gently assists the pitch toward level
+flight; `--flight-model beginner` selects it at startup. These selections currently
+last for this run. E leaves
 the aircraft; Space opens a parachute while falling. Caps Lock enables remote
 flight after ejection. A toggles the original autopilot. L toggles the cockpit, G ground detail, P pauses,
 M opens the original overhead map; keypad arrows pan, keypad 9/3 changes height,

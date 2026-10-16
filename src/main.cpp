@@ -68,6 +68,7 @@ auto main(int const argc, char const *const argv[])->int {
   options.add_options()
     ("help,h", "show command-line options")
     ("version", "show the native reconstruction version")
+    ("flight-model", boost::program_options::value<std::string>()->default_value("advanced"), "original flight model: advanced or beginner (gentle pitch assistance)")
     ("joystick", boost::program_options::value<std::string>()->default_value("auto"), "flight joystick: auto, none, or a device index 0..15; button 1 guns, button 2 missiles")
     ("list-joysticks", "list connected joystick device indices and names, then exit")
     ("no-sound", "start with sound effects disabled; S toggles effects during flight")
@@ -98,6 +99,8 @@ auto main(int const argc, char const *const argv[])->int {
     std::cout << "Corncob C++ 0.1.0 (reconstruction in progress)" << std::endl;
     return EXIT_SUCCESS;
   }
+  auto const flight_model{arguments["flight-model"].as<std::string>()};
+  if(flight_model != "advanced" && flight_model != "beginner") return startup_failure("--flight-model must be advanced or beginner");
   int joystick_device{-1};
   auto const joystick_argument{arguments["joystick"].as<std::string>()};
   if(joystick_argument == "none") joystick_device = -2;
@@ -139,8 +142,12 @@ auto main(int const argc, char const *const argv[])->int {
   auto renderer{std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit)};
   auto game{std::make_unique<corncob::game::session>(geometry, std::move(theatre))};
   corncob::resources::collection interface_assets{corncob::resources::front_end_asset()};
-  corncob::game::front_end front{interface_assets, *campaign, arguments.contains("skip-intro"), !arguments["theatre"].defaulted()};
+  corncob::game::front_end front{interface_assets, *campaign, arguments.contains("skip-intro"), !arguments["theatre"].defaulted(), {
+    .joystick_device{joystick_device},
+    .beginner_flight{flight_model == "beginner"},
+  }};
   if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
+  game->set_beginner_flight(front.flight_controls().beginner_flight);
   auto observer{game->camera()};
 #ifndef NDEBUG
   bool const no_cockpit{arguments.contains("no-cockpit")};
@@ -327,6 +334,7 @@ auto main(int const argc, char const *const argv[])->int {
       if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
       renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit);
       if(launch->training) game->set_invincible(launch->training->invincible);
+      game->set_beginner_flight(front.flight_controls().beginner_flight);
       front.begin_flight();
       accumulated_time = 0.0;
     }
@@ -407,7 +415,7 @@ auto main(int const argc, char const *const argv[])->int {
             .slow{held(GLFW_KEY_S)},
           },
         };
-        if(auto const joystick{corncob::platform::poll_joystick(joystick_device)})
+        if(auto const joystick{corncob::platform::poll_joystick(front.flight_controls().joystick_device)})
           corncob::game::apply_joystick(input, *joystick, input.view.modifier || game->looking_around());
       }
       accumulated_time += elapsed;

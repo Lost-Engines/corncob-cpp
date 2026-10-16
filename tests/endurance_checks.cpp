@@ -65,6 +65,7 @@ int main() {
           .missile{true},
         },
       });
+      if(flight.take_tower()) flight.resume_from_tower();
       ++updates;
       if(tick % 127 == 0) {
         geometry.animate(flight.frame_number());

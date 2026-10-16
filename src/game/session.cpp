@@ -293,7 +293,9 @@ void session::enter_aircraft(unsigned int const index) {
   aircraft.world_to_body = maths::make_rotation(aircraft.attitude);
   aircraft.body_to_world = maths::make_inverse_rotation(aircraft.attitude);
   aircraft.on_ground = true;
-  angular = {};
+  angular = {
+    .beginner_flight{beginner_flight},
+  };
   landing = {};
   damage = {};
   damage.invincible = invincible;
@@ -858,6 +860,11 @@ void session::set_invincible(bool const value) noexcept {
   /// Training's invulnerability setting is the original damage immunity flag
   invincible = value;
   damage.invincible = value;
+}
+void session::set_beginner_flight(bool const enabled) noexcept {
+  /// The original beginner aerodynamics adds gentle pitch-to-level feedback without changing the force model
+  beginner_flight = enabled;
+  angular.beginner_flight = enabled;
 }
 void session::set_experimental_clearance(bool const permitted) noexcept {
   /// Campaign rank grants access to the black experimental aircraft's throttle

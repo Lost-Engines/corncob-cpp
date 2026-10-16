@@ -1,475 +1,205 @@
 # Reconstruction reference
 
-The behavioural reference is normal-game Corncob 3D 3.42, whose flight executable
-is shared by the shareware and Personal Companion retail distributions. The
-research inputs are in the sibling `corncob-reverse` workspace. Its native checks,
-resource hashes and recorded force scenarios are the verification reference;
-browser previews are inspection tools rather than pixel-exact renderer models.
-
-The first playable milestone is White Sands with the original software renderer
-and aircraft dynamics. Walking, ejection, remote flight, combat, persistent
-campaigns and the unified front end follow. Sound effects are in scope; music
-is deferred. The core will not execute x86 code or depend on DOSBox at runtime.
-
-## Original source discovery
-
-During project setup we found the public
-[foone/Corncob3D source repository](https://github.com/foone/Corncob3D), inspected at
-Initial Import commit `2759414da1e6e645c3640288577d1e0cc8c32be4`, now preserved
-in `corncob-reverse/analysis/original_source/` without the later MASM edits.
-It contains original assembly for flight, object definitions, rendering,
-instruments, sound and the SRATS ending. Its makefile distinguishes shareware
-and registered builds. The snapshot's exact relationship to the retained 3.42
-binaries still needs to be established. It does not supply the C menu program
-or a complete standalone build environment.
-
-The repository reports an original 2001 release, republication in 2018 and
-informal permission from Kevin Stokes; it has no formal source licence.
-That account is not a licence grant from this project. The recovered source is
-an additional research reference, not a substitute for checking the target
-binary or a reason to import third-party assembly-library code blindly.
-
-## Display and resource foundation
-
-The software framebuffer remains 640 x 350; presentation corrects the EGA pixel
-aspect ratio to 4:3. OpenGL only uploads and presents CPU-generated pixels.
-Window sizing follows Darker: fit the monitor's work area, or query the Wayland
-compositor's maximised size and restore to a fitted floating window.
-
-The first resource is the unmodified compressed cockpit mask, embedded by CMake.
-The decompressor is checked against the native-verified decoded mask. Its stray
-diagonal line is part of the original asset and is deliberately retained.
-
-The four original theatres and the 3.42 data segment are now embedded too.
-Typed loaders decode the 61 object templates, shared polygon/wire/point/disc
-primitives and eight authored painter lists. The renderer retains the original
-three distance/detail tiers, fixed-point projection, focal-plane clipping,
-viewport frames and direction-dependent painter order. Sky and ground colours
-come from the tile headers, rather than a guessed default palette.
-
-The native session now owns live placements, the aircraft and the on-foot pilot.
-It starts on foot, supports boarding and re-entry, flight, landing, ejection,
-parachuting and remote flight. Original instruments, propeller, ground dots,
-radar rotation, crew gestures and theatre sun/atmosphere directives are connected.
-Combat, AI, campaign progression, the unified front end and sound remain underway.
-The free camera is a developer inspection aid.
-
-## Initial validation
-
-Linux Debug and Release builds pass the embedded-resource checks. The native
-headless screenshot matches all 224,000 decoded cockpit pixels. A private X11
-display confirms a 1,280 x 960 floating window within a 1,600 x 1,200 desktop and
-clean Escape handling. Release help excludes the developer screenshot and time
-limit options. Windows/macOS runtime checks and Wayland interactive sizing have
-not yet been performed.
-
-## Fixed-point translation
-
-The original 257-word sine table exactly matches 3.42 at file offset `0x10280`.
-The C++ signed sine matches native execution for every one of the 65,536 angle
-inputs. Forward/inverse rotation generation matches 512 angle sets; saturated
-physics transforms and fast vertex transforms match 512 cases each, and matrix
-composition matches 128 cases. Fixtures come from execution of unchanged DOS
-routines, not from a second implementation of the same formulas.
-
-The translation preserves the original word wrapping, product truncation,
-pairwise MADD rounding and its JS/JNS sign-test overflow quirk. Model vertices
-use the original rotate-high-word multiplication, which differs from HMUL.
-Inverse matrix generation is translated separately because transposing an
-already rounded forward matrix does not produce the same coefficients.
-
-`tools/generate_native_reference.py` regenerates the fixtures using Unicorn
-and the sibling research inputs. These are development dependencies only.
-The normal CMake build and executable require neither.
-
-## Software raster verification
-
-The C++ disc routine matches every indexed pixel from 30 executions of original
-DRAWDisc: all 17 small masks, larger CSQRT-based discs and viewport-edge cases.
-Twelve polygon fixtures likewise match original DRAWPoly, including reversed
-winding, viewport clipping, degenerate surfaces and a rejected concave shape.
-The scan converter preserves the negative-slope fractional-word quirk, rounded
-division and EGA row-address clipping. Wire rasterisation and the complete scene
-are not yet claimed to match every original pixel.
-
-The fixture generators use Unicorn and a small EGA plane/latch/write-mode adapter
-in development only. Normal tests run entirely in C++ with committed fixture
-hashes. An additional sweep renders from every placed object's neighbourhood in
-all four theatres, testing cockpit/full-screen layouts and front/rear clipping.
-
-## Aircraft force foundation
-
-The first aircraft simulation routines are translated and tested independently
-of the scene preview: atmosphere/density, gravity in body axes, thrust and rocket
-boost, longitudinal/lateral drag, lift, flap/stall limits and position integration.
-They preserve the original previous-pass density dependency, wrapping force
-accumulators, rounded dword division, word velocity limits and the experimental
-aircraft's fourfold position scaling. Control response and ground contact now connect this foundation to the interactive session.
-
-The original 1,024-entry arctangent table matches the target binary too. Tests
-compare 8,228 airflow angles, 256 native force passes (including intermediate
-forces, acceleration, stall and rocket state) and 128 position integrations.
-The first eight force passes reproduce the established research scenarios;
-others exercise rotated axes, variable time steps, atmosphere, aircraft variants
-and ground flags. HUD/audio calls are stubbed only in the native fixture harness.
-The ordinary build runs pure C++, without emulator dependencies.
-
-## Controls, landing and live-session checks
-
-A further 512 native control passes and 512 attitude/matrix passes verify the
-speed- and density-dependent angular response, ground steering and stall limiter.
-The autopilot, optional stability assistance and damage-induced jitter are not
-yet connected. Ground checks cover 1,024 original approximate vector magnitudes,
-256 wheel-height cases and 512 suspension/braking passes. The source disables its
-optional suspension-damping branch, as does the reference binary.
-
-Scripted input walks to the actual White Sands aircraft, boards, verifies its
-clearance lock and pause behaviour, then grants clearance to exercise a powered
-takeoff and sustained climb. It also ejects, opens the parachute and flies the
-abandoned aircraft remotely. Captured frames are inspected during development.
-This checks the connected path without claiming every pilot/flight transition
-has yet been matched against a complete DOS session.
-
-Generic object motion is checked against 512 original OBJMOV executions, including
-PRNG drift, quadratic drag, rotation, time adjustment, the special gravity-55
-constant-descent convention and ground stopping. A further 512 CHKBOX cases verify
-strict overlap, zero-X disabling and carries in summed unsigned half-extents.
-The successful-overlap callbacks are stubbed in those geometry-only fixtures.
-
-## Combat and active actors
-
-Player guns/cannon mode, finite pistol ammunition, unguided missiles, replenishing
-bombs and the planted assassin charge now use separate original-capacity bullet
-and effect pools. Timed movement precedes actor handlers and collision callbacks.
-Original fast-projectile contacts match 512 native QVELON cases; ordinary contacts
-match 512 native QCOLLIS1 cases. Aircraft damage matches 256 original DAMAGEPLANE
-passes, including random-stream continuation, capped wing/rudder channels and
-engine throttle loss. Native KLA launch-rest, steering, speed/noise and low-ground
-avoidance match another 512 reference passes.
-
-A scripted weapon scenario destroys a fuel dump through actual gun launch,
-movement and contact, tests protected orbs and mindbenders, and exercises bomb
-recharge and charge release. Another scenario checks local KLA spawning, hostile
-AAA shells, persistent destroyed-orb objectives and repeated-credit prevention.
-The engine now restricts scenery activation to the original four-tile area.
-
-The remaining actor translations are still under inspection: their connected
-state is not a claim of exhaustive native equivalence. In particular, capture/rescue handoffs, procedural training, some special effects and remaining
-helper-program UI remain to be finished. Sound/music are not yet connected.
-
-## Unified presentation and sortie results
-
-The original unmodified VGA artwork, IMG help, story/outcome scripts and reference
-BIOS fonts are embedded in a named immutable collection. Runtime rendering decodes
-the original formats directly. The two story panels and fifteen outcomes retain
-their stored image/text placements. One generated story composition matches the
-research PNG byte for byte in RGB. Ten original in-flight help pages form one
-sequence, returning to the retained flight.
-
-VGA compositions use 320 by 200 pixels; flight/help retain 640 by 350, while BIOS
-menu text uses 640 by 400 and the original 8-by-16 font. The presenter switches
-texture size without changing the floating window's intended CRT aspect ratio.
-The current menu is a functional native reconstruction; roster, training setup,
-complete title animation and career/report flow are still being connected.
-BIOS font provenance and GPL terms are retained under `third_party/`.
-
-The original 130-byte sortie result structure now has explicit typed fields and
-lossless serialization. Score arithmetic matches 512 unchanged ISCORE executions,
-including signed word/dword wrapping and status-priority cases. The world writer
-also reproduces all four original CCT files byte for byte after decoding, providing
-the basis for persistent campaign worlds without a new packed map format.
-
-A private X11 GUI run traverses combat selection, briefing, flight, help and quit
-cancellation. Original DOS front-end inspection uses a copied installation in a
-private DOSBox/Xvfb session; supplied installations remain unchanged.
-
-## Persistent pilots and live worlds
-
-The unified duty roster creates, activates, renames and resurrects pilots and
-displays career records. Confirmed sortie endings and terminal flight states
-feed the native result/score path, then show original outcome artwork and a report.
-Named pilots retain changed scenery independently in each theatre across restarts.
-The disposable trainee does not save a career or world. Saves use the platform
-user-data directory, with a command-line override for isolated testing.
-
-PILOT.SCR preserves the original 623-byte opaque records and both observed header
-layouts. Its Borland random mask matches 16,384 bytes generated by the unmodified
-MOAG routine. Existing unknown fields survive a decode/encode round trip. Newly
-written THT files retain the original 671-byte container and CCT world encoding;
-local filenames identify stable roster slots. Original automatic save-name
-selection and every career bookkeeping field are not claimed fully interoperable
-yet. Four definition files round-trip exactly, and persistence checks reopen a
-changed theatre, verify rank/score, rename its pilot and switch between independent
-careers. Files are replaced after a complete temporary-file write.
-
-## Generated training and intelligence starts
-
-INITPERMS is translated directly rather than replacing training with a saved
-example world. Its fixed airstrip, random fuel targets and defence sites,
-quality selection, obstacles and supporting scenery reproduce 2,157 placements
-from 32 original generator runs. The native fixture supplies object allocation
-only; construction and random arithmetic execute unchanged. Training begins
-aboard the runway aircraft, retaining a separate spare aircraft in the world.
-
-TWR mission names and Sxyth start coordinates are decoded as explicit data.
-The F2 selector relocates the retained aircraft rather than recreating a theatre.
-DONEWMISS's aircraft/damage gate, forward airflow, full throttle and retained
-pitch/roll are preserved. F1 retains the original BOSS.TXT DOS-prompt disguise, F2 opens current
-airbase intelligence/airborne starts, and F3
-inspects the current score without ending or recording a sortie.
-
-## Special sites and effects
-
-Mortars launch two dangerous upward fragments on their original recharge clock.
-Concealed shells reveal their quality-selected contents when struck. Generator
-orbs distort the projection nearby, with special orbs also attracting aircraft;
-mindbenders accumulate the original triangular palette cycling without changing
-the indexed artwork. Destroyed aircraft remain wrecks when saved/reloaded or
-entered, and ejection restores the original carried pistol/charge supply.
-
-Debris no longer uses provisional counts or velocities. Its constructors match
-530 particles from 64 original STRTFLT/STRTINCEND runs, covering outward/upward
-emissions, mortars, incendiaries, variable time steps and random seeds. This
-includes the otherwise surprising discarded random draw and low-word altitude
-addition without a carry. Special-site scenarios also verify first-visit census
-priming, protected objectives, attraction, barrages and shell conversion.
-The connected special effects still need broader full-session comparison with DOS;
-constructor equivalence alone does not establish whole-frame timing equivalence.
-
-## Autopilot and campaign clearance
-
-A toggles the original autopilot, including its pitch-by-speed table, feedback,
-altitude capture and low-speed disengagement. All 512 isolated feedback runs
-match the original code without arithmetic or helper stubs. This preserves two
-quirks: a repeated word in the vertical-airflow correction and an unsigned
-vertical-speed test that prevents a descending aircraft from capturing altitude.
-The cockpit AUTO light follows actual engagement.
-
-The three required normal combat theatres now feed completion medals and Combat
-Master clearance. A scripted campaign persists all three, verifies that clearance
-is withheld until the third, boards the White Sands experimental aircraft, reaches
-the original altitude condition and records the Earth-saved/Major result. This
-is a state-transition test, not a claim that an autonomous pilot completed every
-objective through combat. Repeated visits do not re-award theatre medals. Detailed
-original scanner bookkeeping, resurrection qualifications and reporting remain
-under investigation.
-
-## Live AdLib sound effects
-
-The twelve original 3.ADL register patches feed Nuked OPL in OPL2 mode, with
-miniaudio supplying 48 kHz stereo PCM output. Engine pressure/airflow pitch and
-VOICEON packing match 512 unchanged native engine-write cases. A headless check
-also synthesizes the actual engine patch and verifies finite, non-silent PCM.
-Original AdLib is a mono sound path; two PCM channels do not imply new spatial
-stereo effects. Dependency source pins, authorship and licenses are retained.
-
-Successful weapon launches and explosions supply event counters. Current aircraft
-state drives engine, stall and damage sounds, while local KLAs, orbs and saucers
-feed their original shared channels and proximity parameters. Original native
-crash-noise timing (eighteen BIOS ticks, then a 750 ms wait) continues independently
-of the menu loop. Register batches cross to the PCM callback without exposing
-mutable world state. Muting does not accumulate an unconsumed event queue.
-
-The pressure/pitch protocol is independently verified; the complete combined
-soundscape and interrupt-driven proximity modulation still need broader DOS
-comparison. Music remains deliberately deferred. S toggles effects; --no-sound
-avoids opening an output device until sound is enabled. Failure to open a PCM
-device reports a warning and leaves the game usable.
-
-## Native high-score tables
-
-PILOT.HSC retains the original 5,040-byte layout: ten mission records and ten
-entries each for cumulative and fastest careers. Fastest careers require three
-sorties and use integer points per sortie. Later sorties update a named career's
-existing entry. All fixed-width name padding and opaque result fields survive
-loading and saving. The main menu exposes the three tables together. Codec and
-ranking checks cover round trips, eligibility, separate rankings and restart
-persistence; ranking is not yet independently compared with native MOAG execution.
-
-## Unified Earth-saved ending
-
-The experimental-aircraft altitude transition now enters the original SRATS
-starfield before the Earth-saved artwork and sortie report. It retains the
-indexed cockpit and current palette, shrinks the Earth in the rear window and
-fades only the sky colour over eight seconds. Enter toggles accumulating star
-trails; Escape continues to the outcome. The retained 3.42 executable flashes
-white after 270 warp ticks, then fades out, a path that differs from the later
-registered-build conditional in the published source. Both EGA pages retain
-their own trails. BIOS-tick animation is independent of stopped flight state.
-
-All 768 initial star coordinates and 64 complete indexed star frames match
-unchanged SRATS execution using the development EGA adapter. The combined
-window fills, fade and handoff also have scripted coverage; this does not claim
-a pixel comparison of the entire original ending with inherited instruments.
-
-## Animated forcefields and saucers
-
-Wire barriers now follow the three original independent size cycles, with matching
-collision dimensions for each frame. The saucer's upper and lower lights pulse
-in opposition. Geometry bindings are decoded once from the original pointer
-tables; static model data stays cached. All changed wire vertices, collision
-components and saucer diameters match 512 unchanged native geometry updates.
-
-Quality-zero filled barriers hide their distant representation until struck,
-while retaining their nearby surface and collision. Contact reveals them briefly
-instead of destroying them. Forcefield shutdown uses the preceding local generator
-census. Scripted checks cover the reveal and retained barrier state.
-
-## Radar, views and map inspection
-
-The cockpit radar now shows active KLAs and saucers, relative to the aircraft
-even after ejection. Its unusual square-root distance compression, word product
-packing and three-pixel contact mask follow the original routines. All 512
-coordinate cases and 32,768 possible compressed-distance inputs match native
-execution. The existing flight magnitude checks still pass after sharing DSQRT.
-
-Num Lock and held Control select the original eased keypad head views without
-steering the aircraft. The scripted flight check verifies that looking sideways
-changes the camera while preserving runway heading, then restores the forward view.
-
-M enters the original overhead map, starting at 210 high words of altitude. It
-uses the existing software renderer, all stored tiles, survey-marker blinking
-and the authored player marker. Its apparent-depth cap at 35 high words matches
-512 unchanged REL3D executions. Map controls pan in proportion to altitude, zoom,
-rotate with Shift and centre Home while the sortie remains frozen. Training
-retains the original restriction. This is not a full native map pixel comparison.
-
-V now calls a quality-seven rescue van when stranded on foot, bringing a distant
-spawn into range as the original does. A scenario calls one van, rejects duplicate
-calls, walks to it and reaches the rescued sortie result. Hostile vehicles now
-pull the pilot toward them instead of declaring capture at the larger approach
-radius; capture itself uses the original object collision bounds.
-
-## In-flight guidance and exit paths
-
-Eleven BLACKBOX message records now decode directly from the embedded data segment,
-retaining the original red/black rectangles, BIOS positions and text. Mission
-selection, objective completion, low-altitude and ground-steering events queue
-their corresponding messages. Map instructions acknowledge into the map instead
-of dropping the request. O toggles messages, including while dismissing a box.
-The viewport's original black homing chevron and home-range radar-dish blink are
-connected. Control-C has a distinct abort result and zero native score.
-
-A private X11 run inspected the actual mission box, map, boss screen, help, score,
-abort outcome and report without changing supplied DOS installations. Headless
-interface checks decode/render every message and verify acknowledgements return
-to the retained flight. These checks do not establish every original warning's
-full-session timing, and the existing explanatory Escape confirmation is still
-a native-interface adaptation.
-
-## Ejection and parachute motion
-
-Airborne ejection now retains the original tumble and saved attitude. Opening
-the parachute waits eight frames, restores that attitude and applies the original
-settling swing; moving the controls interrupts it. One source quirk is retained:
-the first tumble component is added to a register after yaw has already been
-copied elsewhere, so only the second changes the view. The native 100-unit walking
-heading wobble replaces the earlier provisional value.
-
-Free-fall damping and parachute swing each match 512 original executions, including
-word truncation, even-only horizontal velocity, the swing envelope and interruption
-threshold. The connected walking/flight/ejection and rescue scenarios still pass.
-
-## Saucer movement
-
-The full living saucer handler now matches 512 native executions across all eight
-qualities, including stationary starts and the objective saucer's protected rest
-state. The stored modes select retreat, circling, approach and coasting in that
-order. These checks cover altitude correction, wave motion, transition randomness
-and speed limiting; weapon constructors and radar/audio are isolated explicitly.
-Active control towers also update the current airbase coordinates, as in TOWERTIM.
-
-## Ground guns, balloons, bees and aliens
-
-Another 1,536 unchanged native handler executions cover all eight qualities,
-AAA tracking and target leading, shell construction, balloon bounds and random
-reversals, bee orientation, and alien activation/hopping/removal. The target
-component cutoff is eight high words (524,288 cm), rather than the provisional
-doubled range. Ordinary contacts do not destroy barrage balloons.
-
-Bees consume three random angles before their shared balloon update. The final
-RAND_W carry flag accidentally decides whether that update takes its contact
-return, skipping vertical motion; this original dependency is retained explicitly.
-The reference harness supplies effect allocation and isolates AAA score reporting;
-movement, angle math, relative vectors and random arithmetic execute unchanged.
-
-An initial complete run of the existing 29 checks passed with both address and
-undefined-behaviour sanitizers, including the all-theatre rendering sweep. This
-is memory/arithmetic coverage, not a claim of full game equivalence.
-
-## Shared gameplay stream and sustained inspection
-
-Aircraft damage/ejection, actors and weapon/effect constructors now consume one
-shared native random stream instead of restarting separate streams. Saucer death
-uses the original debris-before-spin random order; ground impact emits upward
-fragments and fifteen incendiaries rather than a placeholder explosion.
-
-A sustained check runs 32 original-theatre starts with mixed flight controls,
-guns, missiles, bombs, ejection, parachuting and remote control, rendering along
-the way and round-tripping the resulting worlds/results. It exposed a crash
-when a hidden far-tier barrier supplied the original null model pointer; null
-models now correctly contribute no drawing commands. All 31 checks, including
-this longer run, pass under address and undefined-behaviour sanitizers.
-The renderer retains a separate visual random stream, and complete original
-frame ordering is still under comparison.
-
-## Medal records and uncounted flights
-
-The menu font now installs all sixteen original MEDAL.FNC glyph replacements.
-Pilot records expose the ten medal types with the original glyph pairs and EGA
-colours from MOAG's table at file offset 0x1fa82. Left/Right switches statistics
-and medals; Up/Down browses the roster. Interface checks verify every replacement
-font row and the navigation chain; the rendered medal page was inspected.
-
-MOAG's branches at 0x12eb8 (invulnerability) and 0x13168 (Control-C abort) bypass
-career accumulation. These flights now leave the complete pilot record and high
-score tables unchanged. World persistence remains separate from career credit.
-Pilot and campaign checks verify that even a killed/high-scoring uncounted result
-cannot change saved career bytes or enter the score lists.
-
-## Tower continuation, warnings and invulnerable recovery
-
-HUTTIM/DOTOWER now open intelligence without ending the sortie. While the tower
-is open the retained simulation stops; leaving moves the walking pilot out of
-the doorway and repairs/recharges the retained aircraft. Historical worst damage
-is retained. A scripted pilot boards a wreck, walks to the real doorway, opens
-intelligence and resumes outside with the repaired aircraft.
-
-Flight Escape follows the original one-time warning when messages are enabled
-and the pilot is outside the tower's 5,200-unit range. A later Escape ends the
-sortie. The damaged-aircraft F2 jump warning uses its original message record.
-
-Invulnerable ground crashes now execute RESETPLANE's level/height recovery and
-BOUNCEVERT's speed-dependent damping instead of killing the pilot. The bounce
-matches 512 original executions, including negative body speed and the signed
-word boundary. A connected fatal-attitude scenario verifies survival without
-counting a lost aircraft.
-
-An isolated real GLFW/X11 window also traversed doorway intelligence, return to
-flight, the original walking Escape warning, outcome, report and main menu, using
-a temporary native-format pilot/world. Captures were inspected and the console
-log was empty. The full 31-check Release suite passes, including sustained play.
-
-## Older saved-world encoding
-
-The world reader accepts both original type-word encodings: coordinate-XOR and
-plain. Each candidate must validate all 64 tile headers, every object type and
-the complete trailer before it is accepted; current saves continue to use XOR.
-An archived 252-object plain world is retained as a reference fixture, with its
-source hash. Its conversion preserves all packed fields and matches the recorded
-canonical XOR stream hash. Normal definition byte-for-byte round trips still pass.
-
-## Digital joystick input
-
-GLFW supplies the first two calibrated device axes and two buttons. The original
-SPKE quadratic response and JOYTD clipping match 512 native executions. Keyboard
-stick input takes precedence over both joystick axes, while keypad head views
-leave the physical stick available for flight. Buttons retain guns/missiles,
-including the original Space-for-missiles behaviour in joystick mode.
-
-The default selects the first connected two-axis device. `--joystick none`
-disables it, an explicit index selects one device, and `--list-joysticks` lists
-indices/names. Polling is restricted to focused flight, with hotplug discovery
-each pass. No analogue-port calibration or novel menu navigation is added. The
-connected flight scenario checks steering while looking sideways; physical
-hardware input remains untested on the development host.
+The target is **normal Corncob 3D 3.42**, shared by the retained shareware and
+Personal Companion retail flight engines. `3.EXE` has SHA-256
+`c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e`.
+Research inputs, disassembly and original DOS captures live in the sibling
+`corncob-reverse` workspace. Browser previews are inspection aids; unchanged
+executable routines supply the numerical reference.
+
+The application is C++ throughout. It does not execute original x86 instructions,
+launch DOS helpers or require an external installation. CMake embeds the original
+data and artwork; Python, Unicorn, DOSBox and the research workspace are development
+inputs only. Sound effects are included; music remains deliberately deferred.
+
+## Original source and provenance
+
+The public [foone/Corncob3D repository](https://github.com/foone/Corncob3D) contains
+original assembly for flight, objects, rendering, instruments, sound and SRATS.
+The **Initial Import** commit `2759414da1e6e645c3640288577d1e0cc8c32be4` is
+preserved under `corncob-reverse/analysis/original_source/`, without subsequent
+MASM edits or uploader documentation. The source distinguishes shareware and
+registered builds but omits the C menu program and a complete build environment.
+Some paths differ from the retained executable; target-binary behaviour takes
+precedence.
+
+The upstream account describes an original 2001 release, republication in 2018
+and informal permission from Kevin Stokes, with no formal source licence. That
+account is not a new licence grant. Embedded input hashes and origins are recorded
+in [assets/provenance.json](../assets/provenance.json); third-party terms remain
+under `third_party/`.
+
+## Connected game
+
+One session retains the aircraft, on-foot pilot, world, weapons and active actors.
+It supports walking/jumping, boarding and re-entry, powered flight and landing,
+ejection, free fall, parachuting and remote flight. Four original theatres and
+procedurally generated training are available. Fixed five-unit simulation steps
+advance forty fast PIT ticks; T changes physical time while retaining frame timers.
+
+Weapons use the original separate 32-bullet and 320-effect pools: guns/cannon
+mode, finite pistol ammunition, unguided missiles, replenishing bombs and the
+planted assassin charge. Effects include debris, incendiaries, mortar barrages,
+concealed sites, orbiting/swaying enemies, forcefields, generator attraction and
+mindbender palette effects. Aircraft damage retains its separate engine, wing,
+rudder and stability channels rather than generic hit points.
+
+Aircraft damage/ejection, actors and weapon constructors share one gameplay random
+stream. The saucer's modes select retreat, circling, approach and coasting around
+the current airbase. Its death uses debris-before-spin random ordering; ground
+impact produces upward fragments and fifteen incendiaries. Barrage balloons
+survive ordinary contacts. Bees retain the accidental RAND_W carry-flag dependency
+that sometimes skips their vertical update. Dead aliens disappear outside their
+near tier. Actor equivalence beyond the independently tested handlers remains
+under comparison.
+
+The original autopilot includes pitch-by-speed feedback and altitude capture.
+Optional beginner aerodynamics adds the original weaker PITCHLOCK correction.
+When both are enabled, the two original calls remain. Advanced is the default;
+`--flight-model beginner` selects assistance. The controls setup selects the same
+model and keyboard/joystick choice before a new flight. Settings currently last
+for the process; mapping them to original pilot configuration bytes is unfinished.
+
+Digital joysticks supply two calibrated axes and two buttons through GLFW. The
+original squared response and clipping are retained, without analogue-port timing
+or calibration prompts. Arrows override both stick axes; head-view keys leave the
+physical stick available for flight. Buttons select guns/missiles; Space requests
+missiles in joystick mode. `--joystick auto|none|N` selects a device, and
+`--list-joysticks` reports indices/names. Polling is restricted to focused flight.
+Device discovery detects the development host's T.16000M; physical control motion
+has not been exercised during automated checks.
+
+## Unified interface and campaign
+
+The executable joins title/story, roster, theatre selection/intelligence, training,
+controls/help, flight, outcomes, reports and the interactive Earth-saved ending.
+The menu is a functional reconstruction of the missing C front end, rather than
+a claim of matching every original menu pixel.
+
+F1 retains BOSS.TXT's DOS-prompt disguise. F2 exposes intelligence and stored Sxyth
+airborne starts without rebuilding the world; damaged aircraft retain the original
+jump restriction and message. F3 reports the retained sortie without recording it.
+F4 traverses ten original help pages. Eleven BLACKBOX records supply native warning
+rectangles, text and placements. Flight Escape warns once when messages are enabled
+and the pilot is beyond the tower's 5,200-unit range; a later Escape ends the sortie.
+Control-C follows the distinct uncounted abort path.
+
+Walking into a tower opens intelligence and pauses the retained simulation.
+DOTOWER continuation places the pilot outside the doorway, repairs the retained
+aircraft and recharges its rocket, preserving historical worst damage. It does
+not end or record a sortie. Invulnerable ground crashes level and bounce the
+plane through RESETPLANE/BOUNCEVERT instead of killing the pilot. Rescue calls
+create one friendly van; hostile vehicles draw an exposed pilot toward actual
+capture collision bounds.
+
+Named pilots retain changed worlds independently. Roster operations create,
+activate, deactivate, rename and resurrect pilots; records display career
+statistics and original medal glyphs/colours. Three native high-score lists cover
+missions, careers and integer points-per-sortie careers with at least three
+sorties. The three required normal theatres grant Combat Master clearance; the
+experimental aircraft's altitude condition leads to the Earth-saved ending.
+Invulnerable and aborted flights leave career bytes and high-score lists unchanged.
+World persistence remains separate from career credit.
+
+PILOT.SCR retains opaque 623-byte records, both observed header layouts and the
+original Borland random mask. PILOT.HSC retains its 5,040-byte layout and padding.
+THT uses the native 671-byte container and compact 64-tile world stream. Both plain
+and coordinate-XOR type words are accepted only after a complete world validates;
+new saves use XOR. All four original definitions round-trip byte for byte. Save
+replacement uses a completed temporary write. Current filenames use stable roster
+slots; original automatic filename selection and all bookkeeping are not yet fully
+interoperable.
+
+## Rendering, presentation and sound
+
+The software renderer retains 640 x 350 indexed EGA output, three distance/detail
+tiers, authored octant painter lists, fixed-point projection and focal-plane
+clipping. OpenGL only presents the CPU framebuffer. Floating window sizing fits
+available desktop space and preserves the intended 4:3 CRT shape. VGA presentations
+use 320 x 200; menus use 640 x 400 BIOS text. Nearest-neighbour sampling preserves
+pixel boundaries. The original cockpit mask's stray diagonal is retained.
+
+Original instruments, propeller, ground points, stars, sun directives, radar,
+homing pointer and animated model geometry are connected. Wire forcefields pulse
+with matching collision bounds; saucer discs pulse in opposition. Quality-zero
+filled barriers reveal their distant representation briefly on contact. Null
+model pointers intentionally draw nothing. Radar retains its unusual square-root
+range compression and draws relative to the aircraft after ejection. Num Lock and
+Control select eased head views. The overhead map retains depth reduction, stored
+survey/player markers, pan/zoom/rotation and frozen sortie state.
+
+Original VGA/IMG data and presentation scripts supply two story panels, fifteen
+outcomes and ten help screens. MEDAL.FNC replaces sixteen BIOS glyphs; ten award
+entries use MOAG's original pair/colour table at file offset `0x1fa82`. Full animated
+title/reflection/fade playback remains unfinished; the current title is static.
+
+The Earth-saved transition retains the indexed cockpit, shrinks the Earth in the
+rear window and fades only the sky before the SRATS starfield. Enter toggles warp
+trails; Escape continues to outcome/report. The target flashes white after 270
+warp ticks, unlike the later registered-build source conditional. Both EGA pages
+retain independent trails; BIOS animation time continues while flight is stopped.
+
+The twelve original 3.ADL patches drive Nuked OPL2; miniaudio supplies 48 kHz stereo
+PCM. This is mono AdLib duplicated into two channels, not new spatial stereo.
+Engine state, launches, explosions and nearby threats drive the original channels.
+Crash timing continues through eighteen BIOS ticks and a 750 ms wait independently
+of the menu loop. Register batches cross to the PCM callback without sharing live
+world state. Muting does not queue stale events. Full combined DOS soundscape and
+interrupt modulation still need broader comparison.
+
+## Verification
+
+Fixtures execute unchanged target routines in development. Their JSON metadata
+records executable/fixture hashes, addresses, scope and any explicit stubs. Ordinary
+CTest runs are C++ only; checks do not merely compare two translations of a formula.
+
+| Area | Independent native coverage |
+| --- | --- |
+| Fixed maths | All 65,536 sine inputs; 8,228 airflow angles; 512 forward/inverse rotation sets; 512 physics and fast vertex transforms each; 128 matrix compositions |
+| Landing maths | 1,024 magnitudes; 256 wheel clearances; 512 suspension/brake passes; 512 invulnerable bounce cases |
+| Flight | 256 force passes, including intermediate accumulators; 128 position integrations; 512 controls and attitude passes each |
+| Autopilot/beginner | 512 feedback cases covering both models, stall state and engagement combinations |
+| Joystick | 512 SPKE/JOYTD response cases, plus keyboard/button/head-view integration |
+| Person | 512 free-fall damping and 512 parachute swing cases |
+| Motion/collision | 512 generic movement, 512 strict boxes, 512 fast and 512 ordinary projectile contacts |
+| Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 1,536 AAA/balloon/bee/alien updates, including shell initialization |
+| Debris/training | 530 particles from 64 constructor runs; 2,157 generated placements from 32 training runs |
+| Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks and 12 polygon hashes; four original definition round trips; one 252-object plain saved world |
+| Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
+| Ending | All 768 initial stars and 64 complete indexed native star frames |
+| Score/persistence | 512 score calculations; 16,384 original mask bytes; native roster/high-score round trips and restart scenarios |
+| Sound | 512 engine/register-write cases and finite, non-silent PCM from the actual engine patch |
+
+Connected scenarios cover takeoff, ejection/parachute/remote control, weapons and
+persistent objectives, rescue/capture, damaged-aircraft tower visits, settings,
+career clearance and the ending. A sustained run exercises 32 original-theatre
+starts with mixed controls/weapons/ejection, more than 31,000 updates and 250
+rendered frames, then round-trips resulting worlds/results. It exposed the hidden
+far-model crash before interactive playtesting.
+
+Private GLFW/X11 checks traversed pilot creation, mission selection, radio boxes,
+map, boss screen, help, score, abort/report, tower intelligence, repair/resume and
+Escape warnings. Captures were inspected without changing supplied DOS installs.
+The complete 32-check suite passes under address and undefined-behaviour
+sanitizers, including the longer scenarios. The preceding 31-check Release
+suite also passed; optimized coverage is repeated as implementation changes. Wire rasterisation, complete frame ordering,
+Windows/macOS runtime and interactive Wayland sizing are not yet independently
+established.
+
+## Remaining fidelity work
+
+- Translate the animated title, palette transitions and reflection playback.
+- Complete original front-end/bookkeeping details: pilot deletion, high-score
+  retirement/renaming, original configuration bytes, scanner/award qualifications
+  and automatic saved-world naming.
+- Verify remaining ground-vehicle, launcher and special-site handlers against
+  full native executions, and broaden complete campaign comparisons.
+- Finish unconnected cockpit/visual feedback, including the full high-G fade and
+  any remaining auxiliary instrument states; compare wire rasterisation and whole
+  scene painter/collision ordering.
+- Check capture fading, portal placement and other connected special transitions
+  against longer DOS sessions. Scripted coverage is not proof of every transition.
+- Reconcile rendering's separate visual random stream with original complete-frame
+  draw order before claiming identical whole-session random continuation.
+- Compare the complete soundscape and confirm platform/device behaviour beyond
+  the Linux development host. Music remains outside the current implementation.
