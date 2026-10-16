@@ -535,6 +535,15 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
         effects.hallucination = static_cast<uint16_t>(proximity * proximity / 31);
       }
       break;
+    case portal:
+      {
+        auto const &parameters{resources::portal_qualities[object.quality()]};
+        uint8_t colour{static_cast<uint8_t>(object.has(world::object_flag::objective_complete) ? 15 : parameters.colour)};
+        if(maths::word(random.next()) >= 0 || (object.timer & 16'384u) == 0) colour = static_cast<uint8_t>(parameters.flash_colour);
+        object.portal_colour = colour;
+        object.timer = 32'000;
+      }
+      break;
     case control_tower:
       theatre.start.x = maths::dword(static_cast<int64_t>(object.position.x) + 3001 - 2 * 65'536);
       theatre.start.y = maths::dword(static_cast<int64_t>(object.position.y) - 16'000);

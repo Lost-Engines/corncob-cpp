@@ -65,6 +65,16 @@ orb/objective/mindbender cases match without stubs, including preceding-orb effe
 all qualities, attraction, regenerated health and PRNG continuation. Remaining
 actor equivalence is under comparison.
 
+Portal quality rows now drive their original transfer, damage, repair and objective
+bits. Transfers occur on the following pass, preserve full coordinate words, consume
+four random draws in the original order, and arrive at 229,376 cm. Repair preserves
+historical worst damage and invulnerability. Noncollision portal updates retain
+the original timer, completed-white/stippled flash colours and PRNG continuation;
+each portal retains the colour selected by its handler for its model primitives.
+The destination block matches 512 native cases and the complete noncollision
+handler matches 256; connected cases cover objective credit, delayed transfer,
+repair, and a damaging portal followed by a repair portal.
+
 The original autopilot includes pitch-by-speed feedback and altitude capture.
 Optional beginner aerodynamics adds the original weaker PITCHLOCK correction.
 When both are enabled, the two original calls remain. The standalone engine defaults to advanced; MOAG creates pilots with beginner
@@ -238,6 +248,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Fixed maths | All 65,536 sine inputs; 8,228 airflow angles; 512 forward/inverse rotation sets; 512 physics and fast vertex transforms each; 128 matrix compositions |
 | Landing maths | 1,024 magnitudes; 256 wheel clearances; 512 suspension/brake passes; 512 invulnerable bounce cases |
 | Flight | 256 force passes, including intermediate accumulators; 128 position integrations; 512 controls and attitude passes each |
+| Portals | 512 unchanged destination/PRNG cases and 256 complete timer/colour updates; connected delayed objective transfer and damage/repair |
 | Rocket recharge | 1,024 native BIOS-clock updates, including time advance, wrapping and readiness; connected discharge/recharge/reignition |
 | Autopilot/beginner | 512 feedback cases covering both models, stall state and engagement combinations |
 | Joystick | 512 SPKE/JOYTD response cases, plus keyboard/button/head-view integration |
@@ -266,7 +277,7 @@ Escape warnings, followed by both story fades and the animated title/credits. A 
 traversal checked the saved training defaults, live bomb-supply indicators, flap
 state and cockpit warning colours.
 Captures were inspected without changing supplied DOS installs.
-The complete 40-check Debug, Release and sanitizer suites pass, including the
+The complete 42-check Debug, Release and sanitizer suites pass, including the
 longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title. Complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.
@@ -288,8 +299,8 @@ match without stubs; the connected rescue scenario still passes.
   full native executions, and broaden complete campaign comparisons.
 - Broaden complete cockpit/gauge-frame comparisons and whole scene painter/
   collision ordering.
-- Check portal placement and other connected special transitions
-  against longer DOS sessions. Scripted coverage is not proof of every transition.
+- Broaden connected special transitions against longer DOS sessions. Scripted
+  coverage is not proof of every transition.
 - Reconcile rendering's separate visual random stream with original complete-frame
   draw order before claiming identical whole-session random continuation.
 - Compare the complete soundscape and confirm platform/device behaviour beyond

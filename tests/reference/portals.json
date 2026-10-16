@@ -1,0 +1,12 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "3f6c9628952a977feeba10872a52f3e02ec2523632d4451d93262a93a0a168c1",
+  "destination_cases": 512,
+  "handler_cases": 256,
+  "routines": [
+    "0x2188..0x21cd DOXP position block",
+    "0xc7ba XPTIM noncollision handler"
+  ],
+  "stubs": [],
+  "scope": "Original disabled, home and random portal destinations, including signed high words, full low words, fixed arrival altitude and four-draw RNG continuation. Tile unload/reload surrounds this block and is excluded. Includes complete noncollision XPTIM timer, completed-object colour, stippled flash colours and RNG continuation."
+}

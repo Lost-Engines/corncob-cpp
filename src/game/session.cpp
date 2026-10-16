@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <utility>
 #include "maths/integer.h"
+#include "resources/actor_tables.h"
 
 namespace corncob::game {
 
@@ -207,26 +208,24 @@ void session::find_surfaces() {
   }
 }
 
-void session::enter_portal(world::placed_object &portal) {
-  /// Portal quality selects the native return/random relocation, damage, repair and objective actions
+void session::enter_portal(world::placed_object &portal, flight::time_step const step) {
+  /// XPTIM records a transfer for the following frame; damage/repair and one-time objective credit happen on contact
   if(mode != player_mode::in_aircraft) return;
-  auto const quality{portal.quality()};
-  if(quality == 3) {
+  auto const &parameters{resources::portal_qualities[portal.quality()]};
+  uint8_t const transfer{static_cast<uint8_t>(parameters.action_bits)};
+  pending_portal = transfer == 0 ? portal_transfer::none : transfer >= 128 ? portal_transfer::random : portal_transfer::home;
+  if((parameters.action_bits & 0x100u) != 0) weapons.complete(portal);
+  portal.timer &= 16'383u;
+  if(parameters.damage_or_repair < 0) {
     mode = player_mode::dead;
+    fatal_contact = portal.type;
     notice = "Fatal portal";
-    return;
-  }
-  if(quality <= 5) {
-    aircraft.position = maths::world_position{theatre.start};
-    if(quality == 1) {
-      aircraft.position.x = static_cast<int32_t>(random.next()) * 256 - 8'388'608;
-      aircraft.position.y = static_cast<int32_t>(random.next()) * 256 - 8'388'608;
-    }
-    aircraft.position.z = 100'000;
-  }
-  if(quality == 2 || quality == 5) flight::apply_damage(damage, aircraft, 75, random, {});
-  if(quality == 6) damage = {};
-  if(quality == 4 || quality == 7) weapons.complete(portal);
+  } else if((parameters.damage_or_repair & 2) != 0) {
+    auto const worst{damage.worst};
+    damage = {};
+    damage.worst = worst;
+    damage.invincible = invincible;
+  } else if(parameters.damage_or_repair != 0) flight::apply_damage(damage, aircraft, 75, random, step);
 }
 
 void session::check_aircraft_collisions(flight::time_step const step) {
@@ -242,7 +241,7 @@ void session::check_aircraft_collisions(flight::time_step const step) {
     }
     if(!inside || has(definition, world::object_property::runway)) continue;
     if(has(definition, world::object_property::portal)) {
-      enter_portal(object);
+      enter_portal(object, step);
       continue;
     }
     auto const attacker{object};
@@ -582,6 +581,13 @@ void session::advance(input_state const &input) {
 
   weapons.collisions(observer);
   update_scenery();
+  auto const transfer{std::exchange(pending_portal, portal_transfer::none)};
+  if(transfer != portal_transfer::none) {
+    transfer_portal(aircraft.position, theatre.start, transfer, random);
+    orb_distortion = 0;
+    enemies.refresh_census(aircraft.position);
+    retain_aircraft();
+  }
   if(controlled_aircraft && experimental_clearance && aircraft.variant == flight::aircraft_variant::experimental
     && (aircraft.position.z >> 8) >= atmosphere.height * 3 / 5) {
     mode = player_mode::earth_saved;

@@ -290,6 +290,10 @@ void geometry_bank::prepare_colours(world::placed_object const &object, unsigned
     }
     colours[rule.address] = static_cast<uint8_t>(value);
   }
+  if(object.type == world::object_type::portal && object.portal_colour) {
+    model_address constexpr portal_colour_address{0x2dd3};
+    colours[portal_colour_address] = *object.portal_colour;
+  }
 }
 
 } // namespace corncob::resources

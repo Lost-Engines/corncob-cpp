@@ -7,6 +7,7 @@
 #include "game/pilot_motion.h"
 #include "game/vision.h"
 #include "game/rocket.h"
+#include "game/portal.h"
 #include "flight/damage.h"
 #include "game/combat.h"
 #include "game/actors.h"
@@ -113,6 +114,7 @@ private:
   vec3<uint16_t> palette_phase{0, 0, 0};
   uint32_t fast_ticks{0};
   rocket_charge rocket_timer;
+  portal_transfer pending_portal{portal_transfer::none};
   bool rocket_requested{false};
   unsigned int frame{0};
   std::string notice;
@@ -130,7 +132,7 @@ private:
   void find_surfaces();
   void check_aircraft_entry();
   void check_aircraft_collisions(flight::time_step step);
-  void enter_portal(world::placed_object &portal);
+  void enter_portal(world::placed_object &portal, flight::time_step step);
   bool at_home(uint16_t maximum_distance = 4200) const;
   void enter_aircraft(unsigned int index);
   void leave_aircraft();

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <utility>
@@ -82,6 +83,7 @@ struct placed_object {
   uint8_t collision_group{0};
   motion_profile motion{};
   model_pose pose{model_pose::normal};
+  std::optional<uint8_t> portal_colour{};
   maths::fixed_vector collision_extents{0, 0, 0};
 
   unsigned int quality() const noexcept {
