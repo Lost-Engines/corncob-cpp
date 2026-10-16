@@ -1,0 +1,247 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "6bf5f1b3379cb0ba10403574d52c89bd59b5749775a1fb8de8204fb625874b09",
+  "routine_file_offsets": {
+    "CALCSIN": "0x5fe1",
+    "CALCMAT": "0x6021",
+    "DISTEVAL": "0x715a",
+    "TBSORT": "0x74c1",
+    "D3DOBJ": "0x7270"
+  },
+  "adapter": "Original EGA latches/write modes and native full-screen viewport; rear view disabled",
+  "crop_left_top_right_bottom": [
+    200,
+    4,
+    440,
+    345
+  ],
+  "background": 2,
+  "stubs": [],
+  "scope": "Two static original objects with their relative placements retained, viewed at eight ground-level angles. Only the central scene region is compared; sky/ground normalize to the uniform EGA background. The original renderer paints the doorway over the side/back walls. This is not a whole-game frame comparison.",
+  "cases": [
+    {
+      "position": [
+        20000,
+        0,
+        720
+      ],
+      "heading": 32768,
+      "doorway": false,
+      "hash_fnv1a64": "be431e05c4bc4cbc",
+      "draw_order": [
+        6
+      ]
+    },
+    {
+      "position": [
+        20000,
+        0,
+        720
+      ],
+      "heading": 32768,
+      "doorway": true,
+      "hash_fnv1a64": "52537d24eb0c6161",
+      "draw_order": [
+        6,
+        34
+      ],
+      "doorway_pixels": 11
+    },
+    {
+      "position": [
+        14142,
+        14142,
+        720
+      ],
+      "heading": 40960,
+      "doorway": false,
+      "hash_fnv1a64": "14d6a82cc98f0c14",
+      "draw_order": [
+        6
+      ]
+    },
+    {
+      "position": [
+        14142,
+        14142,
+        720
+      ],
+      "heading": 40960,
+      "doorway": true,
+      "hash_fnv1a64": "19b88d6023270c74",
+      "draw_order": [
+        6,
+        34
+      ],
+      "doorway_pixels": 90
+    },
+    {
+      "position": [
+        0,
+        20000,
+        720
+      ],
+      "heading": 49152,
+      "doorway": false,
+      "hash_fnv1a64": "0846564f459ac7e5",
+      "draw_order": [
+        6
+      ]
+    },
+    {
+      "position": [
+        0,
+        20000,
+        720
+      ],
+      "heading": 49152,
+      "doorway": true,
+      "hash_fnv1a64": "fc0b90bb0bd97455",
+      "draw_order": [
+        6,
+        34
+      ],
+      "doorway_pixels": 100
+    },
+    {
+      "position": [
+        -14142,
+        14142,
+        720
+      ],
+      "heading": 57344,
+      "doorway": false,
+      "hash_fnv1a64": "14d6a82cc98f0c14",
+      "draw_order": [
+        6
+      ]
+    },
+    {
+      "position": [
+        -14142,
+        14142,
+        720
+      ],
+      "heading": 57344,
+      "doorway": true,
+      "hash_fnv1a64": "68c98dbb536f0e68",
+      "draw_order": [
+        6,
+        34
+      ],
+      "doorway_pixels": 90
+    },
+    {
+      "position": [
+        -20000,
+        0,
+        720
+      ],
+      "heading": 0,
+      "doorway": false,
+      "hash_fnv1a64": "0846564f459ac7e5",
+      "draw_order": [
+        6
+      ]
+    },
+    {
+      "position": [
+        -20000,
+        0,
+        720
+      ],
+      "heading": 0,
+      "doorway": true,
+      "hash_fnv1a64": "3310cc57197de0ca",
+      "draw_order": [
+        6,
+        34
+      ],
+      "doorway_pixels": 11
+    },
+    {
+      "position": [
+        -14142,
+        -14142,
+        720
+      ],
+      "heading": 8192,
+      "doorway": false,
+      "hash_fnv1a64": "14d6a82cc98f0c14",
+      "draw_order": [
+        6
+      ]
+    },
+    {
+      "position": [
+        -14142,
+        -14142,
+        720
+      ],
+      "heading": 8192,
+      "doorway": true,
+      "hash_fnv1a64": "2553b0f331535594",
+      "draw_order": [
+        6,
+        34
+      ],
+      "doorway_pixels": 96
+    },
+    {
+      "position": [
+        0,
+        -20000,
+        720
+      ],
+      "heading": 16384,
+      "doorway": false,
+      "hash_fnv1a64": "be431e05c4bc4cbc",
+      "draw_order": [
+        6
+      ]
+    },
+    {
+      "position": [
+        0,
+        -20000,
+        720
+      ],
+      "heading": 16384,
+      "doorway": true,
+      "hash_fnv1a64": "941cfd87baedd77c",
+      "draw_order": [
+        6,
+        34
+      ],
+      "doorway_pixels": 144
+    },
+    {
+      "position": [
+        14142,
+        -14142,
+        720
+      ],
+      "heading": 24576,
+      "doorway": false,
+      "hash_fnv1a64": "14d6a82cc98f0c14",
+      "draw_order": [
+        6
+      ]
+    },
+    {
+      "position": [
+        14142,
+        -14142,
+        720
+      ],
+      "heading": 24576,
+      "doorway": true,
+      "hash_fnv1a64": "98e4b6d9dca2c594",
+      "draw_order": [
+        6,
+        34
+      ],
+      "doorway_pixels": 96
+    }
+  ]
+}

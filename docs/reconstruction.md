@@ -199,6 +199,17 @@ available desktop space and preserves the intended 4:3 CRT shape. VGA presentati
 use 320 x 200; menus use 640 x 400 BIOS text. Nearest-neighbour sampling preserves
 pixel boundaries. The original cockpit mask's stray diagonal is retained.
 
+The control-tower door showing through its side/back walls is also an original
+rendering quirk. The tower and doorway are separate objects: TBSORT compares their
+centre distances, and the elevated tower centre causes its walls to be drawn
+before the ground-level doorway. The doorway's polygon is drawn from either side.
+Executing unchanged DISTEVAL, TBSORT and D3DOBJ reproduces this at eight ground-level
+viewpoints; sixteen central scene regions (with and without the door) match the
+reconstruction exactly after normalizing sky/ground to the probe's flat background.
+[The fixture metadata](../tests/reference/native_tower.json) records the routine
+addresses and scope. This quirk is retained for fidelity; it does not establish
+identical painter-table ordering for complete moving scenes.
+
 Cockpit buttons retain all fourteen native search masks and colour substitutions;
 56 complete native frames cover their exact bounds. Bomb-supply annunciators,
 flashing low-altitude/eject warnings, high-altitude marks and the rocket needle's
@@ -295,7 +306,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks, 12 polygon hashes, 304 line frames and 512 wire-clip cases; four original definition round trips; one 252-object plain saved world |
 | Ground/stars | 512 point regenerations, 256 stars and 64 complete three-bank initialisations with PRNG continuation |
 | Particles | 512 complete 35-disc/shared-colour frame blocks and PRNG continuations, plus resource bindings across the original models |
-| Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
+| Model/map/radar | 16 tower/doorway scene regions; 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
 | Title | 1,024 original animation-state/PRNG passes and 6,144 VGA letter-mask pixels |
 | Ending | All 768 initial stars and 64 complete indexed native star frames |
