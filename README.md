@@ -7,8 +7,8 @@ The four original theatres and generated training support walking, flight,
 ejection and remote control, weapons, active enemies and the original special
 sites. Named pilots retain their careers, medals, high scores and changed worlds.
 The story, animated introduction, help screens, outcomes, reports and interactive
-Earth-saved ending run in the same executable. AdLib sound effects are included;
-music is deferred.
+Earth-saved ending run in the same executable. Original AdLib music and sound
+effects are included.
 
 The game is playable, with continuing fidelity checks against the DOS executable.
 [Reconstruction notes](docs/reconstruction.md) describe verified behaviour and the
@@ -50,8 +50,8 @@ A connected joystick is selected automatically for flight. Button 1 fires guns,
 button 2 fires missiles, and Space also fires missiles in joystick mode. Arrow
 keys override the stick unless used for head views. `--joystick none` keeps
 keyboard controls; `--list-joysticks` lists devices for `--joystick N`.
-The main menu's controls setup also selects keyboard/joystick input and the original
-beginner or advanced flight model. Beginner gently assists the pitch toward level
+The main menu's controls and sound setup selects keyboard/joystick input and the
+original beginner or advanced flight model. Beginner gently assists the pitch toward level
 flight and is the original launcher default. Control choice and each named pilot’s
 flight model are saved; `--flight-model advanced` overrides the model at startup. E leaves
 the aircraft; Space opens a parachute while falling. Caps Lock enables remote
@@ -60,6 +60,8 @@ While paused, Space opens help; P or Escape resumes the flight. M opens the orig
 Shift turns the view, Home recentres and Space returns. Num Lock or held Control
 switches the keypad to looking around. V calls a rescue van while stranded on
 foot. S toggles AdLib sound effects. `--no-sound` starts with effects disabled.
+Title and menu music has a saved toggle in Controls and sound setup;
+`--no-music` starts with music disabled.
 Original message boxes explain mission selection, map controls and warnings; O
 toggles them. The homing pointer along the viewport border points back to base.
 Control-C aborts a sortie without awarding points.

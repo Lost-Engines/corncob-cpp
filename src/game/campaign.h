@@ -31,6 +31,8 @@ public:
   void rename_pilot(unsigned int index, std::string_view name);
   void resurrect(unsigned int index);
   void delete_pilot(unsigned int index);
+  bool music_enabled() const noexcept;
+  void music_enabled(bool value);
   bool keyboard_control() const noexcept;
   void keyboard_control(bool value);
   void beginner_flight(bool value);

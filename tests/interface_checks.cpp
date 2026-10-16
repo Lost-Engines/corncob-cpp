@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include "game/front_end.h"
 #include "resources/assets.h"
@@ -84,7 +85,9 @@ int main(int const argc, char const *const argv[]) {
   auto const launch{front.take_launch()};
   if(!launch || launch->theatre != "morning" || front.take_launch()) throw std::runtime_error{"menu launch request lost or repeated"};
   front.begin_flight();
+  if(front.music() != corncob::audio::music_cue::silent) throw std::runtime_error{"menu music continued into a sortie"};
   front.show_flight_help();
+  if(front.music() != corncob::audio::music_cue::silent) throw std::runtime_error{"flight helper enabled menu music"};
   for(unsigned int page{0}; page != 10; ++page) {
     front.render(frame);
     if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / ("help" + std::to_string(page) + ".ppm"));
@@ -110,6 +113,8 @@ int main(int const argc, char const *const argv[]) {
   if(!front.take_finish() || front.take_finish()) throw std::runtime_error{"end-sortie request lost or repeated"};
   front.abort_sortie();
   if(!front.take_finish() || !front.take_abort() || front.take_abort()) throw std::runtime_error{"abort status was lost or repeated"};
+  auto const startup_muted{std::make_unique<game::front_end>(assets, career, true, false, std::nullopt, false)};
+  if(startup_muted->music() != corncob::audio::music_cue::silent || !career.music_enabled()) throw std::runtime_error{"startup music override changed the saved preference"};
   game::front_end setup{assets, career, true};
   for(unsigned int i{0}; i != 5; ++i) setup.command(game::interface_command::down);
   setup.command(game::interface_command::accept);
@@ -120,12 +125,17 @@ int main(int const argc, char const *const argv[]) {
   setup.render(frame);
   if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / "control-setup.ppm");
   setup.command(game::interface_command::down);
+  if(setup.music() != corncob::audio::music_cue::menus) throw std::runtime_error{"new roster did not enable menu music"};
+  setup.command(game::interface_command::next);
+  if(setup.music() != corncob::audio::music_cue::silent) throw std::runtime_error{"music toggle did not stop menu music"};
+  setup.command(game::interface_command::down);
   setup.command(game::interface_command::accept);
   if(setup.current_page() != game::interface_page::help) throw std::runtime_error{"control setup lost the original help sequence"};
   setup.command(game::interface_command::cancel);
   if(setup.current_page() != game::interface_page::control_setup) throw std::runtime_error{"help did not return to control setup"};
   game::campaign_store reopened{scratch};
   game::front_end restored{assets, reopened, true};
+  if(restored.music() != corncob::audio::music_cue::silent) throw std::runtime_error{"music choice was lost on restart"};
   if(restored.flight_controls().joystick_device != -2 || restored.flight_controls().beginner_flight) throw std::runtime_error{"control menu settings were lost on restart"};
   restored.command(game::interface_command::accept);
   for(unsigned int i{0}; i != 6; ++i) restored.command(game::interface_command::down);

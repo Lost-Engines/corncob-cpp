@@ -10,7 +10,7 @@ executable routines supply the numerical reference.
 The application is C++ throughout. It does not execute original x86 instructions,
 launch DOS helpers or require an external installation. CMake embeds the original
 data and artwork; Python, Unicorn, DOSBox and the research workspace are development
-inputs only. Sound effects are included; music remains deliberately deferred.
+inputs only. Original music and sound effects are included.
 
 ## Original source and provenance
 
@@ -315,9 +315,8 @@ separate GRADSKY palette, threshold fade and scrolling credits are retained.
 The per-frame motion, state transitions and Borland PRNG continuation match
 1,024 unchanged native passes; 6,144 composited pixels match original VGA writes.
 The original CRTC page setter does not wait for retrace, so playback here uses a
-stable 70 Hz clock rather than depending on CPU or DOSBox cycle speed. Original
-presentation sound/music is not part of this visual reconstruction. Whole title
-frames, including sprite clipping and text rasterisation, are not yet claimed
+stable 70 Hz clock rather than depending on CPU or DOSBox cycle speed. The title
+score uses the clean original-driver recording described below. Whole title frames, including sprite clipping and text rasterisation, are not yet claimed
 pixel-exact.
 
 The Earth-saved transition retains the indexed cockpit, shrinks the Earth in the
@@ -331,7 +330,8 @@ PCM. This is mono AdLib duplicated into two channels, not new spatial stereo.
 Engine state, launches, explosions and nearby threats drive the original channels.
 Crash timing continues through eighteen BIOS ticks and a 750 ms wait independently
 of the menu loop. Register batches cross to the PCM callback without sharing live
-world state. Muting does not queue stale events. Proximity inputs now come from
+world state. Muting does not queue stale events. Inactive chip output is suppressed while its
+clock continues, so held envelopes do not leak underneath the menu music. Proximity inputs now come from
 the actual actor handlers, preserving their overwrite order, KLA launch rest and
 persistent quality. They are latched for the following frame, as in the original
 pre-DRAWNEAR sound block. Radar-derived saucer attenuation uses compressed
@@ -343,6 +343,45 @@ writes in 512 connected native proximity frames match; 384 ordered full actor
 passes independently verify the range/pitch inputs with real RADARPROCESS maths.
 Audio is updated per simulation pass, so catch-up frames retain their events.
 Complete combined DOS soundscape and interrupt behaviour still need broader comparison.
+
+Music is recorded offline from unchanged MOAG and its bundled Ad Lib V1.51
+driver. Private DOSBox copies repeat each ROL/CCMUSIC score twice; both complete
+note-on streams must match before export. DRO captures preserve original register
+values and millisecond timing. The pinned Nuked OPL emulator renders their mono
+DAC output directly, with no normalisation or gain changes. FLAC masters use
+maximum preset compression (`-8`); only Ogg Vorbis quality-6 copies are embedded.
+The normal-game FLACs in the research audio browser now use these masters,
+replacing the earlier AdPlug approximations at the same paths.
+
+| Score | Complete native repeat boundary |
+| --- | ---: |
+| DESTINY3 | 84.834 s |
+| RIDINGT | 204.155 s |
+| DREAMSO2 | 178.795 s |
+
+These boundaries include the short native restart gap and exclude the next note.
+They come from driver resets and matching complete score passes, not an arbitrary
+capture duration. Actual CCTITLE output independently confirms the same musical
+register sequence; its separate effects are excluded from the music master.
+The clean title score repeats during the animated title, and the two menu scores
+cycle in playlist order. Story panels, flight and its helper pages, original
+outcomes and the starfield ending remain without music.
+
+A small Vorbis player reads the embedded bytes using the decoder already supplied
+with the pinned miniaudio source. Decoders open before the callback starts; only
+an atomic cue crosses from the interface thread. Complete tracks and playlist
+transitions retain every sample across arbitrary callback sizes. Music uses the
+same PCM device as the existing live AdLib effects. The setup menu saves the
+original global music flag at byte 21 of the decoded 24-byte PILOT.SCR header
+(`FF` on, `00` off). Older 23-byte rosters predate this flag and are upgraded only
+when the music preference is written, preserving their pilot count and records.
+`--no-music` overrides startup without writing the saved preference.
+
+[Recording provenance](../assets/music/provenance.json) lists original inputs,
+capture hashes, musical repeat checks and encoding settings. Lossless masters
+and DRO files live in `corncob-reverse/analysis/resources/audio/`; the game needs
+none of those files. `tools/render_music_capture.cpp` and `tools/import_music.py`
+reproduce the masters and embedded copies from the retained captures.
 
 ## Verification
 
@@ -375,6 +414,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Animation clock | 512 native word-counter transitions and a connected 16,384-pass restart |
 | Sortie clock | 512 unchanged two-segment DOS-clock conversions, including pause boundaries and wrapping; connected flight/pause/map timing |
 | Score/persistence | 512 ISCORE calculations, 256 complete MOAG career updates and 512 complete promotion/medal decisions; 16,384 original mask bytes; original control/model/new-pilot fixtures; 96 full 5,040-byte native high-score insertion/tie/padding cases and exact retirement; roster/world restart, rename and deletion scenarios |
+| Music | Three native-driver recordings; complete title/menu repeats, arbitrary 1–512-frame callbacks, saved native music flags and older-roster import |
 | Sound | 512 engine/register-write cases; 10,535 proximity writes across 512 connected frames; 384 ordered actor-proximity passes; finite, non-silent PCM |
 
 Connected scenarios cover takeoff, ejection/parachute/remote control, weapons and
@@ -394,11 +434,14 @@ traversal checked the saved training defaults, live bomb-supply indicators, flap
 state and cockpit warning colours. Pause/Space help, help-page continuation
 and P/Escape return were also inspected in the actual window. A clean Release
 installation contains only the embedded executable and opens without the research
-workspace or external game assets.
+workspace or external game assets. An installed music-enabled executable was
+also checked through a private audio server containing only a null sink: music,
+a sustained digitally silent mute and resumed playback were captured from the
+actual window. The installed package still contains only `corncob`.
 Captures were inspected without changing supplied DOS installs.
-The complete 52-check Debug, Release and sanitizer suites pass, including the
+The complete 53-check Debug, Release and sanitizer suites pass, including the
 longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title.
-A local MinGW GCC 16 Release build also passes all 52 checks under Wine; its actual
+A local MinGW GCC 16 Release build also passes all 53 checks under Wine; its actual
 window was inspected through menus, training, flight and stepping out on foot.
 It imports only Windows system DLLs. This does not replace testing on Windows
 hardware. Complete frame ordering, macOS runtime and interactive Wayland sizing
@@ -426,4 +469,4 @@ match without stubs; the connected rescue scenario still passes.
   identical whole-session random continuation; display refreshes now preserve the
   shared simulation stream.
 - Compare the complete soundscape and confirm platform/device behaviour beyond
-  the Linux development host. Music remains outside the current implementation.
+  the Linux development host.

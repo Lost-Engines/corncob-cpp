@@ -154,12 +154,16 @@ public:
 
 class pilot_roster {
 private:
-  std::vector<uint8_t> header = std::vector<uint8_t>(24);
+  static unsigned int constexpr current_header_bytes{24}, legacy_header_bytes{23}, music_flag_offset{21};
+  std::vector<uint8_t> header = std::vector<uint8_t>(current_header_bytes);
   uint8_t retained_byte{0};
   uint16_t seed{1};
 
 public:
   std::vector<pilot_record> pilots;
+  pilot_roster();
+  bool music_enabled() const;
+  void music_enabled(bool value);
   bool keyboard_control() const;
   void keyboard_control(bool value);
   static pilot_roster decode(std::span<uint8_t const> source);

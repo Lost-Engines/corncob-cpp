@@ -10,3 +10,8 @@ https://github.com/mackron/miniaudio
 Pinned source: f40cf03f80cdb7e741d43e53b7e706e8c1394bcf
 
 Original register patches and gameplay sound design are by Corncob's authors.
+
+The pinned miniaudio source also supplies Sean Barrett's stb_vorbis decoder
+(v1.22), used for the embedded Ogg music. It is built locally with file I/O
+and the push-data API disabled. Public domain or MIT; see stb-vorbis-LICENSE.txt.
+Original music is by James L. Collymore and retains its original copyright.

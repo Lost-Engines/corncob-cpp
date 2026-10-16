@@ -165,7 +165,7 @@ void effects::update(frame_state const &frame) {
   /// Connect original engine, proximity and event channels to the simulation clock
   std::lock_guard lock{state->queue_lock};
   auto const previous{state->previous};
-  if(frame.active == previous.active && frame.tick == previous.tick) return;
+  if(frame.active == previous.active && frame.dead == previous.dead && frame.tick == previous.tick) return;
   auto &sound{*state};
   sound.previous = frame;
   if(!frame.active && !frame.dead) {
@@ -276,8 +276,10 @@ void effects::update(frame_state const &frame) {
 }
 void effects::render(std::span<float> const samples) noexcept {
   /// Drain complete register batches before rendering; the callback never reads mutable gameplay objects
+  bool audible{false};
   {
     std::lock_guard lock{state->queue_lock};
+    audible = state->previous.active || state->previous.dead;
     state->consumed.clear();
     state->consumed.swap(state->queued);
     if(state->rendering_generation != state->generation) {
@@ -299,8 +301,9 @@ void effects::render(std::span<float> const samples) noexcept {
     ++state->rendered_frames;
     std::array<int16_t, 2> frame;
     OPL3_GenerateResampled(&state->chip, frame.data());
-    samples[sample] = frame[0] / 32768.0f;
-    samples[sample + 1] = frame[1] / 32768.0f;
+    // Keep the chip clock running while muted, without leaking held envelopes into menu music.
+    samples[sample] = audible ? frame[0] / 32768.0f : 0.0f;
+    samples[sample + 1] = audible ? frame[1] / 32768.0f : 0.0f;
   }
   state->scheduled.erase(state->scheduled.begin(), state->scheduled.begin() + event);
 }

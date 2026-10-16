@@ -59,9 +59,14 @@ def main():
         encoded = name.encode('ascii')
         pack += struct.pack('<BI', len(encoded), len(data)) + encoded + data
     save('front_end.dat', pack, 'Unmodified VGA/IMG artwork, presentation scripts, help, sound patches and DOSBox BIOS fonts; see third_party/dosbox-fonts.txt')
+    for recording in json.loads((assets / 'music/provenance.json').read_text())['recordings']:
+        music = assets / recording['embedded']
+        records.append({'path': recording['embedded'], 'source': 'Original-driver ' + recording['song'].upper()
+                        + ' recording; see music/provenance.json', 'bytes': music.stat().st_size,
+                        'sha256': hashlib.sha256(music.read_bytes()).hexdigest()})
     manifest = {'reference': 'normal Corncob 3D 3.42', 'engine_sha256': REFERENCE_HASH, 'files': records,
                 'front_end_files': [{'name': name, 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()} for name, data in ui_files],
-                'note': 'Original resources embedded at build time. No DOS engine is executed or required at runtime. Music is not included.'}
+                'note': 'Original resources embedded at build time. No DOS engine is executed or required at runtime. Original music is recorded offline and embedded as Vorbis; live effects use the original patches.'}
     (assets / 'provenance.json').write_text(json.dumps(manifest, indent=2) + '\n')
     lines = ['#pragma once', '', '#include <array>', '#include <cstdint>', '', 'namespace corncob::resources {', '',
              'enum class colour_rule_kind { random, alternate, radar, flag_blink, quality, quality_random };', '',

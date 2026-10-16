@@ -1,0 +1,7 @@
+{
+  "reference_sha256": "6d8c922d59a873073796b367a2a40993fcaa5e763ed2ca907a945981f0c5bc32",
+  "music_off_fixture_sha256": "eea6c6f4b724f69e29c16c4578a826f0c943e2d684bd0b45dbc65cbc7d05999a",
+  "music_on_fixture": "pilot_keyboard.bin",
+  "procedure": "Unchanged original MOAG Music toggle; exit normally to save PILOT.SCR; music-off byte 21 is 00, existing native music-on fixture byte 21 is FF",
+  "scope": "Original 24-byte global header; 23-byte older rosters predate this setting and retain their count at byte 21"
+}

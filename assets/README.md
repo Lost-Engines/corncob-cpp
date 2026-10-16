@@ -19,4 +19,10 @@ objects and packed six-bit sky/ground colours are decoded by the C++ loader.
 
 `tools/import_assets.py` refreshes these files from the sibling research workspace;
 it is a development tool, not a build or runtime dependency.
-Music is intentionally omitted.
+`music/*.ogg` contains compact mono Vorbis recordings of the three original
+AdLib scores. They are rendered offline from unchanged DOS music-driver commands,
+with lossless FLAC masters retained in the research workspace. The recordings are
+streamed from memory at runtime; the flight effects are still synthesized live.
+Music is by James L. Collymore, copyright 1986–1991, and retains its original terms.
+[music/provenance.json](music/provenance.json) records the source hashes, native
+score boundaries and encoding settings.

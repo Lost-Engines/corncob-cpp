@@ -18,6 +18,7 @@
 #include "platform/audio_output.h"
 #include "platform/joystick.h"
 #include "audio/effects.h"
+#include "audio/music.h"
 #include "render/framebuffer.h"
 #include "resources/assets.h"
 #include "resources/cockpit_mask.h"
@@ -71,6 +72,7 @@ auto main(int const argc, char const *const argv[])->int {
     ("flight-model", boost::program_options::value<std::string>()->default_value("beginner"), "original flight model: beginner or advanced (default: saved pilot setting, otherwise beginner)")
     ("joystick", boost::program_options::value<std::string>()->default_value("auto"), "flight joystick: auto, none, or a device index 0..15; button 1 guns, button 2 missiles")
     ("list-joysticks", "list connected joystick device indices and names, then exit")
+    ("no-music", "start with title and menu music disabled")
     ("no-sound", "start with sound effects disabled; S toggles effects during flight")
     ("skip-intro", "open the main menu without the title and story")
     ("theatre", boost::program_options::value<std::string>()->default_value("white_sands"), "original theatre: white_sands, morning, dusk or wasteland")
@@ -146,7 +148,7 @@ auto main(int const argc, char const *const argv[])->int {
   corncob::game::front_end front{interface_assets, *campaign, arguments.contains("skip-intro"), !arguments["theatre"].defaulted(), corncob::game::control_setup{
     .joystick_device{arguments["joystick"].defaulted() ? (campaign->keyboard_control() ? -2 : -1) : joystick_device},
     .beginner_flight{arguments["flight-model"].defaulted() ? (!campaign->active_pilot() || campaign->active_pilot()->beginner_flight()) : flight_model == "beginner"},
-  }};
+  }, arguments.contains("no-music") ? std::optional{false} : std::nullopt};
   if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
   game->set_beginner_flight(front.flight_controls().beginner_flight);
   auto observer{game->camera()};
@@ -313,6 +315,12 @@ auto main(int const argc, char const *const argv[])->int {
     state.front.character(codepoint);
   });
   corncob::audio::effects sound{interface_assets};
+  corncob::audio::music music;
+  struct audio_mix {
+    corncob::audio::effects &effects;
+    corncob::audio::music &music;
+  } mix{sound, music};
+  bool audio_unavailable{false};
   std::unique_ptr<corncob::platform::audio_output> audio_output;
   corncob::platform::framebuffer_presenter presenter{*window};
   corncob::render::framebuffer flight_frame;
@@ -326,14 +334,17 @@ auto main(int const argc, char const *const argv[])->int {
     if(clock_was_flying && !front.in_flight()) game->suspend_clock();
     clock_was_flying = front.in_flight();
     if(front.quitting()) break;
-    if(sound_enabled && !audio_output) {
+    if(!audio_unavailable && (sound_enabled || front.music() != corncob::audio::music_cue::silent) && !audio_output) {
       try {
         audio_output = std::make_unique<corncob::platform::audio_output>([](void *const userdata, std::span<float> const samples) noexcept {
-          static_cast<corncob::audio::effects*>(userdata)->render(samples);
-        }, &sound);
+          auto &mix{*static_cast<audio_mix*>(userdata)};
+          mix.effects.render(samples);
+          mix.music.mix(samples);
+        }, &mix);
       } catch(std::exception const &error) {
-        std::cerr << "WARNING: sound effects unavailable: " << error.what() << std::endl;
+        std::cerr << "WARNING: audio unavailable: " << error.what() << std::endl;
         sound_enabled = false;
+        audio_unavailable = true;
       }
     }
     if(auto const launch{front.take_launch()}) {
@@ -422,9 +433,11 @@ auto main(int const argc, char const *const argv[])->int {
       frame = flight_frame;
     }};
     auto update_audio{[&]{
+      music.select(audio_unavailable || inspect ? corncob::audio::music_cue::silent : front.music());
       auto audio_frame{corncob::audio::observe(*game)};
       audio_frame.active = sound_enabled && front.in_flight() && !game->is_paused() && !game->in_map() && !inspect;
-      audio_frame.dead = audio_frame.dead && sound_enabled;
+      audio_frame.dead = audio_frame.dead && sound_enabled
+        && (front.in_flight() || front.current_page() == corncob::game::interface_page::outcome);
       sound.update(audio_frame);
     }};
     if(!inspect && front.in_flight()) {

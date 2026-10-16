@@ -37,6 +37,12 @@ int main(int const argc, char const *const argv[]) {
       encoded.insert(encoded.end(), plain.begin(), plain.end());
       auto const roster{corncob::game::pilot_roster::decode(encoded)};
       if(roster.pilots.size() != count || roster.encode() != encoded) throw std::runtime_error{"native pilot roster did not round trip"};
+      auto with_music{roster};
+      with_music.music_enabled(false);
+      auto const reopened{corncob::game::pilot_roster::decode(with_music.encode())};
+      if(reopened.music_enabled() || reopened.pilots.size() != roster.pilots.size()) throw std::runtime_error{"music setting overwrote a legacy pilot count"};
+      for(unsigned int pilot{0}; pilot != count; ++pilot)
+        if(!std::ranges::equal(reopened.pilots[pilot].native_data(), roster.pilots[pilot].native_data())) throw std::runtime_error{"music setting changed an imported pilot"};
     }
   }
   auto const directory{std::filesystem::path{argv[1]}.parent_path()};
@@ -45,6 +51,13 @@ int main(int const argc, char const *const argv[]) {
   auto const linked{corncob::game::pilot_roster::decode(corncob::platform::read_binary(directory / "pilot_theatre.bin"))};
   if(!keyboard.keyboard_control() || joystick.keyboard_control() || !keyboard.pilots[0].beginner_flight() || linked.pilots[0].beginner_flight())
     throw std::runtime_error{"original saved control or aerodynamic-model choice decoded incorrectly"};
+  auto music_off{corncob::game::pilot_roster::decode(corncob::platform::read_binary(directory / "pilot_music_off.bin"))};
+  if(!keyboard.music_enabled() || music_off.music_enabled()) throw std::runtime_error{"original saved music choice decoded incorrectly"};
+  auto const before_music{music_off.encode()};
+  music_off.music_enabled(true);
+  auto const after_music{music_off.encode()};
+  for(unsigned int i{0}; i != before_music.size(); ++i)
+    if(after_music[i] != static_cast<uint8_t>(i == 25 ? before_music[i] ^ 255 : before_music[i])) throw std::runtime_error{"music toggle changed another native roster byte"};
   corncob::game::pilot_record created{"NativeTest"};
   created.select(true);
   if(!std::ranges::equal(created.native_data(), keyboard.pilots[0].native_data())) throw std::runtime_error{"new pilot defaults differ from original MOAG creation"};

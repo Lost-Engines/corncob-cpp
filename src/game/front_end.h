@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include "audio/music_cue.h"
 #include "game/session.h"
 #include "game/campaign.h"
 #include "world/training.h"
@@ -105,6 +106,7 @@ private:
   std::optional<launch_request> pending_launch;
   bool quit_requested{false};
   bool session_running{false};
+  bool music_on{true};
 
   void accept();
   unsigned int choice_count() const;
@@ -113,8 +115,9 @@ private:
   void draw_menu(graphics::interface_canvas &canvas, std::string_view title, std::span<std::string_view const> choices) const;
 
 public:
-  front_end(resources::collection const &assets, campaign_store &campaign, bool skip_intro = false, bool start_in_flight = false, std::optional<control_setup> controls = std::nullopt);
+  front_end(resources::collection const &assets, campaign_store &campaign, bool skip_intro = false, bool start_in_flight = false, std::optional<control_setup> controls = std::nullopt, std::optional<bool> music_enabled = std::nullopt);
   control_setup const &flight_controls() const noexcept;
+  audio::music_cue music() const noexcept;
   void advance(double seconds);
   void begin_ending(graphics::indexed_framebuffer const &backdrop, std::array<render::rgba_pixel, 16> const &colours);
   void character(uint32_t codepoint);

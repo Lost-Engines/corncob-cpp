@@ -24,7 +24,7 @@ std::span<uint8_t const> briefing_data(std::string_view const name) {
 
 } // anonymous namespace
 
-front_end::front_end(resources::collection const &assets, campaign_store &campaign, bool const skip_intro, bool const start_in_flight, std::optional<control_setup> const controls) :
+front_end::front_end(resources::collection const &assets, campaign_store &campaign, bool const skip_intro, bool const start_in_flight, std::optional<control_setup> const controls, std::optional<bool> const music_enabled) :
   assets{assets},
   campaign{campaign},
   menu_font{assets.menu_font()},
@@ -34,7 +34,8 @@ front_end::front_end(resources::collection const &assets, campaign_store &campai
     .beginner_flight{!campaign.active_pilot() || campaign.active_pilot()->beginner_flight()},
   })},
   stories{assets.story()},
-  outcomes{assets.outcomes()} {
+  outcomes{assets.outcomes()},
+  music_on{music_enabled.value_or(campaign.music_enabled())} {
   /// One state machine replaces the original title, menu, help and outcome helper processes
   page = start_in_flight ? interface_page::flight : skip_intro ? interface_page::menu : interface_page::story;
   for(auto const name : {"img/3d2.img", "img/3d3.img", "img/3d4.img", "img/3d5.img", "img/3d6.img",
@@ -157,8 +158,8 @@ void front_end::accept() {
     selection = 0;
     break;
   case interface_page::control_setup:
-    if(selection < 2) adjust_controls();
-    else if(selection == 2) {
+    if(selection < 3) adjust_controls();
+    else if(selection == 3) {
       return_page = page;
       page = interface_page::help;
       help_index = 0;
@@ -437,21 +438,22 @@ void front_end::render(render::framebuffer &target) const {
   bool const intelligence{page == interface_page::briefing};
   graphics::interface_canvas canvas{target, intelligence ? assets.file("font14.bin") : std::span<uint8_t const>{menu_font}, intelligence ? 14u : 16u, 640, intelligence ? 350u : 400u};
   if(page == interface_page::menu) {
-    static std::array<std::string_view, 8> constexpr choices{"Duty roster", "Combat missions", "Training missions", "Pilot records", "High-score tables", "Controls and flight setup", "Introduction", "Quit"};
+    static std::array<std::string_view, 8> constexpr choices{"Duty roster", "Combat missions", "Training missions", "Pilot records", "High-score tables", "Controls and sound setup", "Introduction", "Quit"};
     static std::array<std::string_view, 3> constexpr resume{"Resume flight", "Flight controls and help", "End current sortie"};
     draw_menu(canvas, "Main menu", session_running ? std::span<std::string_view const>{resume} : std::span<std::string_view const>{choices});
     auto const *pilot{campaign.active_pilot()};
     canvas.text(72, 304, pilot ? pilot->name() + " - " + std::string{rank_name(pilot->rank())} : "Trainee - progress is not saved", grey);
   } else if(page == interface_page::control_setup) {
     std::string const device{controls.joystick_device == -2 ? "keyboard only" : controls.joystick_device == -1 ? "automatic joystick" : "joystick " + std::to_string(controls.joystick_device)};
-    std::array<std::string, 4> const labels{
+    std::array<std::string, 5> const labels{
       "Controls: " + device,
       std::string{"Flight model: "} + (controls.beginner_flight ? "beginner" : "advanced"),
+      std::string{"Music: "} + (music_on ? "on" : "off"),
       "Flight controls and help", "Return to main menu",
     };
-    std::array<std::string_view, 4> choices;
+    std::array<std::string_view, 5> choices;
     std::ranges::copy(labels, choices.begin());
-    draw_menu(canvas, "Controls and flight setup", choices);
+    draw_menu(canvas, "Controls and sound setup", choices);
     canvas.text(64, 240, "Beginner: gentle pitch assistance toward level flight", grey);
     canvas.text(64, 264, "Joystick buttons 1/2: guns/missiles", grey);
     canvas.text(64, 288, "Keyboard arrows override the stick during flight", grey);
@@ -570,7 +572,7 @@ unsigned int front_end::choice_count() const {
   case interface_page::pilot_delete: return 2;
   case interface_page::theatres: return 4;
   case interface_page::training: return 9;
-  case interface_page::control_setup: return 4;
+  case interface_page::control_setup: return 5;
   case interface_page::missions: return static_cast<unsigned int>(mission_starts.size()) + 1;
   case interface_page::pilots: return std::max(1u, static_cast<unsigned int>(campaign.pilots().size()));
   case interface_page::quit_confirmation: return 2;
@@ -585,7 +587,16 @@ void front_end::adjust_controls() {
   } else if(selection == 1) {
     controls.beginner_flight = !controls.beginner_flight;
     campaign.beginner_flight(controls.beginner_flight);
+  } else if(selection == 2) {
+    music_on = !music_on;
+    campaign.music_enabled(music_on);
   }
+}
+audio::music_cue front_end::music() const noexcept {
+  /// The DOS launcher plays music; flight, its helper pages and the original outcome/ending sequences do not
+  if(!music_on || session_running || page == interface_page::ending || page == interface_page::outcome || page == interface_page::story)
+    return audio::music_cue::silent;
+  return page == interface_page::title ? audio::music_cue::title : audio::music_cue::menus;
 }
 control_setup const &front_end::flight_controls() const noexcept {
   /// New sessions and platform polling consume the same settings shown by the front end

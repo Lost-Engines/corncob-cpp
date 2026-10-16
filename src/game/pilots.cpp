@@ -266,6 +266,20 @@ void pilot_record::review_career(std::span<theatre_progress> const theatres, uin
   if(maths::word(result.objectives_completed) >= 5) award(medal::distinguished_service_cross);
   if(maths::word(sorties()) >= (awards(medal::service_award) + 1) * 10 && !result.has(sortie_status::killed)) award(medal::service_award);
 }
+pilot_roster::pilot_roster() {
+  /// New rosters enable menu/title music, as the original launcher does
+  header[music_flag_offset] = 255;
+}
+bool pilot_roster::music_enabled() const {
+  /// MOAG's music toggle occupies byte twenty-one of the decoded global header
+  // The earlier 23-byte roster predates this setting; byte twenty-one is its pilot count.
+  return header.size() == legacy_header_bytes || header[music_flag_offset] != 0;
+}
+void pilot_roster::music_enabled(bool const value) {
+  /// The DOS toggle stores true as FF and changes no other configuration bytes
+  if(header.size() == legacy_header_bytes) header.insert(header.begin() + music_flag_offset, 0);
+  header[music_flag_offset] = value ? 255 : 0;
+}
 bool pilot_roster::keyboard_control() const {
   /// The global roster header's third byte selects keyboard rather than joystick control in both retained layouts
   return header[2] != 0;

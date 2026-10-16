@@ -17,6 +17,7 @@ int main(int const argc, char const *const argv[]) {
   auto const count{input.dword()};
   std::array<float, 256> drain;
   sound.render(drain);
+  if(!std::ranges::all_of(drain, [](float const sample){return sample == 0.0f;})) throw std::runtime_error{"inactive effects leaked into menu audio"};
   for(unsigned int i{0}; i != count; ++i) {
     corncob::audio::frame_state frame{
       .tick{(i + 1) * 40},
@@ -60,8 +61,20 @@ int main(int const argc, char const *const argv[]) {
     .active{false},
   });
   sound.render(drain);
+  if(!std::ranges::all_of(drain, [](float const sample){return sample == 0.0f;})) throw std::runtime_error{"muted effects retained audible chip output"};
   for(unsigned int i{0}; i != 100; ++i) sound.update({.tick{1000 + i}});
   if(!sound.pending_registers().empty()) throw std::runtime_error{"muted sound accumulated register writes without playback"};
+  sound.update({
+    .tick{2000},
+    .dead{true},
+  });
+  sound.render(drain);
+  sound.update({
+    .tick{2000},
+    .dead{false},
+  });
+  sound.render(drain);
+  if(!std::ranges::all_of(drain, [](float const sample){return sample == 0.0f;})) throw std::runtime_error{"leaving a death outcome kept effects audible at the stopped simulation tick"};
   std::cout << count << " original engine OPL write pairs match; live synthesis RMS " << std::sqrt(energy / static_cast<double>(samples.size())) << std::endl;
   return EXIT_SUCCESS;
 }

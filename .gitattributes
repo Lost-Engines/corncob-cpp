@@ -6,3 +6,5 @@
 
 # Preserve original embedded briefing bytes, including DOS CRLF
 assets/*.twr binary
+
+assets/music/*.ogg binary

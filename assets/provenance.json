@@ -67,6 +67,24 @@
       "source": "Unmodified VGA/IMG artwork, presentation scripts, help, sound patches and DOSBox BIOS fonts; see third_party/dosbox-fonts.txt",
       "bytes": 502978,
       "sha256": "791f0cf6a04e6420313257eeb1aa60029e9f49206a30563893911528a5d48ab4"
+    },
+    {
+      "path": "music/destiny3.ogg",
+      "source": "Original-driver DESTINY3 recording; see music/provenance.json",
+      "bytes": 1265124,
+      "sha256": "b898a7ae63117b2c1be5186a48cd5609ba8e1d8279d77ef692968f21850c706f"
+    },
+    {
+      "path": "music/ridingt.ogg",
+      "source": "Original-driver RIDINGT recording; see music/provenance.json",
+      "bytes": 2591321,
+      "sha256": "52ee006b2493a72dc9aae77214fe8eb010e0507826727cbbdc4d16d5713199f9"
+    },
+    {
+      "path": "music/dreamso2.ogg",
+      "source": "Original-driver DREAMSO2 recording; see music/provenance.json",
+      "bytes": 2145338,
+      "sha256": "13dbdb1afb5f429b2ba9abc68d4317df6d86abc98f4555c15ccecb774b75dc19"
     }
   ],
   "front_end_files": [
@@ -316,5 +334,5 @@
       "sha256": "c7dd5990fa5401649cf69e9bbb4c8a51f86865939b9318281a27de7f314eda3a"
     }
   ],
-  "note": "Original resources embedded at build time. No DOS engine is executed or required at runtime. Music is not included."
+  "note": "Original resources embedded at build time. No DOS engine is executed or required at runtime. Original music is recorded offline and embedded as Vorbis; live effects use the original patches."
 }

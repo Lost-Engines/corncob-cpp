@@ -195,6 +195,15 @@ void campaign_store::delete_pilot(unsigned int const index) {
   else if(selected && *selected > index) --*selected;
   save_roster();
 }
+bool campaign_store::music_enabled() const noexcept {
+  /// Keep original global music preferences independent of the active pilot
+  return roster.music_enabled();
+}
+void campaign_store::music_enabled(bool const value) {
+  /// Persist the same music flag used by the original launcher
+  roster.music_enabled(value);
+  save_roster();
+}
 bool campaign_store::keyboard_control() const noexcept {
   /// The original global control choice is independent of the active career
   return roster.keyboard_control();

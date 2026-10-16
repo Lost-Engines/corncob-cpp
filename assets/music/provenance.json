@@ -1,0 +1,73 @@
+{
+  "reference": "normal Corncob 3D 3.42",
+  "player_sha256": "6d8c922d59a873073796b367a2a40993fcaa5e763ed2ca907a945981f0c5bc32",
+  "driver_sha256": "22d485fca01f9dfa3d86ebf290edd75e8454520b0bc1259ede6421066f6c9084",
+  "composer": "James L. Collymore",
+  "copyright": "Music copyright 1986-1991 James L. Collymore; original terms remain applicable",
+  "capture_method": "Unchanged MOAG.EXE and bundled Ad Lib driver in private DOSBox 0.74-3 copies; single-song playlist repeated twice; virtual-time turbo preserves PIT playback timing",
+  "timing_resolution_ms": 1,
+  "masters": "48 kHz, mono, signed 16-bit FLAC -8; no gain changes or normalisation",
+  "encoding": "Ogg Vorbis quality 6, Xiph libVorbis 1.3.7 / oggenc 1.4.3",
+  "renderer_source_sha256": "c65fb3f7c0e7faec2b7628bc52f29a6d8793dd16993e321c479a48dfac30ce6c",
+  "nuked_opl3_commit": "765ec962e473aeb767e4cba74ffdc8f588ffbfe8",
+  "menu_playlist": [
+    "ridingt",
+    "dreamso2"
+  ],
+  "recordings": [
+    {
+      "song": "destiny3",
+      "sequence_sha256": "4564db15ca44c59862495802bc877d087a9363b23c51489d53a58880284ec133",
+      "bank_sha256": "c95a84ee73d1fff4c13dee67a7124e3c34ee3f7e64424dfeb2bf2f5c163142cf",
+      "capture": "audio/native-driver/destiny3.dro",
+      "capture_sha256": "6c490d9ba3b841fb64dfa3f93e440e2d0cfcc5f99140bceb377168a1828f21c1",
+      "score_reset_ms": 84469,
+      "repeat_boundary_ms": 84834,
+      "verified_note_ons_per_pass": 1433,
+      "flac": "audio/destiny3-c95a84ee.flac",
+      "flac_sha256": "b2eb405ecec68124ad5b85b083530c949bb3b07267747f6daf50e7153d42a515",
+      "embedded": "music/destiny3.ogg",
+      "embedded_bytes": 1265124,
+      "embedded_sha256": "b898a7ae63117b2c1be5186a48cd5609ba8e1d8279d77ef692968f21850c706f",
+      "frames": 4072032,
+      "sample_rate": 48000,
+      "channels": 1
+    },
+    {
+      "song": "ridingt",
+      "sequence_sha256": "f2311184edb71a646e1313c89b5cba786a47e7c37448f62661cd3e69bcd840f0",
+      "bank_sha256": "c95a84ee73d1fff4c13dee67a7124e3c34ee3f7e64424dfeb2bf2f5c163142cf",
+      "capture": "audio/native-driver/ridingt.dro",
+      "capture_sha256": "ae8407fea6d266de0936bd7371e53fad9d1ead2790a391cbe87d8fdeb1b91908",
+      "score_reset_ms": 203983,
+      "repeat_boundary_ms": 204155,
+      "verified_note_ons_per_pass": 4303,
+      "flac": "audio/ridingt-c95a84ee.flac",
+      "flac_sha256": "a14f234e45e05f3e0f0a929114e700f857ad734a4e4157283f257e8855c2e431",
+      "embedded": "music/ridingt.ogg",
+      "embedded_bytes": 2591321,
+      "embedded_sha256": "52ee006b2493a72dc9aae77214fe8eb010e0507826727cbbdc4d16d5713199f9",
+      "frames": 9799440,
+      "sample_rate": 48000,
+      "channels": 1
+    },
+    {
+      "song": "dreamso2",
+      "sequence_sha256": "c43a39a1e18a0efb892ec937c7fd6b4ffd2d140a9251c7f8a0b6697ff035adcd",
+      "bank_sha256": "c95a84ee73d1fff4c13dee67a7124e3c34ee3f7e64424dfeb2bf2f5c163142cf",
+      "capture": "audio/native-driver/dreamso2.dro",
+      "capture_sha256": "5b45af9d6a090e2a94ecac827a35ce41afe772b9eaeacd949e20d4561df23a4d",
+      "score_reset_ms": 178627,
+      "repeat_boundary_ms": 178795,
+      "verified_note_ons_per_pass": 1545,
+      "flac": "audio/dreamso2-c95a84ee.flac",
+      "flac_sha256": "f85cf053ccc29dbd3d07c72b03769935aa67f432c2336b35fa9a0c291cff2dd2",
+      "embedded": "music/dreamso2.ogg",
+      "embedded_bytes": 2145338,
+      "embedded_sha256": "13dbdb1afb5f429b2ba9abc68d4317df6d86abc98f4555c15ccecb774b75dc19",
+      "frames": 8582160,
+      "sample_rate": 48000,
+      "channels": 1
+    }
+  ]
+}
