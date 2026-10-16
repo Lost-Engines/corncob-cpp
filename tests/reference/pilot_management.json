@@ -1,0 +1,28 @@
+{
+  "reference_sha256": "6d8c922d59a873073796b367a2a40993fcaa5e763ed2ca907a945981f0c5bc32",
+  "method": "Unchanged MOAG in private DOSBox/Xvfb, using a copied installation; original installations unchanged.",
+  "actions": [
+    "Create NativeTest using Duty roster; choose keyboard and exit normally.",
+    "Choose joystick control and exit normally.",
+    "Toggle aerodynamic model from beginner to advanced; open Atkinsville; rename pilot; exit normally.",
+    "Delete pilot and confirm; exit normally."
+  ],
+  "score_setup": "Three otherwise empty native score tables each contained one NativeTest entry with score 1000 before rename and deletion.",
+  "observations": {
+    "roster_keyboard_byte": 2,
+    "pilot_model_offset": "0x23b",
+    "advanced_bit": "0x20",
+    "pilot_theatre_count": "0x23c",
+    "pilot_active_theatre_index": "0x23d",
+    "pilot_theatre_numbers": "0x23e..0x251",
+    "score_retired_word": 1,
+    "embedded_theatre_name": "DOS leaves the pre-rename name stale; explicit pilot file-number references establish ownership."
+  },
+  "fixtures": {
+    "pilot_theatre.bin": "d6bf6b2a9908d7257aa94f8c286ea7648450814301366c3dffbafdc23fb2d39c",
+    "pilot_joystick.bin": "f23fad0407f0216ba4e0e426158584d79a511f297add2a5af6d0884bfb7b13a9",
+    "pilot_keyboard.bin": "c0443a703fb51a5d8d43a2fb33ab66625a62fecfdd429a88bf97f2855dde290e",
+    "scores_retired.bin": "0c3acb5d175493284f6aa8d073a22b88854469c4c8ac26aab9ae0a66ba4c5f3f",
+    "scores_before_retirement.bin": "cfdb415aad7029e637886ac389484e72ecc07eb8647723a679a241b37d4a3dc8"
+  }
+}

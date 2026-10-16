@@ -38,6 +38,12 @@ void pilot_record::dword(unsigned int const offset, int32_t const value) {
 pilot_record::pilot_record(std::string_view const name) {
   /// New native pilots begin at second lieutenant with empty statistics and medals
   rename(name);
+  data[0x234] = 5;
+  data[0x235] = 6;
+  data[0x236] = 2;
+  data[0x239] = 4;
+  data[0x23b] = 2;
+  data[0x23d] = 128;
 }
 pilot_record::pilot_record(std::span<uint8_t const> const source) {
   /// Imported records retain every byte, including timestamps and fields not yet independently labelled
@@ -53,8 +59,8 @@ void pilot_record::rename(std::string_view const name) {
   /// Keep DOS-compatible names bounded and terminated inside their original field
   if(name.empty() || name.size() > maximum_name_length || name.find_first_of("\r\n\t") != std::string_view::npos || name.find('\0') != std::string_view::npos)
     throw std::invalid_argument{"pilot names must contain 1 to 20 characters"};
-  std::fill_n(data.begin(), 22, 0);
   std::copy(name.begin(), name.end(), data.begin());
+  data[name.size()] = 0;
 }
 bool pilot_record::selected() const {
   /// The front-end selection marker is independent of survival and rank
@@ -63,6 +69,34 @@ bool pilot_record::selected() const {
 void pilot_record::select(bool const value) {
   /// Change only the original selected-record bit
   word(flags_offset, static_cast<uint16_t>(value ? word(flags_offset) | 0x8000u : word(flags_offset) & ~0x8000u));
+}
+std::span<uint8_t const> pilot_record::theatres() const {
+  /// The native record stores twenty numbered-theatre references after its count and active-index bytes
+  unsigned int constexpr maximum_theatres{20}, count_offset{0x23c}, first_theatre_offset{0x23e};
+  if(data[count_offset] > maximum_theatres) throw std::invalid_argument{"pilot has too many saved-theatre references"};
+  return std::span{data}.subspan(first_theatre_offset, data[count_offset]);
+}
+void pilot_record::add_theatre(uint8_t const number) {
+  /// Save the original file number and make its zero-based list position active
+  unsigned int constexpr maximum_theatres{20}, count_offset{0x23c}, active_offset{0x23d}, first_theatre_offset{0x23e};
+  if(number == 0) throw std::invalid_argument{"saved-theatre number must be nonzero"};
+  auto const entries{theatres()};
+  auto const existing{std::ranges::find(entries, number)};
+  if(existing != entries.end()) {
+    data[active_offset] = static_cast<uint8_t>(existing - entries.begin());
+    return;
+  }
+  if(entries.size() == maximum_theatres) throw std::invalid_argument{"pilot already has twenty saved theatres"};
+  data[first_theatre_offset + entries.size()] = number;
+  data[active_offset] = data[count_offset]++;
+}
+bool pilot_record::beginner_flight() const {
+  /// MOAG's aerodynamic-model toggle stores advanced mode in bit five of the pilot's setup byte
+  return (data[0x23b] & 0x20u) == 0;
+}
+void pilot_record::beginner_flight(bool const value) {
+  /// Preserve comments and the other original setup bits when changing only the flight model
+  data[0x23b] = static_cast<uint8_t>(value ? data[0x23b] & ~0x20u : data[0x23b] | 0x20u);
 }
 bool pilot_record::unavailable() const {
   /// Original campaign processing distinguishes killed and captured pilots from active ones
@@ -147,6 +181,14 @@ void pilot_record::finish_sortie(sortie_statistics const &result) {
   else if(score > 10'000) award(medal::bronze_star);
   if(result.objectives_completed >= 5) award(medal::distinguished_service_cross);
   if(sorties() >= (awards(medal::service_award) + 1) * 10 && !result.has(sortie_status::killed)) award(medal::service_award);
+}
+bool pilot_roster::keyboard_control() const {
+  /// The global roster header's third byte selects keyboard rather than joystick control in both retained layouts
+  return header[2] != 0;
+}
+void pilot_roster::keyboard_control(bool const value) {
+  /// Do not replace the remaining opaque native configuration header
+  header[2] = static_cast<uint8_t>(value);
 }
 void pilot_roster::mask(std::span<uint8_t> const bytes, uint16_t const seed) noexcept {
   /// Pilot files use the Borland library rand stream, distinct from the flight engine's multiplicative PRNG

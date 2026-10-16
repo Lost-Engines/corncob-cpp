@@ -68,7 +68,7 @@ auto main(int const argc, char const *const argv[])->int {
   options.add_options()
     ("help,h", "show command-line options")
     ("version", "show the native reconstruction version")
-    ("flight-model", boost::program_options::value<std::string>()->default_value("advanced"), "original flight model: advanced or beginner (gentle pitch assistance)")
+    ("flight-model", boost::program_options::value<std::string>()->default_value("beginner"), "original flight model: beginner or advanced (default: saved pilot setting, otherwise beginner)")
     ("joystick", boost::program_options::value<std::string>()->default_value("auto"), "flight joystick: auto, none, or a device index 0..15; button 1 guns, button 2 missiles")
     ("list-joysticks", "list connected joystick device indices and names, then exit")
     ("no-sound", "start with sound effects disabled; S toggles effects during flight")
@@ -142,9 +142,9 @@ auto main(int const argc, char const *const argv[])->int {
   auto renderer{std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit)};
   auto game{std::make_unique<corncob::game::session>(geometry, std::move(theatre))};
   corncob::resources::collection interface_assets{corncob::resources::front_end_asset()};
-  corncob::game::front_end front{interface_assets, *campaign, arguments.contains("skip-intro"), !arguments["theatre"].defaulted(), {
-    .joystick_device{joystick_device},
-    .beginner_flight{flight_model == "beginner"},
+  corncob::game::front_end front{interface_assets, *campaign, arguments.contains("skip-intro"), !arguments["theatre"].defaulted(), corncob::game::control_setup{
+    .joystick_device{arguments["joystick"].defaulted() ? (campaign->keyboard_control() ? -2 : -1) : joystick_device},
+    .beginner_flight{arguments["flight-model"].defaulted() ? (!campaign->active_pilot() || campaign->active_pilot()->beginner_flight()) : flight_model == "beginner"},
   }};
   if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
   game->set_beginner_flight(front.flight_controls().beginner_flight);

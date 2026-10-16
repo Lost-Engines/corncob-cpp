@@ -24,11 +24,14 @@ std::span<uint8_t const> briefing_data(std::string_view const name) {
 
 } // anonymous namespace
 
-front_end::front_end(resources::collection const &assets, campaign_store &campaign, bool const skip_intro, bool const start_in_flight, control_setup const controls) :
+front_end::front_end(resources::collection const &assets, campaign_store &campaign, bool const skip_intro, bool const start_in_flight, std::optional<control_setup> const controls) :
   assets{assets},
   campaign{campaign},
   menu_font{assets.menu_font()},
-  controls{controls},
+  controls{controls.value_or(control_setup{
+    .joystick_device{campaign.keyboard_control() ? -2 : -1},
+    .beginner_flight{!campaign.active_pilot() || campaign.active_pilot()->beginner_flight()},
+  })},
   stories{assets.story()},
   outcomes{assets.outcomes()} {
   /// One state machine replaces the original title, menu, help and outcome helper processes
@@ -86,11 +89,11 @@ void front_end::accept() {
       renaming = false;
       entered_name.clear();
       page = interface_page::pilot_name;
-    } else if(selection <= 4) {
+    } else if(selection <= 4 || selection == 6) {
       if(campaign.pilots().empty()) feedback = "The duty roster is empty - create a pilot first";
       else {
         pilot_action = selection == 1 ? roster_action::activate : selection == 2 ? roster_action::records
-          : selection == 3 ? roster_action::rename : roster_action::resurrect;
+          : selection == 3 ? roster_action::rename : selection == 4 ? roster_action::resurrect : roster_action::remove;
         page = interface_page::pilots;
       }
     } else if(selection == 5) {
@@ -104,7 +107,8 @@ void front_end::accept() {
       pilot_index = selection;
       try {
         switch(pilot_action) {
-        case roster_action::activate: campaign.activate(pilot_index); page = interface_page::roster; break;
+        case roster_action::activate: campaign.activate(pilot_index); controls.beginner_flight = campaign.active_pilot()->beginner_flight(); page = interface_page::roster; break;
+        case roster_action::remove: page = interface_page::pilot_delete; break;
         case roster_action::records: page = interface_page::records; break;
         case roster_action::rename:
           renaming = true;
@@ -116,12 +120,20 @@ void front_end::accept() {
         feedback.clear();
       } catch(std::exception const &error) { feedback = error.what(); }
     }
+    selection = page == interface_page::pilot_delete ? 1 : 0;
+    break;
+  case interface_page::pilot_delete:
+    if(selection == 0) {
+      try { campaign.delete_pilot(pilot_index); feedback = "Pilot deleted; achievements retained in high scores"; }
+      catch(std::exception const &error) { feedback = error.what(); }
+    }
+    page = interface_page::roster;
     selection = 0;
     break;
   case interface_page::pilot_name:
     try {
       if(renaming) campaign.rename_pilot(pilot_index, entered_name);
-      else campaign.create_pilot(entered_name);
+      else { campaign.create_pilot(entered_name); controls.beginner_flight = campaign.active_pilot()->beginner_flight(); }
       feedback.clear();
       page = interface_page::roster;
       selection = 0;
@@ -254,7 +266,7 @@ void front_end::command(interface_command const command) {
     else if(page == interface_page::help) page = return_page;
     else if(session_running && (page == interface_page::briefing || page == interface_page::missions || page == interface_page::current_score || page == interface_page::boss)) page = interface_page::flight;
     else if(page == interface_page::quit_confirmation) page = session_running ? interface_page::flight : interface_page::menu;
-    else if(page == interface_page::pilots || page == interface_page::pilot_name || page == interface_page::records || page == interface_page::medals) { page = interface_page::roster; selection = 0; feedback.clear(); }
+    else if(page == interface_page::pilots || page == interface_page::pilot_name || page == interface_page::pilot_delete || page == interface_page::records || page == interface_page::medals) { page = interface_page::roster; selection = 0; feedback.clear(); }
     else if(page == interface_page::title || page == interface_page::story) page = interface_page::menu;
     else if(page == interface_page::menu && session_running) page = interface_page::flight;
     else if(page == interface_page::menu) {
@@ -440,13 +452,16 @@ void front_end::render(render::framebuffer &target) const {
     if(choices.empty()) canvas.text(80, 160, "No airborne starts in this theatre", grey);
   } else if(page == interface_page::theatres) draw_menu(canvas, "Choose a theatre of operations", theatre_titles);
   else if(page == interface_page::roster) {
-    static std::array<std::string_view, 7> constexpr choices{"Create pilot", "Activate pilot", "View pilot records", "Rename pilot", "Resurrect pilot", "Deactivate pilot (use trainee)", "Return to main menu"};
+    static std::array<std::string_view, 8> constexpr choices{"Create pilot", "Activate pilot", "View pilot records", "Rename pilot", "Resurrect pilot", "Deactivate pilot (use trainee)", "Delete pilot", "Return to main menu"};
     draw_menu(canvas, "Duty roster", choices);
   } else if(page == interface_page::pilots) {
     std::vector<std::string> names;
     for(auto const &pilot : campaign.pilots()) names.push_back(pilot.name() + (pilot.unavailable() ? " (killed or captured)" : pilot.selected() ? " (active)" : ""));
     std::vector<std::string_view> choices{names.begin(), names.end()};
     draw_menu(canvas, "Choose a pilot", choices);
+  } else if(page == interface_page::pilot_delete) {
+    static std::array<std::string_view, 2> constexpr choices{"Yes - delete pilot and saved theatres", "No - return to roster"};
+    draw_menu(canvas, "Delete " + campaign.pilots()[pilot_index].name() + "?", choices);
   } else if(page == interface_page::pilot_name) {
     draw_menu(canvas, renaming ? "Rename pilot" : "Create pilot", {});
     canvas.text(80, 140, "Pilot name (1 to 20 characters):", grey);
@@ -487,15 +502,15 @@ void front_end::render(render::framebuffer &target) const {
       std::string row;
       if(score_list == 0) {
         auto const &entry{tables.best_missions()[i]};
-        row = std::format("{:2}  {:20} {:22} {:>9}", i + 1, score_text(entry.name), score_text(entry.theatre), entry.points);
+        row = std::format("{:2}  {:20} {:22} {:>9}", i + 1, (entry.retired ? "*" : "") + score_text(entry.name), score_text(entry.theatre), entry.points);
       } else {
         auto const &entry{(score_list == 1 ? tables.best_careers() : tables.fastest_careers())[i]};
         auto const points{score_list == 1 || entry.sorties == 0 ? entry.points : entry.points / entry.sorties};
-        row = std::format("{:2}  {:20} {:>7} {:>9} {:>13}", i + 1, score_text(entry.name), entry.sorties, entry.resurrections, points);
+        row = std::format("{:2}  {:20} {:>7} {:>9} {:>13}", i + 1, (entry.retired ? "*" : "") + score_text(entry.name), entry.sorties, entry.resurrections, points);
       }
       canvas.text(32, 120 + static_cast<int>(i) * 18, row, i == 0 ? yellow : grey);
     }
-    canvas.text(40, 316, score_list == 2 ? "Points per sortie; at least three sorties required" : "Left/Right switches the three score tables", yellow);
+    canvas.text(40, 316, score_list == 2 ? "Points per sortie; at least three sorties required" : "Left/Right: score tables   * retired pilot", yellow);
   } else if(page == interface_page::quit_confirmation) {
     static std::array<std::string_view, 2> constexpr choices{"Yes", "No - return"};
     draw_menu(canvas, session_running ? "End this sortie?" : "Quit Corncob 3D?", choices);
@@ -520,7 +535,8 @@ unsigned int front_end::choice_count() const {
   /// Only selection pages wrap; text entry and reports keep a neutral selection
   switch(page) {
   case interface_page::menu: return session_running ? 3 : 8;
-  case interface_page::roster: return 7;
+  case interface_page::roster: return 8;
+  case interface_page::pilot_delete: return 2;
   case interface_page::theatres: return 4;
   case interface_page::training: return 9;
   case interface_page::control_setup: return 4;
@@ -532,8 +548,13 @@ unsigned int front_end::choice_count() const {
 }
 void front_end::adjust_controls() {
   /// The original front end selects keyboard/joystick control and beginner/advanced aerodynamics before a flight
-  if(selection == 0) controls.joystick_device = controls.joystick_device == -2 ? -1 : -2;
-  else if(selection == 1) controls.beginner_flight = !controls.beginner_flight;
+  if(selection == 0) {
+    controls.joystick_device = controls.joystick_device == -2 ? -1 : -2;
+    campaign.keyboard_control(controls.joystick_device == -2);
+  } else if(selection == 1) {
+    controls.beginner_flight = !controls.beginner_flight;
+    campaign.beginner_flight(controls.beginner_flight);
+  }
 }
 control_setup const &front_end::flight_controls() const noexcept {
   /// New sessions and platform polling consume the same settings shown by the front end

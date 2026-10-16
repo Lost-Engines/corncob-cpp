@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include "game/high_scores.h"
 #include "maths/random.h"
+#include "platform/storage.h"
 
 namespace {
 
@@ -14,7 +15,7 @@ void require(bool const condition, char const *const message) {
 
 } // anonymous namespace
 
-int main() {
+int main(int const argc, char const *const argv[]) {
   /// Preserve all 5040 original-format bytes, update repeated careers and enforce fastest-career eligibility
   namespace game = corncob::game;
   std::array<uint8_t, game::score_tables::native_bytes> original;
@@ -45,6 +46,14 @@ int main() {
   require(game::score_text(tables.best_missions().front().name) == "Birch" && tables.best_missions().front().points == 3750, "best-mission ranking lost a larger score");
   require(game::score_text(tables.best_careers().front().name) == "Alba", "mission and career ranking were conflated");
   require(game::score_tables::decode(tables.encode()).encode() == tables.encode(), "ranked score tables did not survive saving");
+  if(argc != 2) throw std::invalid_argument{"high-score fixture directory required"};
+  std::filesystem::path const reference{argv[1]};
+  auto retired{game::score_tables::decode(corncob::platform::read_binary(reference / "scores_before_retirement.bin"))};
+  auto const old_name{game::score_text(retired.best_missions()[0].name)};
+  retired.retire(old_name);
+  require(std::ranges::equal(retired.encode(), corncob::platform::read_binary(reference / "scores_retired.bin")), "native retirement changed unexpected bytes or used the wrong flag");
+  retired.rename(old_name, "New career");
+  require(game::score_text(retired.best_careers()[0].name) == old_name, "rename changed an already retired career");
   std::cout << "Native high-score record preservation, career replacement and three-sortie eligibility pass" << std::endl;
   return EXIT_SUCCESS;
 }

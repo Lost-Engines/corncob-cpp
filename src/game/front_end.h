@@ -36,6 +36,7 @@ enum class interface_page {
   roster,
   pilots,
   pilot_name,
+  pilot_delete,
   records,
   medals,
   sortie_summary,
@@ -56,7 +57,7 @@ struct launch_request {
 
 struct control_setup {
   int joystick_device{-1};
-  bool beginner_flight{false};
+  bool beginner_flight{true};
 };
 
 class front_end {
@@ -64,7 +65,7 @@ private:
   resources::collection const &assets;
   campaign_store &campaign;
   std::array<uint8_t, 4096> menu_font;
-  enum class roster_action { activate, records, rename, resurrect };
+  enum class roster_action { activate, records, rename, resurrect, remove };
   roster_action pilot_action{roster_action::activate};
   unsigned int pilot_index{0};
   unsigned int score_list{0};
@@ -106,7 +107,7 @@ private:
   void draw_menu(graphics::interface_canvas &canvas, std::string_view title, std::span<std::string_view const> choices) const;
 
 public:
-  front_end(resources::collection const &assets, campaign_store &campaign, bool skip_intro = false, bool start_in_flight = false, control_setup controls = {});
+  front_end(resources::collection const &assets, campaign_store &campaign, bool skip_intro = false, bool start_in_flight = false, std::optional<control_setup> controls = std::nullopt);
   control_setup const &flight_controls() const noexcept;
   void advance(double seconds);
   void begin_ending(graphics::indexed_framebuffer const &backdrop, std::array<render::rgba_pixel, 16> const &colours);

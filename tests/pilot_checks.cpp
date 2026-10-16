@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include "game/pilots.h"
 #include "tests/reference_reader.h"
+#include "platform/storage.h"
 
 int main(int const argc, char const *const argv[]) {
   /// Check original masking, opaque-byte preservation and both retained native roster layouts
@@ -38,6 +39,25 @@ int main(int const argc, char const *const argv[]) {
       if(roster.pilots.size() != count || roster.encode() != encoded) throw std::runtime_error{"native pilot roster did not round trip"};
     }
   }
+  auto const directory{std::filesystem::path{argv[1]}.parent_path()};
+  auto const keyboard{corncob::game::pilot_roster::decode(corncob::platform::read_binary(directory / "pilot_keyboard.bin"))};
+  auto const joystick{corncob::game::pilot_roster::decode(corncob::platform::read_binary(directory / "pilot_joystick.bin"))};
+  auto const linked{corncob::game::pilot_roster::decode(corncob::platform::read_binary(directory / "pilot_theatre.bin"))};
+  if(!keyboard.keyboard_control() || joystick.keyboard_control() || !keyboard.pilots[0].beginner_flight() || linked.pilots[0].beginner_flight())
+    throw std::runtime_error{"original saved control or aerodynamic-model choice decoded incorrectly"};
+  corncob::game::pilot_record created{"NativeTest"};
+  created.select(true);
+  if(!std::ranges::equal(created.native_data(), keyboard.pilots[0].native_data())) throw std::runtime_error{"new pilot defaults differ from original MOAG creation"};
+  auto changed{keyboard};
+  changed.keyboard_control(false);
+  auto const old{keyboard.pilots[0].native_data()};
+  changed.pilots[0].beginner_flight(false);
+  for(unsigned int i{0}; i != old.size(); ++i)
+    if(changed.pilots[0].native_data()[i] != static_cast<uint8_t>(i == 0x23b ? old[i] | 0x20 : old[i])) throw std::runtime_error{"setting flight assistance changed opaque pilot state"};
+  created.add_theatre(1);
+  created.beginner_flight(false);
+  auto const references{linked.pilots[0].theatres()};
+  if(references.size() != 1 || references[0] != 1 || created.native_data()[0x23d] != linked.pilots[0].native_data()[0x23d]) throw std::runtime_error{"original numbered-theatre references differ"};
   corncob::game::pilot_record pilot{"Native test"};
   corncob::game::sortie_statistics result{
     .objectives_completed{7},

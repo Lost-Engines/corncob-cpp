@@ -20,7 +20,7 @@ int32_t points_per_sortie(career_score const &entry) {
 void update_career(std::array<career_score, 10> &table, career_score const &candidate, bool const fastest) {
   /// Each career occupies one entry; subsequent sorties replace its totals before ranking it again
   std::vector<career_score> entries;
-  for(auto const &entry : table) if(score_text(entry.name) != score_text(candidate.name)) entries.push_back(entry);
+  for(auto const &entry : table) if(entry.retired != 0 || score_text(entry.name) != score_text(candidate.name)) entries.push_back(entry);
   entries.push_back(candidate);
   std::ranges::stable_sort(entries, [fastest](auto const &a, auto const &b){
     return fastest ? points_per_sortie(a) > points_per_sortie(b) : a.points > b.points;
@@ -85,6 +85,22 @@ std::array<uint8_t, score_tables::native_bytes> score_tables::encode() const {
     tail(entry.points, entry.retired);
   }
   return result;
+}
+void score_tables::rename(std::string_view const previous, std::string_view const name) {
+  /// Live achievements follow a renamed career; retired careers with a reused name remain distinct
+  auto replace{[name](score_name &field){
+    unsigned int const length{static_cast<unsigned int>(std::min(name.size(), field.size() - 1))};
+    std::copy_n(name.begin(), length, field.begin());
+    field[length] = 0;
+  }};
+  for(auto &entry : missions) if(entry.retired == 0 && score_text(entry.name) == previous) replace(entry.name);
+  for(auto *table : {&careers, &fastest}) for(auto &entry : *table)
+    if(entry.retired == 0 && score_text(entry.name) == previous) replace(entry.name);
+}
+void score_tables::retire(std::string_view const name) {
+  /// Preserve a deleted pilot's historical results while allowing a later pilot to reuse the same name
+  for(auto &entry : missions) if(score_text(entry.name) == name) entry.retired = 1;
+  for(auto *table : {&careers, &fastest}) for(auto &entry : *table) if(score_text(entry.name) == name) entry.retired = 1;
 }
 void score_tables::record(std::string_view const theatre, sortie_statistics const &result, pilot_record const *const pilot) {
   /// Mission records are separate achievements; cumulative and fastest lists retain one current row per named career

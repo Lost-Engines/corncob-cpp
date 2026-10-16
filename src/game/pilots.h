@@ -118,6 +118,10 @@ public:
   bool selected() const;
   void select(bool value);
   bool unavailable() const;
+  std::span<uint8_t const> theatres() const;
+  void add_theatre(uint8_t number);
+  bool beginner_flight() const;
+  void beginner_flight(bool value);
   void resurrect();
   pilot_rank rank() const;
   uint16_t sorties() const;
@@ -139,6 +143,8 @@ private:
 
 public:
   std::vector<pilot_record> pilots;
+  bool keyboard_control() const;
+  void keyboard_control(bool value);
   static pilot_roster decode(std::span<uint8_t const> source);
   std::vector<uint8_t> encode() const;
   static void mask(std::span<uint8_t> bytes, uint16_t seed) noexcept;

@@ -55,10 +55,13 @@ under comparison.
 
 The original autopilot includes pitch-by-speed feedback and altitude capture.
 Optional beginner aerodynamics adds the original weaker PITCHLOCK correction.
-When both are enabled, the two original calls remain. Advanced is the default;
-`--flight-model beginner` selects assistance. The controls setup selects the same
-model and keyboard/joystick choice before a new flight. Settings currently last
-for the process; mapping them to original pilot configuration bytes is unfinished.
+When both are enabled, the two original calls remain. The standalone engine defaults to advanced; MOAG creates pilots with beginner
+aerodynamics. The unified launcher follows MOAG; `--flight-model advanced`
+overrides the saved pilot setting. The controls setup selects the same
+model and keyboard/joystick choice before a new flight. The global keyboard/joystick choice uses header byte two of PILOT.SCR; the
+pilot’s model uses bit `0x20` at `0x23b` (set for advanced). New pilot setup
+bytes match an unchanged MOAG-created record. Explicit device indices remain
+startup choices because DOS only stores keyboard versus joystick.
 
 Digital joysticks supply two calibrated axes and two buttons through GLFW. The
 original squared response and clipping are retained, without analogue-port timing
@@ -93,7 +96,7 @@ create one friendly van; hostile vehicles draw an exposed pilot toward actual
 capture collision bounds.
 
 Named pilots retain changed worlds independently. Roster operations create,
-activate, deactivate, rename and resurrect pilots; records display career
+activate, deactivate, rename, delete and resurrect pilots; records display career
 statistics and original medal glyphs/colours. Three native high-score lists cover
 missions, careers and integer points-per-sortie careers with at least three
 sorties. The three required normal theatres grant Combat Master clearance; the
@@ -106,9 +109,14 @@ original Borland random mask. PILOT.HSC retains its 5,040-byte layout and paddin
 THT uses the native 671-byte container and compact 64-tile world stream. Both plain
 and coordinate-XOR type words are accepted only after a complete world validates;
 new saves use XOR. All four original definitions round-trip byte for byte. Save
-replacement uses a completed temporary write. Current filenames use stable roster
-slots; original automatic filename selection and all bookkeeping are not yet fully
-interoperable.
+replacement uses a completed temporary write. New worlds use numbered `THT/N.THT`
+files linked by the pilot’s original twenty-entry table (`0x23c` count, `0x23d`
+active index, `0x23e` file numbers). References preserve ownership even when DOS
+has left the embedded pilot name stale. Earlier native slot-named files remain
+readable. Header campaign words are preserved, though their full bookkeeping
+is still being investigated. Renaming updates live high-score names; deletion
+removes owned worlds and sets the original retired word in all three score lists.
+A reused name starts a distinct career.
 
 ## Rendering, presentation and sound
 
@@ -173,7 +181,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
 | Ending | All 768 initial stars and 64 complete indexed native star frames |
-| Score/persistence | 512 score calculations; 16,384 original mask bytes; native roster/high-score round trips and restart scenarios |
+| Score/persistence | 512 score calculations; 16,384 original mask bytes; original control/model/new-pilot fixtures; exact native high-score retirement; roster/world restart, rename and deletion scenarios |
 | Sound | 512 engine/register-write cases and finite, non-silent PCM from the actual engine patch |
 
 Connected scenarios cover takeoff, ejection/parachute/remote control, weapons and
@@ -201,9 +209,9 @@ match without stubs; the connected rescue scenario still passes.
 ## Remaining fidelity work
 
 - Translate the animated title, palette transitions and reflection playback.
-- Complete original front-end/bookkeeping details: pilot deletion, high-score
-  retirement/renaming, original configuration bytes, scanner/award qualifications
-  and automatic saved-world naming.
+- Complete remaining front-end/bookkeeping details: scanner/award qualifications,
+  theatre-header campaign words, training setup persistence and any remaining
+  original configuration bits.
 - Verify remaining launcher and special-site handlers against
   full native executions, and broaden complete campaign comparisons.
 - Finish remaining auxiliary instrument states; compare wire rasterisation and

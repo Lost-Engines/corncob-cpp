@@ -6,6 +6,7 @@
 #include "game/campaign.h"
 #include "resources/assets.h"
 #include "game/session.h"
+#include "platform/storage.h"
 
 namespace {
 
@@ -18,7 +19,7 @@ void require(bool const condition, char const *const message) {
 
 int main(int const argc, char const *const argv[]) {
   /// Persist a named career and changed original world, reopen it, and keep different pilots' worlds separate
-  if(argc != 2) throw std::invalid_argument{"campaign_checks requires its dedicated scratch directory"};
+  if(argc != 3) throw std::invalid_argument{"campaign_checks requires its dedicated scratch directory"};
   std::filesystem::path const directory{argv[1]};
   if(directory.filename() != "campaign-checks") throw std::invalid_argument{"campaign check directory must be named campaign-checks"};
   std::filesystem::remove_all(directory);
@@ -29,6 +30,25 @@ int main(int const argc, char const *const argv[]) {
   require(orb != theatre.objects.end(), "reference theatre lacks a generator orb");
   orb->type = world::object_type::destroyed_generator_orb;
   orb->flags = 0x211;
+  {
+    /// Original pilot references remain authoritative when MOAG has left the old owner name in its THT header
+    auto const pilot{corncob::platform::read_binary(std::filesystem::path{argv[2]} / "pilot_theatre.bin")};
+    corncob::platform::write_binary(directory / "PILOT.SCR", pilot);
+    std::vector<uint8_t> saved(671);
+    std::string const stem{"morning"};
+    std::ranges::copy(stem, saved.begin() + 28);
+    game::pilot_record const stale{"NativeTest"};
+    std::ranges::copy(stale.native_data(), saved.begin() + 48);
+    auto const objects{world::encode_theatre(theatre)};
+    saved.insert(saved.end(), objects.begin(), objects.end());
+    corncob::platform::write_binary(directory / "THT/1.THT", saved);
+    game::campaign_store original{directory};
+    require(original.active_pilot() && original.active_pilot()->name() != stale.name(), "original stale-name scenario lost its rename");
+    require(original.load_world("morning").has_value(), "original numbered reference did not recover a renamed pilot's theatre");
+    original.rename_pilot(0, "Imported pilot");
+    require(original.load_world("morning").has_value(), "renaming orphaned an imported original theatre");
+    std::filesystem::remove_all(directory);
+  }
   {
     game::campaign_store campaign{directory};
     require(campaign.active_pilot() == nullptr, "empty roster did not begin with disposable trainee");
@@ -110,6 +130,28 @@ int main(int const argc, char const *const argv[]) {
     require(ending.player() == game::player_mode::earth_saved && ending.finished(), "cleared experimental high-altitude flight did not reach the ending");
     campaign.finish_sortie("white_sands", ending.snapshot(), ending.results());
     require(campaign.active_pilot()->rank() == game::pilot_rank::major, "saving Earth did not award the normal game's final rank");
+  }
+  {
+    game::campaign_store campaign{directory};
+    campaign.activate(1);
+    game::sortie_statistics result{
+      .objectives_completed{2},
+    };
+    campaign.finish_sortie("morning", theatre, result);
+    auto const second_score{campaign.active_pilot()->career_score()};
+    auto const second_references{std::vector<uint8_t>{campaign.active_pilot()->theatres().begin(), campaign.active_pilot()->theatres().end()}};
+    bool duplicate_rejected{false};
+    try { campaign.rename_pilot(1, "Renamed pilot"); } catch(std::invalid_argument const &) { duplicate_rejected = true; }
+    require(duplicate_rejected && campaign.active_pilot()->name() == "Other pilot", "duplicate rename modified a different career");
+    campaign.delete_pilot(0);
+    require(campaign.pilots().size() == 1 && campaign.active_pilot()->name() == "Other pilot", "deletion shifted active selection onto the wrong pilot");
+    require(campaign.active_pilot()->career_score() == second_score && campaign.load_world("morning").has_value(), "deleting the previous slot lost the surviving pilot's world");
+    require(std::ranges::equal(campaign.active_pilot()->theatres(), second_references), "deletion renumbered another pilot's world links");
+    require(std::ranges::any_of(campaign.high_scores().best_careers(), [](auto const &row){return game::score_text(row.name) == "Renamed pilot" && row.retired != 0;}), "deleted career was not retained as a retired high score");
+    campaign.create_pilot("Renamed pilot");
+    require(!campaign.load_world("morning"), "reused pilot name inherited the deleted career's world");
+    campaign.delete_pilot(1);
+    require(!campaign.active_pilot(), "deleting the active pilot left a dangling selection");
   }
   std::filesystem::remove_all(directory);
   std::cout << "Native masked roster, career progression and independent live theatre persistence survive restart" << std::endl;

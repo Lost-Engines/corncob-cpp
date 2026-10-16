@@ -46,8 +46,8 @@ keys override the stick unless used for head views. `--joystick none` keeps
 keyboard controls; `--list-joysticks` lists devices for `--joystick N`.
 The main menu's controls setup also selects keyboard/joystick input and the original
 beginner or advanced flight model. Beginner gently assists the pitch toward level
-flight; `--flight-model beginner` selects it at startup. These selections currently
-last for this run. E leaves
+flight and is the original launcher default. Control choice and each named pilot’s
+flight model are saved; `--flight-model advanced` overrides the model at startup. E leaves
 the aircraft; Space opens a parachute while falling. Caps Lock enables remote
 flight after ejection. A toggles the original autopilot. L toggles the cockpit, G ground detail, P pauses,
 M opens the original overhead map; keypad arrows pan, keypad 9/3 changes height,
@@ -59,7 +59,9 @@ toggles them. The homing pointer along the viewport border points back to base.
 Control-C aborts a sortie without awarding points.
 The experimental aircraft at White Sands requires campaign clearance before
 its throttle operates. Create or activate a pilot through the duty roster to save
-your career and changes to each theatre. Pilot records use Left/Right to switch
+your career and changes to each theatre. The duty roster also renames and deletes
+pilots; deleting a pilot removes their worlds and retires their high scores.
+Pilot records use Left/Right to switch
 between statistics and medals, and Up/Down to browse pilots. Invulnerable and
 Control-C-aborted flights do not count toward careers or high scores. The default trainee does not save progress.
 `--save-dir` overrides the platform user-data directory.

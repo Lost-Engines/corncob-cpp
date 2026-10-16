@@ -29,6 +29,10 @@ public:
   void deactivate();
   void rename_pilot(unsigned int index, std::string_view name);
   void resurrect(unsigned int index);
+  void delete_pilot(unsigned int index);
+  bool keyboard_control() const noexcept;
+  void keyboard_control(bool value);
+  void beginner_flight(bool value);
   std::optional<world::theatre> load_world(std::string_view theatre) const;
   void finish_sortie(std::string_view theatre, world::theatre const &world, sortie_statistics const &result);
   std::filesystem::path const &save_directory() const noexcept;
