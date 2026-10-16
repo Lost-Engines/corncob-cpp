@@ -79,7 +79,7 @@ int main(int const argc, char const *const argv[]) {
   corncob::render::framebuffer image;
   if(argc == 3) std::filesystem::create_directories(argv[2]);
   for(unsigned int i{0}; i != 800; ++i) {
-    title.advance(1.0 / 70.0);
+    title.advance(1.0 / 20.0);
     title.render(image);
     if(argc == 3 && (i == 30 || i == 60 || i == 120 || i == 240 || i == 280 || i == 350)) {
       std::ofstream output{std::filesystem::path{argv[2]} / ("title-" + std::to_string(i) + ".ppm"), std::ios::binary};

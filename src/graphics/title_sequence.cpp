@@ -226,9 +226,9 @@ void title_sequence::draw_frame(title_frame const &frame) {
   }
 }
 void title_sequence::advance(double const seconds) {
-  /// Use a stable seventy-frame presentation clock; the original changes the CRTC page without waiting for retrace
+  /// Pace the CPU-dependent DOS animation at twenty steps per second so flak and scrolling credits remain readable
   elapsed += seconds;
-  double constexpr refresh{1.0 / 70.0};
+  double constexpr refresh{1.0 / 20.0};
   while(elapsed >= refresh) {
     elapsed -= refresh;
     if(change_stage) {

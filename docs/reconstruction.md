@@ -315,9 +315,12 @@ separate GRADSKY palette, threshold fade and scrolling credits are retained.
 The per-frame motion, state transitions and Borland PRNG continuation match
 1,024 unchanged native passes; 6,144 composited pixels match original VGA writes.
 The original CRTC page setter does not wait for retrace, so playback here uses a
-stable 70 Hz clock rather than depending on CPU or DOSBox cycle speed. The title
-score uses the clean original-driver recording described below. Whole title frames, including sprite clipping and text rasterisation, are not yet claimed
-pixel-exact.
+stable 20 Hz clock rather than depending on CPU or DOSBox cycle speed. This chosen
+presentation pace gives the five-step flak bursts 250 ms and the 176-row credit
+scroll 8.8 seconds, replacing the initially too-fast 70 Hz playback without
+changing the native motion steps. The title score uses the clean original-driver
+recording described below. Whole title frames, including sprite clipping and text
+rasterisation, are not yet claimed pixel-exact.
 
 The Earth-saved transition retains the indexed cockpit, shrinks the Earth in the
 rear window and fades only the sky before the SRATS starfield. Enter toggles warp
