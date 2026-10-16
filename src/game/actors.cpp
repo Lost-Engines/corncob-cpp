@@ -65,47 +65,47 @@ actors::actors(resources::geometry_bank const &geometry, world::theatre &theatre
   weapons{weapons},
   random{weapons.random_stream()} {
   /// Keep the preceding active census separate from this pass's live actor updates
+  active_updates.reserve(theatre.objects.size());
 }
 void actors::update_launcher(world::placed_object &object, actor_context const &context, flight::time_step const step) {
-  /// Launcher countdowns and local limits determine spawning; qualities pass through to the spawned actor
+  /// Site countdowns use the previous census, updating its population immediately when a constructor is attempted
   using enum world::object_type;
   auto const population{[&](world::object_type const type){return previous_counts[std::to_underlying(type)];}};
   unsigned int const quality{object.quality()};
-  unsigned int reset{400};
-  world::object_type launched{kla};
-  unsigned int available{population(kla_site)}, present{population(kla)};
+  world::object_type const launched{object.type == vehicle_site ? ground_vehicle : object.type == saucer_site ? saucer : kla};
+  unsigned int const present{population(launched) + (launched == saucer ? population(objective_saucer) : 0)};
+  unsigned int const sites{population(object.type)};
   if(object.type == vehicle_site) {
-    reset = resources::vehicle_site_qualities[quality].launch_reset;
-    launched = ground_vehicle;
-    available = std::max(population(vehicle_site), 4u);
-    present = population(ground_vehicle);
-  } else if(object.type == saucer_site) {
-    reset = resources::saucer_site_qualities[quality].launch_reset;
-    launched = saucer;
-    available = population(saucer_site);
-    present = population(saucer) + population(objective_saucer);
+    unsigned int const rest{resources::vehicle_site_qualities[quality].launch_reset};
+    if(object.timer >= rest) return;
+    object.timer = static_cast<uint16_t>(rest * 3);
+    if(present >= std::max(sites, 4u)) return;
+  } else {
+    unsigned int constexpr launch_threshold{100};
+    if(object.timer >= launch_threshold) return;
+    if(present >= sites || (launched == saucer && random.next() > static_cast<uint16_t>(timed(100, step)))) {
+      // counteract the ordinary timer decrement while waiting for room or a successful random launch
+      ++object.timer;
+      return;
+    }
+    object.timer = launched == kla ? resources::kla_site_qualities[quality].launch_reset : resources::saucer_site_qualities[quality].launch_reset;
   }
-  unsigned int const trigger{object.type == vehicle_site ? reset : 100u};
-  if(object.timer >= trigger || present >= available) return;
-  if(object.type == saucer_site && random.next() > static_cast<uint16_t>(timed(100, step))) return;
-  object.timer = static_cast<uint16_t>(reset);
+  ++previous_counts[std::to_underlying(launched)];
+  // the vehicle-site class changes even when its attempted allocation fails
+  if(launched == ground_vehicle) object.collision_group = static_cast<uint8_t>(-static_cast<int>(present + 2));
   auto const index{weapons.spawn(launched, object.position)};
   if(!index) return;
   auto &spawned{theatre.objects[*index]};
-  spawned.flags = static_cast<uint16_t>((spawned.flags & ~0x7000u) | (quality << 12));
+  spawned.flags = static_cast<uint16_t>((spawned.flags & ~0x7000u) | (quality << 12) | 0x8000u);
+  spawned.attitude = {};
+  spawned.velocity = maths::fixed_vector{0, 0, 0};
   if(launched == kla) {
     spawned.timer = 24'000;
     spawned.attitude.pitch = static_cast<maths::angle>(-16'384);
-    spawned.velocity = maths::fixed_vector{0, 0, 0};
   } else if(launched == ground_vehicle) {
     spawned.timer = static_cast<uint16_t>(10'000 * step.normal / step.elapsed);
-    spawned.velocity = maths::fixed_vector{0, 0, 0};
-    spawned.collision_group = static_cast<uint8_t>(-static_cast<int>(present + 2));
-    object.collision_group = spawned.collision_group;
-  } else {
-    spawned.timer = 24'000;
-    spawned.position.z += 5000;
-  }
+    spawned.collision_group = object.collision_group;
+  } else spawned.timer = 32'000;
   (void)context;
 }
 void actors::update_kla(world::placed_object &object, actor_context const &context, flight::time_step const step) {
@@ -471,7 +471,14 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
   if(!census_ready) refresh_census(context.observer);
   quality_counts aaa{}, kla{};
   std::array<unsigned int, std::to_underlying(world::object_type::count)> counts{};
+  active_updates.clear();
   for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
+    auto const &object{theatre.objects[i]};
+    if(object.has(world::object_flag::present) && object.has(world::object_flag::updates)
+      && world::in_active_neighbourhood(object.position, context.observer)) active_updates.push_back(i);
+  }
+  // new effects enter the original painter tables at the following EXPMOV, after their creation pass
+  for(unsigned int const i : active_updates) {
     auto &object{theatre.objects[i]};
     if(!object.has(world::object_flag::present) || !world::in_active_neighbourhood(object.position, context.observer)) continue;
     auto const &definition{geometry.definition(object.type)};

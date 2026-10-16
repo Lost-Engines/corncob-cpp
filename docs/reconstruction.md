@@ -50,8 +50,13 @@ the current airbase. Its death uses debris-before-spin random ordering; ground
 impact produces upward fragments and fifteen incendiaries. Barrage balloons
 survive ordinary contacts. Bees retain the accidental RAND_W carry-flag dependency
 that sometimes skips their vertical update. Dead aliens disappear outside their
-near tier. Actor equivalence beyond the independently tested handlers remains
-under comparison.
+near tier. Launch sites retain quality-specific reset/retry behaviour and update admission
+counts immediately, including failed allocation attempts. Vehicle sites wait
+three reset periods; saucers retain their original 32,000-frame lifetime and
+unshifted constructor position. A pass captures its existing active actors before
+handlers run, so a newly constructed child first updates when admitted on the
+following pass, as with EXPMOV's original painter-table insertion. The new-object
+bit is consumed by effect movement. Remaining actor equivalence is under comparison.
 
 The original autopilot includes pitch-by-speed feedback and altitude capture.
 Optional beginner aerodynamics adds the original weaker PITCHLOCK correction.
@@ -188,7 +193,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Joystick | 512 SPKE/JOYTD response cases, plus keyboard/button/head-view integration |
 | Person | 512 free-fall damping and 512 parachute swing cases |
 | Motion/collision | 512 generic movement, 512 strict boxes, 512 fast and 512 ordinary projectile contacts |
-| Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization |
+| Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools |
 | Debris/training | 530 particles from 64 constructor runs; 2,157 generated placements from 32 training runs |
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks and 12 polygon hashes; four original definition round trips; one 252-object plain saved world |
 | Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
@@ -210,7 +215,8 @@ map, boss screen, help, score, abort/report, tower intelligence, repair/resume a
 Escape warnings, followed by both story fades and the animated title/credits.
 Captures were inspected without changing supplied DOS installs.
 The complete 35-check Release and sanitizer suites pass, including the longer
-scenarios, ground-vehicle handler, visual feedback and animated title. Wire rasterisation, complete frame ordering,
+scenarios, ground-vehicle handler, visual feedback and animated title. All 36 Debug
+checks pass after the launch-site and actor-admission corrections. Wire rasterisation, complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.
 
@@ -228,7 +234,7 @@ match without stubs; the connected rescue scenario still passes.
 - Complete remaining front-end/bookkeeping details: scanner/award qualifications,
   theatre-header campaign words, training setup persistence and any remaining
   original configuration bits.
-- Verify remaining launcher and special-site handlers against
+- Verify remaining special-site handlers against
   full native executions, and broaden complete campaign comparisons.
 - Finish remaining auxiliary instrument states; compare wire rasterisation and
   whole scene painter/collision ordering.

@@ -1,0 +1,15 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "f4e0c940f8cf13c6fbaa2af850741c8d52a44388c37f4164b1fce3ccbee0a7e3",
+  "cases": 768,
+  "constructors": 133,
+  "routines": [
+    "0xb6f6 KLA site",
+    "0xb626 vehicle site",
+    "0xbfcd saucer site"
+  ],
+  "stubs": [
+    "0x9fdb EXPSTRT: fixed-pool allocation succeeds or fails; successful allocation copies the requested original template"
+  ],
+  "scope": "All eight qualities, previous-census population caps, reset/retry timers, complete child constructors, exhausted pools and full random continuation."
+}

@@ -530,6 +530,7 @@ void combat::move(maths::world_position const &observer, flight::time_step const
   for(unsigned int i{scenery_count}; i != scenery_count + effect_capacity; ++i) {
     auto &object{theatre.objects[i]};
     if(object.flags == 0) continue;
+    object.flags &= 0x7fffu;
     if(object.timer == 0 || (object.timer & 0x8000u) != 0) {
       if((static_cast<uint16_t>(object.motion.gravity) & 0xff00u) != 0) explosion(object.position, 0x20);
       object.flags = 0;

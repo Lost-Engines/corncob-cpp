@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <vector>
 #include "game/combat.h"
 #include "maths/random.h"
 
@@ -33,6 +34,7 @@ private:
   std::array<unsigned int, std::to_underlying(world::object_type::count)> previous_counts{};
   unsigned int observed_aliens{0};
   actor_effects effects;
+  std::vector<unsigned int> active_updates;
   bool census_ready{false};
 
   void update_launcher(world::placed_object &object, actor_context const &context, flight::time_step step);
