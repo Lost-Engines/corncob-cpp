@@ -44,7 +44,11 @@ void framebuffer_presenter::present(render::framebuffer const &source) {
   glClear(GL_COLOR_BUFFER_BIT);
   glViewport(viewport.x, viewport.y, viewport.width, viewport.height);
   glBindTexture(GL_TEXTURE_2D, texture);
-  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, render::screen_layout::width, render::screen_layout::height, GL_RGBA, GL_UNSIGNED_BYTE, source.pixels.data());
+  if(source.width != texture_width || source.height != texture_height) {
+    texture_width = source.width;
+    texture_height = source.height;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<int>(texture_width), static_cast<int>(texture_height), 0, GL_RGBA, GL_UNSIGNED_BYTE, source.pixels.data());
+  } else glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, static_cast<int>(source.width), static_cast<int>(source.height), GL_RGBA, GL_UNSIGNED_BYTE, source.pixels.data());
   glBegin(GL_TRIANGLE_STRIP);
   glTexCoord2f(0.0f, 0.0f);
   glVertex2f(-1.0f, 1.0f);

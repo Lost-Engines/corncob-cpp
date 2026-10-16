@@ -318,6 +318,9 @@ scene_renderer::scene_renderer(resources::geometry_bank &geometry, resources::co
 render_statistics scene_renderer::render(world::theatre const &theatre, camera const &observer, unsigned int const frame,
                                         uint16_t const timer, render::framebuffer &output, instrument_telemetry const *const telemetry) {
   /// Render the original world through fixed-point transforms into a 640x350 indexed software surface
+  output.width = render::screen_layout::width;
+  output.height = render::screen_layout::height;
+  output.pixels.resize(render::screen_layout::pixel_count);
   statistics = {};
   set_palette(theatre, observer.position);
   std::ranges::fill(indexed.pixels, 0);

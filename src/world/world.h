@@ -130,6 +130,7 @@ struct theatre {
 bool in_active_neighbourhood(maths::world_position const &position, maths::world_position const &observer) noexcept;
 
 theatre decode_theatre(std::span<uint8_t const> source);
+std::vector<uint8_t> encode_theatre(theatre const &source);
 void apply_briefing(theatre &theatre, std::span<uint8_t const> source);
 
 } // namespace corncob::world

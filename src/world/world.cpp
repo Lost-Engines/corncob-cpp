@@ -65,10 +65,56 @@ theatre decode_theatre(std::span<uint8_t const> const source) {
   return result;
 }
 
+std::vector<uint8_t> encode_theatre(theatre const &source) {
+  /// Rebuild the original 64-tile CCT stream, preserving native position packing, byte angles and XOR type words
+  std::vector<uint8_t> output;
+  auto byte{[&](uint8_t const value){output.push_back(value);}};
+  auto word{[&](uint16_t const value){byte(static_cast<uint8_t>(value)); byte(static_cast<uint8_t>(value >> 8));}};
+  auto dword{[&](uint32_t const value){word(static_cast<uint16_t>(value)); word(static_cast<uint16_t>(value >> 16));}};
+  for(unsigned int y{0}; y != theatre::rows; ++y) {
+    for(unsigned int x{0}; x != theatre::columns; ++x) {
+      std::vector<placed_object const*> placements;
+      for(auto const &object : source.objects) {
+        if(!object.has(object_flag::present)) continue;
+        int64_t const column{(static_cast<int64_t>(object.position.x) - theatre::origin) >> 21};
+        int64_t const row{(static_cast<int64_t>(object.position.y) - theatre::origin) >> 21};
+        if(column == x && row == y) placements.push_back(&object);
+      }
+      if(placements.size() > 65'535) throw std::invalid_argument{"native theatre tile has too many objects"};
+      auto const &tile{source.tiles[y * theatre::columns + x]};
+      dword(0x00656950u);
+      word(static_cast<uint16_t>(x));
+      word(static_cast<uint16_t>(y));
+      word(static_cast<uint16_t>(placements.size()));
+      byte(tile.storage_flags);
+      for(auto const value : tile.packed_colours) byte(value);
+      for(auto const *object : placements) {
+        auto const low_x{static_cast<uint16_t>(object->position.x)}, low_y{static_cast<uint16_t>(object->position.y)};
+        uint16_t const packed{static_cast<uint16_t>(((object->position.x >> 16) & 31) | (((object->position.y >> 16) & 31) << 5)
+          | (((object->position.z >> 16) & 31) << 10))};
+        word(packed);
+        word(low_x);
+        word(low_y);
+        word(static_cast<uint16_t>(object->position.z));
+        byte(static_cast<uint8_t>(object->attitude.heading >> 8));
+        byte(static_cast<uint8_t>(object->attitude.pitch >> 8));
+        byte(static_cast<uint8_t>(object->attitude.roll >> 8));
+        word(object->flags);
+        for(unsigned int axis{0}; axis != 3; ++axis) word(static_cast<uint16_t>(object->velocity[axis]));
+        word(object->timer);
+        word(static_cast<uint16_t>(std::to_underlying(object->type) ^ low_x ^ low_y));
+      }
+    }
+  }
+  for(unsigned int axis{0}; axis != 3; ++axis) dword(static_cast<uint32_t>(source.start[axis]));
+  return output;
+}
+
 void apply_briefing(theatre &theatre, std::span<uint8_t const> const source) {
   /// TWR's optional first-line X directive controls the actual sun, atmosphere and star settings
+  if(source.empty()) { theatre.briefing.clear(); return; }
   theatre.briefing.assign(reinterpret_cast<char const*>(source.data()), source.size());
-  if(source.empty() || source.front() != 'X') return;
+  if(source.front() != 'X') return;
   std::istringstream input{theatre.briefing.substr(1, theatre.briefing.find('\n'))};
   int angle{0}, diameter{0}, colour{0}, gravity{0}, density{0}, stars{0}, height{0};
   if(!(input >> angle >> diameter >> colour >> gravity >> density >> stars >> height)) throw std::invalid_argument{"embedded theatre has an invalid X directive"};

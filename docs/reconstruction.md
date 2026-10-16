@@ -158,3 +158,29 @@ state is not a claim of exhaustive native equivalence. In particular, complete
 sortie/campaign outcomes, capture/rescue handoffs, procedural training, some
 special effects and helper-program UI remain to be finished. The UI still starts
 directly in the chosen theatre, and sound/music are not yet connected.
+
+## Unified presentation and sortie results
+
+The original unmodified VGA artwork, IMG help, story/outcome scripts and reference
+BIOS fonts are embedded in a named immutable collection. Runtime rendering decodes
+the original formats directly. The two story panels and fifteen outcomes retain
+their stored image/text placements. One generated story composition matches the
+research PNG byte for byte in RGB. Ten original in-flight help pages form one
+sequence, returning to the retained flight.
+
+VGA compositions use 320 by 200 pixels; flight/help retain 640 by 350, while BIOS
+menu text uses 640 by 400 and the original 8-by-16 font. The presenter switches
+texture size without changing the floating window's intended CRT aspect ratio.
+The current menu is a functional native reconstruction; roster, training setup,
+complete title animation and career/report flow are still being connected.
+BIOS font provenance and GPL terms are retained under `third_party/`.
+
+The original 130-byte sortie result structure now has explicit typed fields and
+lossless serialization. Score arithmetic matches 512 unchanged ISCORE executions,
+including signed word/dword wrapping and status-priority cases. The world writer
+also reproduces all four original CCT files byte for byte after decoding, providing
+the basis for persistent campaign worlds without a new packed map format.
+
+A private X11 GUI run traverses combat selection, briefing, flight, help and quit
+cancellation. Original DOS front-end inspection uses a copied installation in a
+private DOSBox/Xvfb session; supplied installations remain unchanged.

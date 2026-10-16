@@ -10,6 +10,8 @@ class framebuffer_presenter {
 private:
   GLFWwindow &window;
   unsigned int texture{0};
+  unsigned int texture_width{render::screen_layout::width};
+  unsigned int texture_height{render::screen_layout::height};
 
 public:
   framebuffer_presenter(GLFWwindow &window);

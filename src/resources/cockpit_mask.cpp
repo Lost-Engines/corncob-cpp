@@ -33,8 +33,11 @@ cockpit_mask decode_cockpit_mask(std::span<uint8_t const> const source) {
   return output;
 }
 
-void draw_cockpit_preview(cockpit_mask const &mask, render::framebuffer &target) noexcept {
+void draw_cockpit_preview(cockpit_mask const &mask, render::framebuffer &target) {
   /// Inspect the original monochrome resource without inventing a world or live instrument state
+  target.width = render::screen_layout::width;
+  target.height = render::screen_layout::height;
+  target.pixels.resize(render::screen_layout::pixel_count);
   for(unsigned int pixel{0}; pixel != render::screen_layout::pixel_count; ++pixel) {
     bool const foreground{(mask[pixel / 8] & (0b1000'0000u >> (pixel % 8))) != 0};
     uint8_t const shade{static_cast<uint8_t>(foreground ? 170 : 0)};

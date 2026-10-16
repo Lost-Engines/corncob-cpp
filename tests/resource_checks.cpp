@@ -55,6 +55,8 @@ auto main()->int {
     auto const world{corncob::world::decode_theatre(sources[i])};
     require(world.objects.size() == expected_counts[i], "original theatre object count changed during decoding");
     require(world.start.x == -848'968 && world.start.y == 0 && world.start.z == 720, "original theatre start trailer changed during decoding");
+    auto const encoded{corncob::world::encode_theatre(world)};
+    require(std::ranges::equal(encoded, sources[i]), "native theatre stream did not round trip byte for byte");
     unsigned int total{0};
     for(auto const &tile : world.tiles) total += tile.object_count;
     require(total == world.objects.size(), "theatre tile ranges do not cover every placed object");

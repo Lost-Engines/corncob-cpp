@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include "game/session.h"
+#include "game/front_end.h"
 #include <boost/program_options.hpp>
 #include <boost/scope/scope_exit.hpp>
 #include <GLFW/glfw3.h>
@@ -19,6 +20,32 @@
 #include "world/world.h"
 
 namespace {
+
+struct window_state {
+  std::unique_ptr<corncob::game::session> &game;
+  corncob::game::front_end &front;
+};
+
+corncob::world::theatre load_theatre(std::string const &name) {
+  /// Re-entering the native front end selects embedded original scenery and its matching intelligence
+  std::span<uint8_t const> world, briefing;
+  if(name == "morning") {
+    world = corncob::resources::morning_asset();
+    briefing = corncob::resources::morning_briefing_asset();
+  } else if(name == "dusk") {
+    world = corncob::resources::dusk_asset();
+    briefing = corncob::resources::dusk_briefing_asset();
+  } else if(name == "wasteland") {
+    world = corncob::resources::wasteland_asset();
+    briefing = corncob::resources::wasteland_briefing_asset();
+  } else if(name == "white_sands") {
+    world = corncob::resources::white_sands_asset();
+    briefing = corncob::resources::white_sands_briefing_asset();
+  } else throw std::invalid_argument{"--theatre must be white_sands, morning, dusk or wasteland"};
+  auto result{corncob::world::decode_theatre(world)};
+  corncob::world::apply_briefing(result, briefing);
+  return result;
+}
 
 int startup_failure(std::string const &message) {
   /// Report actionable startup errors while leaving unexpected engine failures uncaught
@@ -34,6 +61,7 @@ auto main(int const argc, char const *const argv[])->int {
   options.add_options()
     ("help,h", "show command-line options")
     ("version", "show the native reconstruction version")
+    ("skip-intro", "open the main menu without the title and story")
     ("theatre", boost::program_options::value<std::string>()->default_value("white_sands"), "original theatre: white_sands, morning, dusk or wasteland")
     ("scale", boost::program_options::value<int>(), "initial window scale: positive multiple of 640 x 480 (default: fit available screen)");
 #ifndef NDEBUG
@@ -68,46 +96,34 @@ auto main(int const argc, char const *const argv[])->int {
   double const seconds{arguments["seconds"].as<double>()};
   if(seconds < 0.0 || !std::isfinite(seconds)) return startup_failure("--seconds must be a finite non-negative number");
 #endif // NDEBUG
-  std::span<uint8_t const> world_data, briefing_data;
   auto const theatre_name{arguments["theatre"].as<std::string>()};
-  if(theatre_name == "white_sands") {
-    world_data = corncob::resources::white_sands_asset();
-    briefing_data = corncob::resources::white_sands_briefing_asset();
+  corncob::world::theatre theatre;
+  try {
+    theatre = load_theatre(theatre_name);
+  } catch(std::invalid_argument const &error) {
+    return startup_failure(error.what());
   }
-  else if(theatre_name == "morning") {
-    world_data = corncob::resources::morning_asset();
-    briefing_data = corncob::resources::morning_briefing_asset();
-  }
-  else if(theatre_name == "dusk") {
-    world_data = corncob::resources::dusk_asset();
-    briefing_data = corncob::resources::dusk_briefing_asset();
-  }
-  else if(theatre_name == "wasteland") {
-    world_data = corncob::resources::wasteland_asset();
-    briefing_data = corncob::resources::wasteland_briefing_asset();
-  }
-  else return startup_failure("--theatre must be white_sands, morning, dusk or wasteland");
-  auto theatre{corncob::world::decode_theatre(world_data)};
-  corncob::world::apply_briefing(theatre, briefing_data);
   corncob::render::framebuffer frame;
   auto const cockpit{corncob::resources::decode_cockpit_mask(corncob::resources::cockpit_asset())};
   corncob::resources::geometry_bank geometry{corncob::resources::engine_data_asset()};
-  corncob::graphics::scene_renderer renderer{geometry, cockpit};
-  corncob::game::session game{geometry, std::move(theatre)};
-  auto observer{game.camera()};
+  auto renderer{std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit)};
+  auto game{std::make_unique<corncob::game::session>(geometry, std::move(theatre))};
+  corncob::resources::collection interface_assets{corncob::resources::front_end_asset()};
+  corncob::game::front_end front{interface_assets, arguments.contains("skip-intro"), !arguments["theatre"].defaulted()};
+  auto observer{game->camera()};
 #ifndef NDEBUG
   bool const no_cockpit{arguments.contains("no-cockpit")};
   if(no_cockpit) observer.cockpit = false;
   bool const cockpit_preview{arguments.contains("cockpit-preview")};
   bool const free_camera{arguments.contains("free-camera")};
   if(free_camera) {
-    observer.position = corncob::maths::world_position{game.world().start};
+    observer.position = corncob::maths::world_position{game->world().start};
     observer.cockpit = !no_cockpit;
   }
   if(cockpit_preview) corncob::resources::draw_cockpit_preview(cockpit, frame);
-  else renderer.render(game.world(), observer, 0, 0, frame);
+  else renderer->render(game->world(), observer, 0, 0, frame);
 #else
-  renderer.render(game.world(), observer, 0, 0, frame);
+  renderer->render(game->world(), observer, 0, 0, frame);
 #endif // NDEBUG
 #ifndef NDEBUG
   if(arguments.contains("screenshot")) {
@@ -166,24 +182,45 @@ auto main(int const argc, char const *const argv[])->int {
   }
   glfwMakeContextCurrent(window.get());
   glfwSwapInterval(1);
-  glfwSetWindowUserPointer(window.get(), &game);
+  window_state state{game, front};
+  glfwSetWindowUserPointer(window.get(), &state);
   glfwSetKeyCallback(window.get(), [](GLFWwindow *const window, int const key, int const /*scancode*/, int const action, int const /*modifiers*/){
     if(action != GLFW_RELEASE) return;
-    auto &game{*static_cast<corncob::game::session*>(glfwGetWindowUserPointer(window))};
+    auto &state{*static_cast<window_state*>(glfwGetWindowUserPointer(window))};
+    auto &game{state.game};
+    auto &front{state.front};
+    if(!front.in_flight()) {
+      using enum corncob::game::interface_command;
+      switch(key) {
+      case GLFW_KEY_UP: front.command(up); break;
+      case GLFW_KEY_DOWN: front.command(down); break;
+      case GLFW_KEY_LEFT: front.command(previous); break;
+      case GLFW_KEY_RIGHT: front.command(next); break;
+      case GLFW_KEY_PAGE_UP: front.command(page_up); break;
+      case GLFW_KEY_PAGE_DOWN: front.command(page_down); break;
+      case GLFW_KEY_ENTER: case GLFW_KEY_KP_ENTER: case GLFW_KEY_SPACE: front.command(accept); break;
+      case GLFW_KEY_ESCAPE: front.command(cancel); break;
+      case GLFW_KEY_F4: front.command(help); break;
+      default: break;
+      }
+      return;
+    }
     switch(key) {
-    case GLFW_KEY_ESCAPE: glfwSetWindowShouldClose(window, GLFW_TRUE); break;
-    case GLFW_KEY_R: game.press(corncob::game::action::toggle_rear); break;
-    case GLFW_KEY_L: game.press(corncob::game::action::toggle_cockpit); break;
-    case GLFW_KEY_G: game.press(corncob::game::action::toggle_ground); break;
-    case GLFW_KEY_F: game.press(corncob::game::action::toggle_flaps); break;
-    case GLFW_KEY_I: game.press(corncob::game::action::rocket); break;
-    case GLFW_KEY_E: game.press(corncob::game::action::eject); break;
-    case GLFW_KEY_SPACE: game.press(corncob::game::action::parachute); break;
-    case GLFW_KEY_CAPS_LOCK: game.press(corncob::game::action::toggle_remote); break;
-    case GLFW_KEY_B: game.press(corncob::game::action::drop_bomb); break;
-    case GLFW_KEY_SEMICOLON: game.press(corncob::game::action::plant_charge); break;
-    case GLFW_KEY_D: game.press(corncob::game::action::arm_charges); break;
-    case GLFW_KEY_P: game.press(corncob::game::action::pause); break;
+    case GLFW_KEY_ESCAPE: front.ask_to_end_sortie(); break;
+    case GLFW_KEY_F1: front.show_menu(); break;
+    case GLFW_KEY_F4: front.show_flight_help(); break;
+    case GLFW_KEY_R: game->press(corncob::game::action::toggle_rear); break;
+    case GLFW_KEY_L: game->press(corncob::game::action::toggle_cockpit); break;
+    case GLFW_KEY_G: game->press(corncob::game::action::toggle_ground); break;
+    case GLFW_KEY_F: game->press(corncob::game::action::toggle_flaps); break;
+    case GLFW_KEY_I: game->press(corncob::game::action::rocket); break;
+    case GLFW_KEY_E: game->press(corncob::game::action::eject); break;
+    case GLFW_KEY_SPACE: game->press(corncob::game::action::parachute); break;
+    case GLFW_KEY_CAPS_LOCK: game->press(corncob::game::action::toggle_remote); break;
+    case GLFW_KEY_B: game->press(corncob::game::action::drop_bomb); break;
+    case GLFW_KEY_SEMICOLON: game->press(corncob::game::action::plant_charge); break;
+    case GLFW_KEY_D: game->press(corncob::game::action::arm_charges); break;
+    case GLFW_KEY_P: game->press(corncob::game::action::pause); break;
     default: break;
     }
   });
@@ -193,6 +230,13 @@ auto main(int const argc, char const *const argv[])->int {
   double constexpr simulation_period{40.0 * 1024.0 / 1'193'182.0};
   while(!glfwWindowShouldClose(window.get())) {
     glfwPollEvents();
+    if(front.quitting()) break;
+    if(auto const launch{front.take_launch()}) {
+      game = std::make_unique<corncob::game::session>(geometry, load_theatre(launch->theatre));
+      renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit);
+      front.begin_flight();
+      accumulated_time = 0.0;
+    }
     double const now{glfwGetTime()};
     double const elapsed{std::min(now - previous_time, 0.1)};
     previous_time = now;
@@ -214,7 +258,7 @@ auto main(int const argc, char const *const argv[])->int {
       }
       observer.position.z += static_cast<int32_t>((held(GLFW_KEY_PAGE_UP) - held(GLFW_KEY_PAGE_DOWN)) * speed);
       if(held(GLFW_KEY_HOME)) {
-        observer.position = corncob::maths::world_position{game.world().start};
+        observer.position = corncob::maths::world_position{game->world().start};
         observer.attitude = {
           .heading{static_cast<corncob::maths::angle>(-8000)},
           .pitch{static_cast<corncob::maths::angle>(-1500)},
@@ -228,7 +272,7 @@ auto main(int const argc, char const *const argv[])->int {
 #ifndef NDEBUG
     inspect = free_camera || cockpit_preview;
 #endif // NDEBUG
-    if(!inspect) {
+    if(!inspect && front.in_flight()) {
       if(glfwGetWindowAttrib(window.get(), GLFW_FOCUSED)) {
         auto held{[&window](int const key){ return glfwGetKey(window.get(), key) == GLFW_PRESS; }};
         input = {
@@ -254,31 +298,40 @@ auto main(int const argc, char const *const argv[])->int {
       }
       accumulated_time += elapsed;
       while(accumulated_time >= simulation_period) {
-        game.advance(input);
+        game->advance(input);
         accumulated_time -= simulation_period;
       }
-      observer = game.camera();
+      observer = game->camera();
 #ifndef NDEBUG
       if(no_cockpit) observer.cockpit = false;
 #endif // NDEBUG
       if(frame_number % 15 == 0) {
-        std::string const title{"Corncob 3D - " + game.message()};
+        std::string const title{"Corncob 3D - " + game->message()};
         glfwSetWindowTitle(window.get(), title.c_str());
       }
     }
+    if(!front.in_flight() && !inspect) {
+      accumulated_time = 0.0;
+      front.render(frame);
+      presenter.present(frame);
+      ++frame_number;
+      continue;
+    }
+    if(front.in_flight() && game->player() == corncob::game::player_mode::dead) front.show_outcome(4);
+    else if(front.in_flight() && game->player() == corncob::game::player_mode::captured) front.show_outcome(8);
     corncob::graphics::instrument_telemetry const telemetry{
-      .aircraft{game.craft()},
+      .aircraft{game->craft()},
       .controls{input.stick},
-      .paused{game.is_paused()},
-      .completed{game.statistics().objectives_completed != 0},
-      .damage{&game.aircraft_damage()},
+      .paused{game->is_paused()},
+      .completed{game->statistics().objectives_completed != 0},
+      .damage{&game->aircraft_damage()},
     };
-    auto const *const panel{!inspect && game.player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
+    auto const *const panel{!inspect && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
 #ifndef NDEBUG
-    if(!cockpit_preview) renderer.render(game.world(), observer, inspect ? frame_number : game.frame_number(),
-      static_cast<uint16_t>(inspect ? static_cast<uint64_t>(now * 1'193'182.0 / 1024.0) : game.timer()), frame, panel);
+    if(!cockpit_preview) renderer->render(game->world(), observer, inspect ? frame_number : game->frame_number(),
+      static_cast<uint16_t>(inspect ? static_cast<uint64_t>(now * 1'193'182.0 / 1024.0) : game->timer()), frame, panel);
 #else
-    renderer.render(game.world(), observer, game.frame_number(), static_cast<uint16_t>(game.timer()), frame, panel);
+    renderer->render(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), frame, panel);
 #endif // NDEBUG
     ++frame_number;
     presenter.present(frame);

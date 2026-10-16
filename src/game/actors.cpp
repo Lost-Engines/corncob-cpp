@@ -397,6 +397,7 @@ void actors::update_orb(world::placed_object &object, actor_context const &conte
 actor_effects const &actors::advance(actor_context const &context, flight::time_step const step) {
   /// Run the original nearby object handlers and rebuild the census for the following pass
   effects = {};
+  quality_counts aaa{}, kla{};
   std::array<unsigned int, std::to_underlying(world::object_type::count)> counts{};
   for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
     auto &object{theatre.objects[i]};
@@ -409,6 +410,8 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
         world::advance_motion(object, definition.rotate_below_tier != 0, random, step);
     }
     ++counts[std::to_underlying(object.type)];
+    if(object.type == world::object_type::aaa_site) ++aaa[object.quality()];
+    if(object.type == world::object_type::kla) ++kla[object.quality()];
     using enum world::object_type;
     switch(object.type) {
     case kla_site:
@@ -449,6 +452,7 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
   }
   observed_aliens = std::max(observed_aliens, counts[std::to_underlying(world::object_type::alien)]);
   previous_counts = counts;
+  weapons.observe_defences(aaa, kla);
   return effects;
 }
 

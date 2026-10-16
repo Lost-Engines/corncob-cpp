@@ -54,6 +54,10 @@ add_library(corncob_core STATIC
   src/game/actors.h
   src/game/combat.cpp
   src/game/combat.h
+  src/game/front_end.cpp
+  src/game/front_end.h
+  src/game/statistics.cpp
+  src/game/statistics.h
   src/game/session.cpp
   src/game/session.h
   src/flight/aircraft.cpp
@@ -75,6 +79,10 @@ add_library(corncob_core STATIC
   src/render/framebuffer.cpp
   src/render/framebuffer.h
   src/resources/assets.h
+  src/resources/collection.cpp
+  src/resources/collection.h
+  src/graphics/interface.cpp
+  src/graphics/interface.h
   src/resources/geometry_bank.cpp
   src/resources/geometry_bank.h
   src/world/motion.cpp
@@ -87,6 +95,7 @@ add_library(corncob_core STATIC
 configure_first_party(corncob_core)
 target_include_directories(corncob_core SYSTEM PUBLIC "${PROJECT_SOURCE_DIR}")
 target_compile_definitions(corncob_core PUBLIC VECTORSTORM_NO_BOOST)
+embed_resource(front_end front_end.dat)
 embed_resource(cockpit cockpit.img)
 embed_resource(engine_data engine.dat)
 embed_resource(white_sands white_sands.cct)
@@ -200,4 +209,19 @@ if(BUILD_TESTING)
   configure_first_party(scenario_checks)
   target_link_libraries(scenario_checks PRIVATE corncob_core)
   add_test(NAME scripted_scenarios COMMAND scenario_checks)
+endif()
+
+if(BUILD_TESTING)
+  add_executable(interface_checks tests/interface_checks.cpp)
+  configure_first_party(interface_checks)
+  target_link_libraries(interface_checks PRIVATE corncob_core)
+  add_test(NAME native_interface COMMAND interface_checks)
+endif()
+
+if(BUILD_TESTING)
+  add_executable(score_checks tests/score_checks.cpp)
+  configure_first_party(score_checks)
+  target_include_directories(score_checks PRIVATE "${PROJECT_SOURCE_DIR}")
+  target_link_libraries(score_checks PRIVATE corncob_core)
+  add_test(NAME native_score COMMAND score_checks "${PROJECT_SOURCE_DIR}/tests/reference/score.bin")
 endif()

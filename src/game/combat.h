@@ -2,6 +2,7 @@
 
 #include <optional>
 #include "flight/aircraft.h"
+#include "game/statistics.h"
 #include "maths/random.h"
 #include "resources/geometry_bank.h"
 #include "world/world.h"
@@ -22,11 +23,10 @@ struct weapon_origin {
   bool remote;
   bool crashed;
 };
-struct combat_statistics {
+struct combat_statistics : sortie_statistics {
   unsigned int resources_destroyed{0};
   unsigned int orbs_destroyed{0};
-  unsigned int friendly_destroyed{0};
-  unsigned int objectives_completed{0};
+
 };
 
 class combat {
@@ -80,6 +80,7 @@ public:
   unsigned int bomb_supply() const noexcept;
   unsigned int ammunition() const noexcept;
   unsigned int stored_objects() const noexcept;
+  void observe_defences(quality_counts const &aaa, quality_counts const &kla);
 };
 
 bool objects_overlap(world::placed_object const &a, world::placed_object const &b) noexcept;

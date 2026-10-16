@@ -61,7 +61,255 @@
       "source": "IMG/3D.IMG",
       "bytes": 7065,
       "sha256": "ead2f72e60ee99ab84ff47e8e0e00d7ed5aca67e0bb109923dc0d4a90cfa7c48"
+    },
+    {
+      "path": "front_end.dat",
+      "source": "Unmodified VGA/IMG artwork, presentation scripts, help, sound patches and DOSBox BIOS fonts; see third_party/dosbox-fonts.txt",
+      "bytes": 502910,
+      "sha256": "3a039902c7d91ecc5d8a455da7306f9ad5abd07e27f676b119f063b1b56677f8"
     }
   ],
-  "note": "Original model/template/world data embedded at build time. No DOS engine is executed or required at runtime. Music is not included."
+  "front_end_files": [
+    {
+      "name": "vga/blogogr.vga",
+      "bytes": 11046,
+      "sha256": "2521c3c31944cab86e178ff98cbedfc19d92b885e23a8811babdb9d152719f4f"
+    },
+    {
+      "name": "vga/cap1cj.vga",
+      "bytes": 11246,
+      "sha256": "1eec17821147d7da4a081355b946288a266e235c5c8a6625c5677d18df01c0f3"
+    },
+    {
+      "name": "vga/car5cj.vga",
+      "bytes": 37494,
+      "sha256": "b182300c2a2c1e0a65c06bfbc578e5d32a082005916c90dd8455848e816489f4"
+    },
+    {
+      "name": "vga/corp2bs.vga",
+      "bytes": 10350,
+      "sha256": "ff181bcf9e4ada20d1cb0eaa77baae7a617f43932a26e794218621431a9b5715"
+    },
+    {
+      "name": "vga/crsh2a.vga",
+      "bytes": 35430,
+      "sha256": "c8ca85e1011583890ef8d5fb5ebe5a7c90d85a0c27f34ca1ff30c54ac1906475"
+    },
+    {
+      "name": "vga/expl4a.vga",
+      "bytes": 30774,
+      "sha256": "4317161d46b39d3b228a64033314fe8965d1d6a379bbba009c480a2d7eddea81"
+    },
+    {
+      "name": "vga/flash.vga",
+      "bytes": 182,
+      "sha256": "7df39e7124522f502303a7c73210194c0fd4e5e013e7dca0a6e89e2602bbfacf"
+    },
+    {
+      "name": "vga/flyby2.vga",
+      "bytes": 12918,
+      "sha256": "e4b0243ba5d35c8c7d04c5befdb4bae094f05e473673f0c6f8f494af12058634"
+    },
+    {
+      "name": "vga/gradsky.pal",
+      "bytes": 768,
+      "sha256": "a2d7181e274c5249ed7f3296da34b2e8cc68e560a5eb98ac2a24a5fd2ddbbbe6"
+    },
+    {
+      "name": "vga/hc6.pal",
+      "bytes": 768,
+      "sha256": "37288220b32a4e6bb7123633c975d16e71284ccfdf2089f09773474f90bd5f8f"
+    },
+    {
+      "name": "vga/hc6new.vga",
+      "bytes": 23038,
+      "sha256": "3dcdd6f001c0e4a7a3dfd1b1f2a6b93324807154c9debafab3157d123f6b4336"
+    },
+    {
+      "name": "vga/pcors3a.vga",
+      "bytes": 37350,
+      "sha256": "b6b5e79ed89bab5e0812b9aa9bb00c9232ef6daafeb85e740422672afbf1b680"
+    },
+    {
+      "name": "vga/prisbar4.vga",
+      "bytes": 13798,
+      "sha256": "cd13713098c5b8995c526ef6c1e85a33bf0b455f5043eba0b679deecae08b43e"
+    },
+    {
+      "name": "vga/rv4a.vga",
+      "bytes": 15494,
+      "sha256": "d024e2e01280c21f3c3e1d66ccaf5dee53745ce82b427165a22b0c74bd410732"
+    },
+    {
+      "name": "vga/searthj.vga",
+      "bytes": 36774,
+      "sha256": "73b91e96f1de50e424078d518eedc127777530178c1aad7cfa4502a1cc87da32"
+    },
+    {
+      "name": "vga/skla1.vga",
+      "bytes": 1686,
+      "sha256": "724db1b9ff42b6912c0f52219e6506804be47ec8b7980d9505ede8fe96f2c59d"
+    },
+    {
+      "name": "vga/skla2.vga",
+      "bytes": 1406,
+      "sha256": "33b29f905a4dbaa50f32e970c19827a2193d016b41316dc6737d83372e446754"
+    },
+    {
+      "name": "vga/skla3.vga",
+      "bytes": 1686,
+      "sha256": "a061ab23f63abc96c36b47d9e5dc82012dffcc3edb9a7a7da59feb43d6024ee7"
+    },
+    {
+      "name": "vga/skla4.vga",
+      "bytes": 1686,
+      "sha256": "cd7fd3cc962ae2d52a2f47cd546c3dd6434e49b3d1196a648a3d51006adf5e6b"
+    },
+    {
+      "name": "vga/sky.pal",
+      "bytes": 768,
+      "sha256": "7992df602f841cb90dfafd4d1e3f006bc8573d4c10766dfb9e2f9d8f0d744f3e"
+    },
+    {
+      "name": "vga/ssflak1.vga",
+      "bytes": 678,
+      "sha256": "fb20c6ab3902d20940909cb17853c8aa619991bfe2cf35c887286a5beb3147fd"
+    },
+    {
+      "name": "vga/ssflak2.vga",
+      "bytes": 1046,
+      "sha256": "8f2728e6bca34103ac7ed5dd5adec3977fa55f11e87d41692f952ba711586ed8"
+    },
+    {
+      "name": "vga/ssflak3.vga",
+      "bytes": 2374,
+      "sha256": "6440382b9f262a3496c5b31a3836a78d8cad06ef8b618a2250d8e933272c1dde"
+    },
+    {
+      "name": "vga/s_drunk1.vga",
+      "bytes": 16774,
+      "sha256": "45330a7311e81505b2930ea01e716d91eaaa840ed33b2206e6982fe6ff649f76"
+    },
+    {
+      "name": "vga/s_drunk2.vga",
+      "bytes": 15030,
+      "sha256": "262eb34fac7f0e74767e68766e34c38a5d5bf97824826820bb8c20263ae47710"
+    },
+    {
+      "name": "vga/tcloud5s.vga",
+      "bytes": 20742,
+      "sha256": "346c45b0d757ab1ee11463c4d71eb958accc5918da9cad0a3aa314fde17337f1"
+    },
+    {
+      "name": "vga/tlogogr.vga",
+      "bytes": 13830,
+      "sha256": "da98d37592ff5574b7ef16019436419694fd30e12e430329db112c39b0dff3a2"
+    },
+    {
+      "name": "vga/tnambc.vga",
+      "bytes": 31974,
+      "sha256": "096853a8b4e56327fd8a54fc57b7e762d5d54fffde8cb466904858760ed53a96"
+    },
+    {
+      "name": "vga/toilet2a.vga",
+      "bytes": 13982,
+      "sha256": "06fa69cd2c5cf806e62a7f5794630b3eb89c59d5e95e538c3cac5c64b315f5cc"
+    },
+    {
+      "name": "img/3d10.img",
+      "bytes": 4482,
+      "sha256": "ac5304e806a45453b51517b722cb75bd9b5563eb3188387272736cc594383c96"
+    },
+    {
+      "name": "img/3d13.img",
+      "bytes": 7306,
+      "sha256": "236373c27e23681175c292fd38f5e8f31a296feff8a16259d22ca74fae50c13a"
+    },
+    {
+      "name": "img/3d2.img",
+      "bytes": 6290,
+      "sha256": "05f2a9923774b925a46a371e8d92eec07f826215b9fd4b37f74817e4f359a0ec"
+    },
+    {
+      "name": "img/3d3.img",
+      "bytes": 2214,
+      "sha256": "7f60783c26ad5df68ab5e9e6fe975163840622a8c9074a3c5cc25787067769f4"
+    },
+    {
+      "name": "img/3d4.img",
+      "bytes": 4015,
+      "sha256": "624c6d451c5de06d9fba8f6370e8b957b517e82be0af8cd33e42dc48792daf75"
+    },
+    {
+      "name": "img/3d5.img",
+      "bytes": 2872,
+      "sha256": "b0d01512b6f61fafed0c76c31de8c6c76a8b56ebb5a33eda107d65422c20ccb4"
+    },
+    {
+      "name": "img/3d6.img",
+      "bytes": 8689,
+      "sha256": "48aab0505df487548b75489a7759cd3532b0ef57f0c5542d3ad125c2aceb4548"
+    },
+    {
+      "name": "img/3d7.img",
+      "bytes": 4415,
+      "sha256": "1ed80de7e0e2015dca87ddf2cab5ab5e195757b4bbd1df5786f3f8a6575d6c3f"
+    },
+    {
+      "name": "img/3d8.img",
+      "bytes": 7527,
+      "sha256": "b0b2ed36dd891a5e71d398457144d7c9ed48eeffb5c7b2da9e9ebcfb7172be64"
+    },
+    {
+      "name": "img/3d9.img",
+      "bytes": 6221,
+      "sha256": "70539a62006db63cfa3c552828f1180de690eaf25ea50056ae0b0e2a8419a579"
+    },
+    {
+      "name": "pict.dat",
+      "bytes": 2983,
+      "sha256": "b7f894f008313b426dd632555ea40bc1e076b5295a71df5ea82e988d9b4ada31"
+    },
+    {
+      "name": "tpict.dat",
+      "bytes": 461,
+      "sha256": "e1f0ec2f5dd0293f8e08f7335d3ddb39de88694af4f4ec0e1e3572ee069539d0"
+    },
+    {
+      "name": "moag.inf",
+      "bytes": 20219,
+      "sha256": "c5e97eb0730dd00792cd072a8942b67c5d5b20806ceb9283677396b1e711e850"
+    },
+    {
+      "name": "towers.inf",
+      "bytes": 12330,
+      "sha256": "0c50f3044e31dac0a8173f5f1f05a2ce9edccef3360f7d4f4facebf0acf12741"
+    },
+    {
+      "name": "medal.fnc",
+      "bytes": 272,
+      "sha256": "de78c5cc77a1d256e81a0e5b7d8f25eff205a01821743d90bc519950cf6f7e85"
+    },
+    {
+      "name": "3.adl",
+      "bytes": 942,
+      "sha256": "f392c65517b9dbad0700f0399f9072173c466be0f186c196b86d2e58c859b51b"
+    },
+    {
+      "name": "font8.bin",
+      "bytes": 2048,
+      "sha256": "75c79a7e7fa423dda67ec6d6d76cec86b63f85677726368750c75b0920ddf319"
+    },
+    {
+      "name": "font14.bin",
+      "bytes": 3584,
+      "sha256": "657ca6588b6bf729f0ed71a3d3c781a465bd30cdfb11eb5fc7e27594c0717ea1"
+    },
+    {
+      "name": "font16.bin",
+      "bytes": 4096,
+      "sha256": "c7dd5990fa5401649cf69e9bbb4c8a51f86865939b9318281a27de7f314eda3a"
+    }
+  ],
+  "note": "Original resources embedded at build time. No DOS engine is executed or required at runtime. Music is not included."
 }

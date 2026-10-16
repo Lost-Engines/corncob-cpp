@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <vector>
 
 namespace corncob::render {
 
@@ -24,7 +25,9 @@ struct rgba_pixel {
 static_assert(sizeof(rgba_pixel) == 4);
 
 struct framebuffer {
-  std::array<rgba_pixel, screen_layout::pixel_count> pixels;
+  unsigned int width{screen_layout::width};
+  unsigned int height{screen_layout::height};
+  std::vector<rgba_pixel> pixels{screen_layout::pixel_count};
 };
 
 struct viewport {

@@ -1,0 +1,10 @@
+The font8.bin, font14.bin and font16.bin entries in assets/front_end.dat are the IBM-compatible
+BIOS fonts supplied by DOSBox, rather than artwork stored in Corncob itself.
+
+Copyright 2002-2018 The DOSBox Team.
+Source: DOSBox 0.74-3 / src/ints/int10_memory.cpp
+Public source: https://sourceforge.net/projects/dosbox/
+
+These fonts are distributed under the GNU General Public License, version 2 or
+(at your option) any later version. See GPL-2.0.txt in this directory.
+Their original byte data is retained; no DOSBox runtime code is executed.

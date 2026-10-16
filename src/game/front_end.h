@@ -1,0 +1,74 @@
+#pragma once
+
+#include <optional>
+#include <string>
+#include "game/session.h"
+#include "graphics/interface.h"
+#include "resources/cockpit_mask.h"
+
+namespace corncob::game {
+
+enum class interface_command {
+  up,
+  down,
+  previous,
+  next,
+  accept,
+  cancel,
+  help,
+  page_up,
+  page_down,
+};
+enum class interface_page {
+  title,
+  story,
+  menu,
+  theatres,
+  briefing,
+  help,
+  quit_confirmation,
+  outcome,
+  flight,
+};
+struct launch_request {
+  std::string theatre;
+};
+
+class front_end {
+private:
+  resources::collection const &assets;
+  std::vector<resources::presentation_panel> stories;
+  std::vector<resources::presentation_panel> outcomes;
+  std::vector<resources::cockpit_mask> help_screens;
+  interface_page page{interface_page::title};
+  interface_page return_page{interface_page::menu};
+  unsigned int selection{0};
+  unsigned int story_index{0};
+  unsigned int help_index{0};
+  unsigned int scroll{0};
+  unsigned int outcome_index{0};
+  std::string selected_theatre;
+  std::string briefing;
+  std::optional<launch_request> pending_launch;
+  bool quit_requested{false};
+  bool session_running{false};
+
+  void accept();
+  void draw_menu(graphics::interface_canvas &canvas, std::string_view title, std::span<std::string_view const> choices) const;
+
+public:
+  front_end(resources::collection const &assets, bool skip_intro = false, bool start_in_flight = false);
+  void command(interface_command command);
+  void begin_flight();
+  void show_menu();
+  void show_flight_help();
+  void ask_to_end_sortie();
+  void show_outcome(unsigned int index);
+  void render(render::framebuffer &target) const;
+  std::optional<launch_request> take_launch();
+  bool in_flight() const noexcept;
+  bool quitting() const noexcept;
+  interface_page current_page() const noexcept;
+};
+
+} // namespace corncob::game

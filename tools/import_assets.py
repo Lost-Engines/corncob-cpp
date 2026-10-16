@@ -7,6 +7,8 @@ embeds them without Python or access to the reverse-engineering workspace.
 import argparse
 import hashlib
 import json
+import re
+import struct
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +18,7 @@ REFERENCE_HASH = 'c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e8
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--research', type=Path, default=ROOT.parent / 'corncob-reverse')
+    parser.add_argument('--dosbox-source', type=Path, default=ROOT.parent / 'darker-cpp/build/_deps/dosbox_opl-src/src/ints/int10_memory.cpp')
     args = parser.parse_args()
     install = args.research / 'installs/deluxe_dnk'
     exe = (install / '3.EXE').read_bytes()
@@ -34,8 +37,31 @@ def main():
         save(target + '.twr', (install / 'DEF' / (source + '.TWR')).read_bytes(), 'DEF/' + source + '.TWR')
     records.append({'path': 'cockpit.img', 'source': 'IMG/3D.IMG', 'bytes': (assets / 'cockpit.img').stat().st_size,
                     'sha256': hashlib.sha256((assets / 'cockpit.img').read_bytes()).hexdigest()})
+    # The original program obtains these from the BIOS; the native build embeds DOSBox's compatible ROM fonts.
+    dosbox = Path('/usr/bin/dosbox').read_bytes()
+    marker = bytes.fromhex('7e81a581bd99817e7effdbffc3e7ff7e')
+    font8 = dosbox[dosbox.index(marker) - 8:dosbox.index(marker) - 8 + 2048]
+    assert font8[65 * 8:66 * 8].hex() == '3078ccccfccccc00'
+    font_source = args.dosbox_source.read_text()
+    font14_body = font_source.split('int10_font_14[256 * 14] = {', 1)[1].split('}', 1)[0]
+    font14 = bytes(int(value, 16) for value in re.findall(r'0x([0-9a-fA-F]{2})', font14_body))
+    assert len(font14) == 3584
+    font16_body = font_source.split('int10_font_16[256 * 16] = {', 1)[1].split('}', 1)[0]
+    font16 = bytes(int(value, 16) for value in re.findall(r'0x([0-9a-fA-F]{2})', font16_body))
+    assert len(font16) == 4096
+    assert font14 in dosbox and font16 in dosbox, "ROM fonts differ from the reference DOSBox build"
+    ui_files = [(path.relative_to(install).as_posix().lower(), path.read_bytes()) for path in sorted((install / 'VGA').iterdir())]
+    ui_files += [(path.relative_to(install).as_posix().lower(), path.read_bytes()) for path in sorted((install / 'IMG').iterdir()) if path.name.upper() != '3D.IMG']
+    ui_files += [(name.lower(), (install / name).read_bytes()) for name in ('PICT.DAT', 'TPICT.DAT', 'MOAG.INF', 'TOWERS.INF', 'MEDAL.FNC', '3.ADL')]
+    ui_files += [('font8.bin', font8), ('font14.bin', font14), ('font16.bin', font16)]
+    pack = bytearray(b'CORNUI01' + struct.pack('<H', len(ui_files)))
+    for name, data in ui_files:
+        encoded = name.encode('ascii')
+        pack += struct.pack('<BI', len(encoded), len(data)) + encoded + data
+    save('front_end.dat', pack, 'Unmodified VGA/IMG artwork, presentation scripts, help, sound patches and DOSBox BIOS fonts; see third_party/dosbox-fonts.txt')
     manifest = {'reference': 'normal Corncob 3D 3.42', 'engine_sha256': REFERENCE_HASH, 'files': records,
-                'note': 'Original model/template/world data embedded at build time. No DOS engine is executed or required at runtime. Music is not included.'}
+                'front_end_files': [{'name': name, 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()} for name, data in ui_files],
+                'note': 'Original resources embedded at build time. No DOS engine is executed or required at runtime. Music is not included.'}
     (assets / 'provenance.json').write_text(json.dumps(manifest, indent=2) + '\n')
     lines = ['#pragma once', '', '#include <array>', '#include <cstdint>', '', 'namespace corncob::resources {', '',
              'enum class colour_rule_kind { random, alternate, radar, flag_blink, quality, quality_random };', '',

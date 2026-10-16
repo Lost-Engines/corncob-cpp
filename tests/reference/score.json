@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "db758a9869f00b9ca8fcba74fa1f0cc7fed7285d54cf43ca77868367a9cb0622",
+  "fixture_sha256": "f8b0e82a6178a3f359d2e386fc07c3a506d25ebf4da56afb61874fc14293c498",
+  "cases": 512,
+  "routine": "ISCORE.EXE file 0x4698",
+  "stubs": [],
+  "scope": "Full native score helper with unchanged Borland multiplication and signed division; ordinary and wrapping statistics"
+}

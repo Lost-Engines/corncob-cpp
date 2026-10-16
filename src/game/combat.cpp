@@ -307,6 +307,18 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     return;
   }
   object.health = 0;
+  unsigned int const quality{object.quality()};
+  bool const friendly_credit{aircraft_impact || (attacker.collision_group == 0 && (attacker.type == bullets || attacker.type == missile
+    || (attacker.type == bomb && (attacker.flags & 2u) == 0)))};
+  switch(object.type) {
+  case generator_orb: ++statistics.orb_kills[quality]; break;
+  case kla: ++statistics.kla_kills[quality]; break;
+  case ground_vehicle: ++statistics.vehicle_kills[quality]; break;
+  case aaa_site: ++statistics.aaa_kills[quality]; break;
+  case kla_site: case vehicle_site: case saucer_site: case mortar: ++statistics.site_kills[quality]; break;
+  case fuel_dump: case tet: ++statistics.fuel_tet_kills; break;
+  default: break;
+  }
   switch(object.type) {
   case generator_orb:
     object.type = destroyed_generator_orb;
@@ -317,7 +329,7 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
   case ground_crew:
     object.flags = static_cast<uint16_t>((object.flags | 0x1000u) & ~8u);
     object.pose = world::model_pose::shot;
-    ++statistics.friendly_destroyed;
+    if(friendly_credit) ++statistics.friendly_destroyed;
     return;
   case aircraft:
   case internal_aircraft:
@@ -325,7 +337,7 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     object.position.z = 0;
     object.velocity = maths::fixed_vector{0, 0, 0};
     object.flags = 1;
-    ++statistics.friendly_destroyed;
+    if(friendly_credit) ++statistics.friendly_destroyed;
     fragments(object, 15, false);
     break;
   case radar_dish:
@@ -335,7 +347,7 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     object.position.z = 0;
     object.attitude.heading = random.next();
     object.flags = 0x11;
-    ++statistics.friendly_destroyed;
+    if(friendly_credit) ++statistics.friendly_destroyed;
     fragments(object, 12, false);
     break;
   case fuel_dump:
@@ -524,6 +536,16 @@ unsigned int combat::ammunition() const noexcept {
   return pistol_rounds;
 }
 
+void combat::observe_defences(quality_counts const &aaa, quality_counts const &kla) {
+  /// INITNUMBERS records the distribution at each new weighted local-defence maximum
+  auto weighted{[](quality_counts const &counts){
+    uint16_t sum{0};
+    for(unsigned int q{0}; q != counts.size(); ++q) sum = static_cast<uint16_t>(sum + (q + 1) * counts[q]);
+    return sum;
+  }};
+  if(weighted(aaa) > weighted(statistics.peak_aaa)) statistics.peak_aaa = aaa;
+  if(weighted(kla) > weighted(statistics.peak_kla)) statistics.peak_kla = kla;
+}
 unsigned int combat::stored_objects() const noexcept {
   /// Distinguish persistent theatre records from the fixed transient pools
   return scenery_count;
