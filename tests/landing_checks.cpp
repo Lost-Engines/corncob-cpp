@@ -26,7 +26,7 @@ corncob::maths::angles angles(corncob::tests::reference_reader &input) {
 
 int main(int const argc, char const *const argv[]) {
   /// Compare wheel geometry and actual 3.42 suspension with original machine code
-  if(argc != 2) throw std::invalid_argument{"landing_checks requires a fixture path"};
+  if(argc != 3) throw std::invalid_argument{"landing_checks requires landing and recovery fixture paths"};
   corncob::tests::reference_reader input{argv[1], "CORNLD01"};
   auto const magnitudes{input.dword()}, wheels{input.dword()}, contacts{input.dword()};
   for(unsigned int i{0}; i != magnitudes; ++i) {
@@ -80,6 +80,24 @@ int main(int const argc, char const *const argv[]) {
     check(aircraft.on_ground, input.byte() != 0, "contact flag", i);
     check(landing.crash_landing, input.byte() != 0, "crash landing", i);
     check(landing.stopped, input.byte() != 0, "stopped", i);
+  }
+  corncob::tests::reference_reader recovery{argv[2], "CORNRCV1"};
+  auto const recoveries{recovery.dword()};
+  for(unsigned int i{0}; i != recoveries; ++i) {
+    corncob::flight::aircraft_state aircraft;
+    aircraft.position.z = -1000;
+    aircraft.attitude.pitch = aircraft.attitude.roll = 16'384;
+    for(unsigned int axis{0}; axis != 3; ++axis) aircraft.velocity[axis] = recovery.signed_word();
+    aircraft.body_velocity.x = recovery.signed_word();
+    corncob::flight::landing_state landing{
+      .crash_landing{true},
+    };
+    corncob::flight::recover_invulnerable_aircraft(aircraft, landing);
+    for(unsigned int axis{0}; axis != 3; ++axis) check(aircraft.velocity[axis], recovery.signed_word(), "invulnerable bounce", i);
+    check(aircraft.position.z, int32_t{720}, "invulnerable reset height", i);
+    check(aircraft.attitude.pitch, uint16_t{0}, "invulnerable reset pitch", i);
+    check(aircraft.attitude.roll, uint16_t{0}, "invulnerable reset roll", i);
+    check(landing.crash_landing || landing.stopped, false, "invulnerable crash state", i);
   }
   std::cout << magnitudes << " native magnitudes, " << wheels << " wheel tests and " << contacts << " landing passes match" << std::endl;
   return EXIT_SUCCESS;

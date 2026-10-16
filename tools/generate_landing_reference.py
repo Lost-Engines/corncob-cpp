@@ -82,6 +82,21 @@ def main():
         'stubs': ['0x02cf supplies recorded brake key', '0x1236 home-base statistics only'],
         'note': 'The preserved source disables DAMPFLAG; the 3.42 binary likewise omits optional suspension damping.'
     }, indent=2) + '\n')
+    recovery = bytearray(b'CORNRCV1' + struct.pack('<I', 512))
+    for case in range(512):
+        native = load(exe)
+        velocity = tuple(rng.randrange(-32768,32768) for _ in range(2)) + (rng.choice((-32768,-1,0,1,3000)) if case < 64 else rng.randrange(-32768,32768),)
+        forward = rng.choice((-32768,-1,0,2999,3000,32767))
+        native.mem_write(DATA_ADDRESS + 0x1dc2, struct.pack('<3h', *velocity))
+        native.mem_write(DATA_ADDRESS + 0x1d9c, struct.pack('<h', forward))
+        run(native, 0x1169)
+        recovery += struct.pack('<3hh', *velocity, forward) + native.mem_read(DATA_ADDRESS + 0x1dc2, 6)
+    (ROOT/'tests/reference/landing_recovery.bin').write_bytes(recovery)
+    (ROOT/'tests/reference/landing_recovery.json').write_text(json.dumps({
+        'reference_sha256': EXPECTED_SHA256,'fixture_sha256':hashlib.sha256(recovery).hexdigest(),
+        'cases':512,'routine':'0x1169 BOUNCEVERT','stubs':[],
+        'scope':'Invulnerable crash vertical recovery, including the unsigned body-speed test and signed-word limit cases'
+    },indent=2)+'\n')
     print('Recorded original magnitude, wheel-contact and suspension/braking results')
 
 

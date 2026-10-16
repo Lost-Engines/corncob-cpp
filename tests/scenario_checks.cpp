@@ -149,6 +149,73 @@ int main() {
     });
   }
   require(rescue.player() == game::player_mode::rescued && rescue.results().has(game::sortie_status::rescued), "called van did not rescue a pilot who walked up to it");
+  world::theatre base;
+  base.start = maths::world_position{0, 3000, 720};
+  base.objects.push_back({
+    .position{0, 0, 720},
+    .attitude{},
+    .type{world::object_type::aircraft},
+    .flags{static_cast<uint16_t>(geometry.definition(world::object_type::aircraft).flags | 0x104u)},
+    .timer{32'000},
+  });
+  base.objects.push_back({
+    .position{10'000, 0, 0},
+    .attitude{},
+    .type{world::object_type::tower_doorway},
+    .flags{geometry.definition(world::object_type::tower_doorway).flags},
+    .timer{32'000},
+  });
+  game::session tower{geometry, std::move(base)};
+  tower.press(game::action::toggle_messages);
+  tower.advance({});
+  require(tower.player() == game::player_mode::in_aircraft && tower.aircraft_damage().maximum_throttle == 0, "tower scenario did not start with the crashed aircraft");
+  tower.press(game::action::eject);
+  bool entered_tower{false};
+  for(unsigned int frame{0}; frame != 1000 && !entered_tower; ++frame) {
+    auto const &person{tower.pilot()};
+    auto const desired{maths::arctangent(maths::word(10'000 - person.position.x), maths::word(-person.position.y))};
+    int const error{maths::word(desired - person.attitude.heading)};
+    tower.advance({
+      .stick{
+        .roll{static_cast<int16_t>(-std::clamp(error, -512, 512))},
+      },
+      .walk_forward{std::abs(error) < 2048},
+    });
+    entered_tower = tower.take_tower();
+  }
+  require(entered_tower && !tower.finished() && !tower.take_tower(), "tower doorway ended the sortie or repeated its intelligence request");
+  auto const entry_timer{tower.timer()};
+  auto const entry_y{tower.pilot().position.y};
+  tower.advance({});
+  require(tower.timer() == entry_timer, "tower visit advanced the retained flight");
+  tower.resume_from_tower();
+  require(tower.pilot().position.y == entry_y - 2000 && tower.pilot().attitude.heading == static_cast<maths::angle>(-16'384), "tower exit did not place the pilot outside its doorway");
+  require(tower.aircraft_damage().maximum_throttle == 200 && tower.craft().rocket_ticks == 2184, "tower visit failed to repair and recharge the retained aircraft");
+  tower.advance({});
+  require(!tower.finished() && !tower.take_tower(), "resuming from tower immediately reentered intelligence");
+  world::theatre protected_base;
+  protected_base.start = maths::world_position{0, 3000, 720};
+  protected_base.objects.push_back({
+    .position{0, 0, 720},
+    .attitude{
+      .pitch{16'384},
+      .roll{16'384},
+    },
+    .type{world::object_type::aircraft},
+    .flags{geometry.definition(world::object_type::aircraft).flags},
+    .timer{32'000},
+  });
+  game::session protected_flight{geometry, std::move(protected_base)};
+  protected_flight.set_invincible(true);
+  protected_flight.advance({});
+  protected_flight.press(game::action::throttle_up);
+  protected_flight.advance({});
+  require(!protected_flight.finished() && protected_flight.player() == game::player_mode::in_aircraft, "invulnerable aircraft died on a fatal ground-contact attitude");
+  require(protected_flight.craft().attitude.pitch == 0 && protected_flight.craft().attitude.roll == 0 && protected_flight.results().aircraft_lost == 0,
+    "invulnerable recovery failed to level the retained aircraft or counted a loss");
+  game::session warnings{geometry, world::theatre{}};
+  require(!warnings.request_exit() && warnings.take_radio() == corncob::resources::radio_notice::leave_on_foot, "first Escape away from base did not show the original walking warning");
+  require(warnings.request_exit() && !warnings.take_radio(), "second Escape repeated its warning instead of permitting departure");
   std::cout << "Local spawning, hostile shells, persistent orb objectives and four-tile activation exercised" << std::endl;
   return EXIT_SUCCESS;
 }

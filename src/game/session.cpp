@@ -99,7 +99,7 @@ void session::press(action const command) {
     cockpit = !cockpit;
     return;
   }
-  if(paused || finished()) return;
+  if(paused || visiting_tower || finished()) return;
   bool const flying{mode == player_mode::in_aircraft || (remote && controlled_aircraft)};
   switch(command) {
   case action::throttle_up:
@@ -384,7 +384,11 @@ void session::update_aircraft(input_state const &input, flight::time_step const 
   int32_t const altitude{aircraft.position.z - landing.surface_height};
   bool fatal{altitude < 0};
   if(!fatal && altitude < flight::landing_state::aircraft_height + flight::landing_state::half_wheel_span) fatal = !flight::find_wheel_height(aircraft, landing);
-  auto const contact{fatal ? flight::landing_result::fatal : flight::advance_landing(aircraft, angular, landing, stick, step)};
+  auto contact{fatal ? flight::landing_result::fatal : flight::advance_landing(aircraft, angular, landing, stick, step)};
+  if(invincible && (contact == flight::landing_result::fatal || contact == flight::landing_result::crash_landing)) {
+    flight::recover_invulnerable_aircraft(aircraft, landing);
+    contact = flight::landing_result::airborne;
+  }
   if(contact == flight::landing_result::fatal) {
     if(!airframe_destroyed) ++aircraft_losses;
     airframe_destroyed = true;
@@ -435,8 +439,8 @@ void session::update_scenery() {
       break;
     case world::object_type::tower_doorway:
       if(mode == player_mode::on_foot && distance_squared(object.position, person.position) <= 2000ll * 2000) {
-        mode = player_mode::returned;
-        notice = "Returned to headquarters";
+        tower_request = visiting_tower = true;
+        notice = "Airbase intelligence";
       }
       break;
     case world::object_type::radar_dish:
@@ -521,7 +525,7 @@ void session::advance(input_state const &input) {
     map->advance(input.stick, input.map);
     return;
   }
-  if(paused || finished()) return;
+  if(paused || visiting_tower || finished()) return;
   if(input.throttle_up) press(action::throttle_up);
   if(input.throttle_down) press(action::throttle_down);
   fast_ticks += 40;
@@ -718,7 +722,7 @@ bool session::remote_control() const noexcept {
   /// Remote operation retains engine sound and control while the pilot remains on foot
   return remote;
 }
-bool session::at_home() const {
+bool session::at_home(uint16_t const maximum_distance) const {
   /// HOMEDETECT uses the nearby control tower's three-dimensional range at the original one-sixty-fourth scale
   auto const &position{(mode == player_mode::in_aircraft || (mode == player_mode::dead && airframe_destroyed)) ? aircraft.position : person.position};
   for(auto const &object : theatre.objects) {
@@ -730,7 +734,7 @@ bool session::at_home() const {
       if(std::abs(delta) >= 1'048'576) nearby = false;
       relative[axis] = maths::word(static_cast<int32_t>(delta >> 6));
     }
-    if(nearby && maths::magnitude(relative) <= 4200) return true;
+    if(nearby && maths::magnitude(relative) <= maximum_distance) return true;
   }
   return false;
 }
@@ -789,6 +793,7 @@ void session::relocate(world::mission_start const &start) {
   }
   if(damage.total >= 16) {
     notice = "Aircraft too damaged for a mission jump";
+    if(messages) radio = resources::radio_notice::jump_damaged;
     return;
   }
   aircraft.position = maths::world_position{start.position};
@@ -805,6 +810,49 @@ void session::relocate(world::mission_start const &start) {
   retain_aircraft();
   enemies.refresh_census(aircraft.position);
   notice = start.title;
+}
+bool session::request_exit() {
+  /// The first Escape away from base queues the original warning; a later Escape ends the sortie
+  uint16_t constexpr warning_home_range{5200};
+  if(messages && !at_home(warning_home_range) && !exit_warned) {
+    exit_warned = true;
+    radio = mode == player_mode::in_aircraft ? resources::radio_notice::leave_aircraft : resources::radio_notice::leave_on_foot;
+    return false;
+  }
+  return true;
+}
+bool session::take_tower() {
+  /// HUTTIM asks the unified front end for intelligence without ending or recording the current sortie
+  return std::exchange(tower_request, false);
+}
+void session::resume_from_tower() {
+  /// DOTOWER returns a walking pilot outside the doorway and repairs the retained aircraft before flight resumes
+  if(!visiting_tower || tower_request) return;
+  visiting_tower = false;
+  person.position.y = maths::dword(static_cast<int64_t>(person.position.y) - 2000);
+  person.attitude.heading = static_cast<maths::angle>(-16'384);
+  person.velocity = maths::fixed_vector{0, 0, 0};
+  person.tumble = vec2<int16_t>{0, 0};
+  head_angles = {};
+  if(controlled_aircraft && !airframe_destroyed) {
+    auto &object{theatre.objects[*controlled_aircraft]};
+    object.flags = 1;
+    object.pose = world::model_pose::normal;
+    aircraft.attitude.pitch = static_cast<maths::angle>(-1500);
+    aircraft.position.z = flight::landing_state::aircraft_height;
+    aircraft.world_to_body = maths::make_rotation(aircraft.attitude);
+    aircraft.body_to_world = maths::make_inverse_rotation(aircraft.attitude);
+    aircraft.rocket_ticks = 2184;
+    landing.crash_landing = false;
+    landing.stopped = true;
+    retain_aircraft();
+  }
+  auto const worst{damage.worst};
+  damage = {};
+  damage.worst = worst;
+  damage.invincible = invincible;
+  angular.wing_damage = angular.rudder_damage = angular.stability_damage = 0;
+  notice = "Returned from airbase intelligence";
 }
 void session::set_invincible(bool const value) noexcept {
   /// Training's invulnerability setting is the original damage immunity flag

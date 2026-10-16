@@ -5,6 +5,22 @@
 
 namespace corncob::flight {
 
+void recover_invulnerable_aircraft(aircraft_state &aircraft, landing_state &landing) noexcept {
+  /// RESETPLANE levels the aircraft at hmin; BOUNCEVERT reverses descent with speed-dependent word damping
+  if(aircraft.velocity.z < 0) {
+    int16_t const upward{maths::negate(aircraft.velocity.z)};
+    int16_t const damping{static_cast<int16_t>(upward >> (static_cast<uint16_t>(aircraft.body_velocity.x) < 3000 ? 1 : 3))};
+    aircraft.velocity.z = maths::word(upward - damping);
+  }
+  aircraft.position.z = landing_state::aircraft_height;
+  aircraft.attitude.pitch = aircraft.attitude.roll = 0;
+  aircraft.world_to_body = maths::make_rotation(aircraft.attitude);
+  aircraft.body_to_world = maths::make_inverse_rotation(aircraft.attitude);
+  aircraft.on_ground = false;
+  landing.crash_landing = false;
+  landing.stopped = false;
+}
+
 bool find_wheel_height(aircraft_state const &aircraft, landing_state &landing) noexcept {
   /// FINDHEIGHT transforms both wheel contacts and rejects extreme pitch/roll close to the ground
   int constexpr maximum_landing_angle{10'000};

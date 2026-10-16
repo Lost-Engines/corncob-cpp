@@ -245,7 +245,7 @@ auto main(int const argc, char const *const argv[])->int {
     case GLFW_KEY_O: game->press(corncob::game::action::toggle_messages); break;
     case GLFW_KEY_C: if((modifiers & GLFW_MOD_CONTROL) != 0) front.abort_sortie(); break;
     case GLFW_KEY_V: game->press(corncob::game::action::call_rescue); break;
-    case GLFW_KEY_ESCAPE: front.ask_to_end_sortie(); break;
+    case GLFW_KEY_ESCAPE: if(game->request_exit()) front.leave_sortie(); break;
     case GLFW_KEY_F1: front.show_boss(); break;
     case GLFW_KEY_F2: front.show_missions(game->world()); break;
     case GLFW_KEY_F3: front.show_current_score(game->results()); break;
@@ -309,6 +309,7 @@ auto main(int const argc, char const *const argv[])->int {
       front.begin_flight();
       accumulated_time = 0.0;
     }
+    if(front.in_flight()) game->resume_from_tower();
     if(front.take_map()) game->press(corncob::game::action::toggle_map);
     if(auto const relocation{front.take_relocation()}) game->relocate(*relocation);
     double const now{glfwGetTime()};
@@ -410,6 +411,7 @@ auto main(int const argc, char const *const argv[])->int {
       front.finish_sortie(result);
       if(result.has(corncob::game::sortie_status::earth_saved)) front.begin_ending(renderer->indexed_frame(), renderer->colours());
     }
+    if(front.in_flight() && !inspect && game->take_tower()) front.show_intelligence(game->world());
     if(front.in_flight() && !inspect) if(auto const notice{game->take_radio()}) front.show_radio(*notice, frame);
     if(!front.in_flight() && !inspect) {
       accumulated_time = 0.0;

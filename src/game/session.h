@@ -110,6 +110,9 @@ private:
   unsigned int frame{0};
   std::string notice;
   bool messages{true};
+  bool exit_warned{false};
+  bool tower_request{false};
+  bool visiting_tower{false};
   bool low_altitude{false};
   bool steering_warned{false};
   std::optional<resources::radio_notice> radio;
@@ -121,7 +124,7 @@ private:
   void check_aircraft_entry();
   void check_aircraft_collisions(flight::time_step step);
   void enter_portal(world::placed_object &portal);
-  bool at_home() const;
+  bool at_home(uint16_t maximum_distance = 4200) const;
   void enter_aircraft(unsigned int index);
   void leave_aircraft();
   void retain_aircraft();
@@ -144,6 +147,9 @@ public:
   bool in_map() const noexcept;
   bool messages_enabled() const noexcept;
   std::optional<resources::radio_notice> take_radio();
+  bool request_exit();
+  bool take_tower();
+  void resume_from_tower();
   flight::damage_state const &aircraft_damage() const noexcept;
   combat_statistics const &statistics() const noexcept;
   sound_cues const &sounds() const noexcept;

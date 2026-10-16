@@ -27,6 +27,8 @@ struct landing_state {
   bool crash_landing{false};
 };
 
+void recover_invulnerable_aircraft(aircraft_state &aircraft, landing_state &landing) noexcept;
+
 bool find_wheel_height(aircraft_state const &aircraft, landing_state &landing) noexcept;
 landing_result advance_landing(aircraft_state &aircraft, angular_response &response, landing_state &landing,
                                control_input const &input, time_step step);

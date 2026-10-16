@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "786be44f6af98385dddaf9da2d9cdb4e717283cb208190de061778ae48497f95",
+  "cases": 512,
+  "routine": "0x1169 BOUNCEVERT",
+  "stubs": [],
+  "scope": "Invulnerable crash vertical recovery, including the unsigned body-speed test and signed-word limit cases"
+}

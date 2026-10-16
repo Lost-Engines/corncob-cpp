@@ -107,6 +107,7 @@ public:
   bool take_abort();
   bool take_map();
   void abort_sortie();
+  void leave_sortie();
   void show_radio(resources::radio_notice notice, render::framebuffer const &backdrop, bool enter_map = false);
   void finish_sortie(sortie_statistics const &result);
   void command(interface_command command);

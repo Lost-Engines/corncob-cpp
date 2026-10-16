@@ -31,9 +31,11 @@ The window uses the largest integer multiple of its 640 x 480 display that fits
 within the available desktop. The native 640 x 350 EGA framebuffer is presented
 at the intended 4:3 CRT aspect ratio, using nearest-neighbour sampling. The window
 floats and remains resizable. `--scale 1` selects the initial scale explicitly;
-Escape asks to end the current sortie; F1 opens the original boss screen, F2 opens
+Escape ends the sortie, showing the original one-time warning first when away
+from base; F1 opens the original boss screen, F2 opens
 airbase intelligence and airborne mission starts, F3 shows the current score, F4 opens flight help,
-and R toggles the rear view. `--skip-intro` opens the menu directly.
+and R toggles the rear view. Walking into a control-tower doorway opens
+intelligence and repairs the retained aircraft before returning to the same flight. `--skip-intro` opens the menu directly.
 
 You start on foot. Keypad 5 walks forward and keypad 0 walks backwards; arrows
 turn. Walk into an aircraft to board. +/− controls throttle, arrows fly, Z/X

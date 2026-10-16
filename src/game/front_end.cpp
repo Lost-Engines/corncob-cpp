@@ -284,6 +284,10 @@ void front_end::show_radio(resources::radio_notice const notice, render::framebu
   map_after_radio = enter_map;
   page = interface_page::radio;
 }
+void front_end::leave_sortie() {
+  /// The flight session has already applied the original one-time Escape warning rule
+  pending_finish = true;
+}
 void front_end::abort_sortie() {
   /// Control-C is a distinct original exit path with the abort result bit and no awarded score
   pending_abort = true;

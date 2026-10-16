@@ -426,3 +426,26 @@ career accumulation. These flights now leave the complete pilot record and high
 score tables unchanged. World persistence remains separate from career credit.
 Pilot and campaign checks verify that even a killed/high-scoring uncounted result
 cannot change saved career bytes or enter the score lists.
+
+## Tower continuation, warnings and invulnerable recovery
+
+HUTTIM/DOTOWER now open intelligence without ending the sortie. While the tower
+is open the retained simulation stops; leaving moves the walking pilot out of
+the doorway and repairs/recharges the retained aircraft. Historical worst damage
+is retained. A scripted pilot boards a wreck, walks to the real doorway, opens
+intelligence and resumes outside with the repaired aircraft.
+
+Flight Escape follows the original one-time warning when messages are enabled
+and the pilot is outside the tower's 5,200-unit range. A later Escape ends the
+sortie. The damaged-aircraft F2 jump warning uses its original message record.
+
+Invulnerable ground crashes now execute RESETPLANE's level/height recovery and
+BOUNCEVERT's speed-dependent damping instead of killing the pilot. The bounce
+matches 512 original executions, including negative body speed and the signed
+word boundary. A connected fatal-attitude scenario verifies survival without
+counting a lost aircraft.
+
+An isolated real GLFW/X11 window also traversed doorway intelligence, return to
+flight, the original walking Escape warning, outcome, report and main menu, using
+a temporary native-format pilot/world. Captures were inspected and the console
+log was empty. The full 31-check Release suite passes, including sustained play.
