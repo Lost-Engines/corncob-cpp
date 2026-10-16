@@ -19,6 +19,7 @@ struct camera {
   bool cockpit{true};
   bool rear_view{true};
   bool ground_detail{true};
+  bool gunsight{false};
   bool map_mode{false};
   maths::world_position map_position{0, 0, 0};
   uint16_t orb_distortion{0};

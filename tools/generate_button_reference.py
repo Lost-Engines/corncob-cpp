@@ -41,6 +41,30 @@ def main():
             for plane in range(4):assert device.planes[plane][:28000]==device.planes[plane][0x7e00:0x7e00+28000]
     destination=ROOT/'tests/reference/buttons.bin';destination.write_bytes(output)
     destination.with_suffix('.json').write_text(json.dumps({'reference_sha256':EXPECTED_SHA256,'fixture_sha256':hashlib.sha256(output).hexdigest(),'cases':56,'routine':'0xcc91 DRAWBUTTON with native RAWHLINEBIT','stubs':[],'adapter':'EGA read-mode 1 colour comparison; write modes, latches, masks, sequencer map mask and original two-page writes','scope':'All fourteen original button rectangles, four colour substitutions each, full-frame indexed-pixel checksums and matching second-page pixels.'},indent=2)+'\n')
+    output = bytearray(b'CORNGSN1' + struct.pack('<I', 2))
+    for window in (0x1bf6, 0x1c26):
+        native = load(exe)
+        device = Ega()
+        device.planes[1][:] = b'\xff' * 65536
+        native.hook_add(UC_HOOK_INSN, lambda uc, port, size, value, _: device.out(port, size, value), None, 1, 0, UC_X86_INS_OUT)
+        native.hook_add(UC_HOOK_MEM_READ, lambda uc, access, address, size, value, _: device.read(uc, address, size), begin=0xa0000, end=0xaffff)
+        native.hook_add(UC_HOOK_MEM_WRITE, lambda uc, access, address, size, value, _: device.write(address, size, value), begin=0xa0000, end=0xaffff)
+        native.mem_write(DATA_ADDRESS + 0x1c3e, struct.pack('<H', window))
+        native.mem_write(DATA_ADDRESS + 0x1b90, bytes(2))
+        run(native, 0xced3)
+        output += native.mem_read(DATA_ADDRESS + window, 8)
+        output += native.mem_read(DATA_ADDRESS + window + 16, 4)
+        output += struct.pack('<Q', checksum(device.pixels()))
+    destination = ROOT / 'tests/reference/gunsight.bin'
+    destination.write_bytes(output)
+    destination.with_suffix('.json').write_text(json.dumps({
+        'reference_sha256': EXPECTED_SHA256,
+        'fixture_sha256': hashlib.sha256(output).hexdigest(),
+        'routine': '0xced3 DRAWGS',
+        'cases': 2,
+        'stubs': [],
+        'scope': 'Complete indexed EGA frames for the cockpit and full-screen on-foot gunsight',
+    }, indent=2) + '\n')
     print('Recorded 56 complete original cockpit-button masks',flush=True)
 
 

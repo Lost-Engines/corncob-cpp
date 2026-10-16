@@ -6,6 +6,7 @@
 #include <utility>
 #include "maths/integer.h"
 #include "resources/actor_tables.h"
+#include "game/frame_clock.h"
 
 namespace corncob::game {
 
@@ -539,11 +540,12 @@ void session::advance(input_state const &input, std::optional<std::function_ref<
     return;
   }
   if(paused || visiting_tower || finished()) return;
+  walking = input.walk_forward || input.walk_backward;
   if(input.throttle_up) press(action::throttle_up);
   if(input.throttle_down) press(action::throttle_down);
   fast_ticks += 40;
   clock.advance(40);
-  ++frame;
+  frame = advance_frame(frame);
   vision.advance(aircraft.body_force.z, mode != player_mode::in_aircraft, frame, {
     .elapsed{static_cast<int16_t>(input.advance_time ? 50 : 5)},
     .normal{5},
@@ -563,6 +565,8 @@ void session::advance(input_state const &input, std::optional<std::function_ref<
   };
   auto const observer{camera().position};
   auto const previous_objectives{weapons.stats().objectives_completed};
+  // the original proximity channels consume the previous object pass before rebuilding their distances
+  audible_proximity = enemies.proximity();
   weapons.move(observer, step);
   auto const &effects{enemies.advance({
     .observer{observer},
@@ -692,6 +696,7 @@ graphics::camera session::camera() const {
     .cockpit{!on_foot && cockpit},
     .rear_view{!on_foot && rear},
     .ground_detail{ground_detail},
+    .gunsight{mode == player_mode::in_aircraft || (mode == player_mode::on_foot && !walking)},
     .orb_distortion{orb_distortion},
     .palette_phase{vec3<uint16_t>{palette_phase}},
     .palette_brightness{vision.intensity()},
@@ -766,6 +771,11 @@ sound_cues const &session::sounds() const noexcept {
   /// Audio observes successful gameplay events without consuming or mutating them
   return weapons.sounds();
 }
+proximity_sound const &session::proximity_sounds() const noexcept {
+  /// Audio uses the preceding actor pass, as in the original pre-DRAWNEAR sound block
+  return audible_proximity;
+}
+
 uint8_t session::rocket_indicator_colour() const noexcept {
   /// Native recharge makes the oil-pressure needle blue while charging, green when ready and red during ignition
   return rocket_timer.colour;

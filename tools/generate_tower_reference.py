@@ -5,7 +5,7 @@ import json
 import math
 from pathlib import Path
 import struct
-from unicorn import UC_HOOK_INSN, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE
+from unicorn import UC_HOOK_CODE, UC_HOOK_INSN, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE
 from unicorn.x86_const import (UC_X86_INS_OUT, UC_X86_REG_BX, UC_X86_REG_DX,
     UC_X86_REG_IP, UC_X86_REG_SI, UC_X86_REG_SP)
 from generate_native_reference import load, LOAD_ADDRESS, DATA_ADDRESS, EXPECTED_SHA256
@@ -23,7 +23,7 @@ def invoke(native, offset):
     assert native.reg_read(UC_X86_REG_IP) == 0, 'Native renderer exceeded its instruction budget'
 
 
-def render(exe, position, heading, doorway):
+def render(exe, position, heading, doorway=True, *, objects=None, painter_table=False):
     native = load(exe)
     device = Ega()
     device.planes[1][:] = b'\xff' * 65536
@@ -43,12 +43,17 @@ def render(exe, position, heading, doorway):
     native.mem_write(DATA_ADDRESS + 0x1efa, b'\0\0')
 
     addresses = []
-    objects = [(6, (0, 0, 16000)), (34, (0, -2000, 0))]
-    for index, (kind, origin) in enumerate(objects[:2 if doorway else 1]):
+    custom_objects = objects is not None
+    if objects is None:
+        objects = [(6, (0, 0, 16000)), (34, (0, -2000, 0))][:2 if doorway else 1]
+    for index, (kind, origin) in enumerate(objects):
         address = 0xf900 + index * 80
         template = struct.unpack('<H', native.mem_read(DATA_ADDRESS + 0x2cca + kind * 2, 2))[0]
         record = bytearray(native.mem_read(DATA_ADDRESS + template, 74))
         struct.pack_into('<3i', record, 0, *origin)
+        if custom_objects:
+            # static scene probes disable timed/damage callbacks without changing the model or type properties
+            struct.pack_into('<H', record, 24, 1)
         native.mem_write(DATA_ADDRESS + address, bytes(record))
         native.reg_write(UC_X86_REG_SI, address)
         invoke(native, 0x715a)
@@ -59,11 +64,21 @@ def render(exe, position, heading, doorway):
     native.reg_write(UC_X86_REG_SI, 0xf880)
     invoke(native, 0x74c1)
     addresses = struct.unpack('<' + 'H' * len(addresses), native.mem_read(DATA_ADDRESS + 0xf884, len(addresses) * 2))
-    for address in addresses:
-        native.reg_write(UC_X86_REG_SI, address)
+    order = []
+    def drawing(uc, address, size, context):
+        record = uc.reg_read(UC_X86_REG_SI)
+        order.append(struct.unpack('<H', uc.mem_read(DATA_ADDRESS + record + 72, 2))[0])
+    native.hook_add(UC_HOOK_CODE, drawing,
+                    begin=LOAD_ADDRESS + 0x7270 - 512, end=LOAD_ADDRESS + 0x7270 - 512)
+    if painter_table:
+        native.mem_write(DATA_ADDRESS + 0x2393, struct.pack('<H', 0xf880))
         native.reg_write(UC_X86_REG_DX, VIEWPORT)
-        invoke(native, 0x7270)
-    order = [struct.unpack('<H', native.mem_read(DATA_ADDRESS + address + 72, 2))[0] for address in addresses]
+        invoke(native, 0x7c8c)
+    else:
+        for address in addresses:
+            native.reg_write(UC_X86_REG_SI, address)
+            native.reg_write(UC_X86_REG_DX, VIEWPORT)
+            invoke(native, 0x7270)
     pixels = device.pixels()
     left, top, right, bottom = CROP
     return bytes(pixels[y * 640 + x] for y in range(top, bottom) for x in range(left, right)), order

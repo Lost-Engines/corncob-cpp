@@ -421,6 +421,12 @@ auto main(int const argc, char const *const argv[])->int {
       flight_frame_valid = true;
       frame = flight_frame;
     }};
+    auto update_audio{[&]{
+      auto audio_frame{corncob::audio::observe(*game)};
+      audio_frame.active = sound_enabled && front.in_flight() && !game->is_paused() && !game->in_map() && !inspect;
+      audio_frame.dead = audio_frame.dead && sound_enabled;
+      sound.update(audio_frame);
+    }};
     if(!inspect && front.in_flight()) {
       if(glfwGetWindowAttrib(window.get(), GLFW_FOCUSED)) {
         auto held{[&window](int const key){ return glfwGetKey(window.get(), key) == GLFW_PRESS; }};
@@ -466,6 +472,7 @@ auto main(int const argc, char const *const argv[])->int {
       auto draw_one{[&]{ draw_flight(false); }};
       while(accumulated_time >= simulation_period) {
         game->advance(input, std::function_ref<void()>{draw_one});
+        update_audio();
         accumulated_time -= simulation_period;
       }
       observer = game->camera();
@@ -477,10 +484,7 @@ auto main(int const argc, char const *const argv[])->int {
         glfwSetWindowTitle(window.get(), title.c_str());
       }
     }
-    auto audio_frame{corncob::audio::observe(*game)};
-    audio_frame.active = sound_enabled && front.in_flight() && !game->is_paused() && !game->in_map() && !inspect;
-    audio_frame.dead = audio_frame.dead && sound_enabled;
-    sound.update(audio_frame);
+    update_audio();
     if(!inspect && (front.take_finish() || (front.in_flight() && game->finished()))) {
       auto const result{game->results(front.take_abort())};
       campaign->finish_sortie(theatre_name, game->snapshot(), result);

@@ -36,6 +36,8 @@ It supports walking/jumping, boarding and re-entry, powered flight and landing,
 ejection, free fall, parachuting and remote flight. Four original theatres and
 procedurally generated training are available. Fixed five-unit simulation steps
 advance forty fast PIT ticks; T changes physical time while retaining frame timers.
+The animation word restarts at 128 on reaching 16,384, as in the native loop;
+512 unchanged counter cases and a connected long-flight check cover the restart.
 
 Weapons use the original separate 32-bullet and 320-effect pools: guns/cannon
 mode, finite pistol ammunition, unguided missiles, replenishing bombs and the
@@ -199,6 +201,13 @@ available desktop space and preserves the intended 4:3 CRT shape. VGA presentati
 use 320 x 200; menus use 640 x 400 BIOS text. Nearest-neighbour sampling preserves
 pixel boundaries. The original cockpit mask's stray diagonal is retained.
 
+Ground-level runway pieces use CHECKFORRUNWAY's preliminary drawing pass;
+elevated runway pieces retain ordinary distance ordering. Forty-eight scene
+regions match unchanged DRAWNEAR calls across all three runway types, both
+altitudes and eight view directions. The grey gunsight also appears on foot,
+hides while walking and returns when stopped. Both viewport layouts match
+complete original DRAWGS frames.
+
 The control-tower door showing through its side/back walls is also an original
 rendering quirk. The tower and doorway are separate objects: TBSORT compares their
 centre distances, and the elevated tower centre causes its walls to be drawn
@@ -281,8 +290,18 @@ PCM. This is mono AdLib duplicated into two channels, not new spatial stereo.
 Engine state, launches, explosions and nearby threats drive the original channels.
 Crash timing continues through eighteen BIOS ticks and a 750 ms wait independently
 of the menu loop. Register batches cross to the PCM callback without sharing live
-world state. Muting does not queue stale events. Full combined DOS soundscape and
-interrupt modulation still need broader comparison.
+world state. Muting does not queue stale events. Proximity inputs now come from
+the actual actor handlers, preserving their overwrite order, KLA launch rest and
+persistent quality. They are latched for the following frame, as in the original
+pre-DRAWNEAR sound block. Radar-derived saucer attenuation uses compressed
+horizontal range relative to the retained aircraft after ejection. Saucer pitch
+tracks remaining health before objective-saucer repair; orb and KLA ranges keep
+their distinct original scales. Orb-to-saucer transitions restore the intervening
+screech patch, and KLA shutdown retains native VOICEOFF packing. All 10,535 OPL
+writes in 512 connected native proximity frames match; 384 ordered full actor
+passes independently verify the range/pitch inputs with real RADARPROCESS maths.
+Audio is updated per simulation pass, so catch-up frames retain their events.
+Complete combined DOS soundscape and interrupt behaviour still need broader comparison.
 
 ## Verification
 
@@ -306,13 +325,14 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks, 12 polygon hashes, 304 line frames and 512 wire-clip cases; four original definition round trips; one 252-object plain saved world |
 | Ground/stars | 512 point regenerations, 256 stars and 64 complete three-bank initialisations with PRNG continuation |
 | Particles | 512 complete 35-disc/shared-colour frame blocks and PRNG continuations, plus resource bindings across the original models |
-| Model/map/radar | 16 tower/doorway scene regions; 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
+| Model/map/radar | 64 tower/doorway/runway scene regions; 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
 | Title | 1,024 original animation-state/PRNG passes and 6,144 VGA letter-mask pixels |
 | Ending | All 768 initial stars and 64 complete indexed native star frames |
+| Animation clock | 512 native word-counter transitions and a connected 16,384-pass restart |
 | Sortie clock | 512 unchanged two-segment DOS-clock conversions, including pause boundaries and wrapping; connected flight/pause/map timing |
 | Score/persistence | 512 ISCORE calculations, 256 complete MOAG career updates and 512 complete promotion/medal decisions; 16,384 original mask bytes; original control/model/new-pilot fixtures; 96 full 5,040-byte native high-score insertion/tie/padding cases and exact retirement; roster/world restart, rename and deletion scenarios |
-| Sound | 512 engine/register-write cases and finite, non-silent PCM from the actual engine patch |
+| Sound | 512 engine/register-write cases; 10,535 proximity writes across 512 connected frames; 384 ordered actor-proximity passes; finite, non-silent PCM |
 
 Connected scenarios cover takeoff, ejection/parachute/remote control, weapons and
 persistent objectives, rescue/capture, damaged-aircraft tower visits, settings,
@@ -333,10 +353,13 @@ and P/Escape return were also inspected in the actual window. A clean Release
 installation contains only the embedded executable and opens without the research
 workspace or external game assets.
 Captures were inspected without changing supplied DOS installs.
-The complete 46-check Debug, Release and sanitizer suites pass, including the
-longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title. Complete frame ordering,
-Windows/macOS runtime and interactive Wayland sizing are not yet independently
-established.
+The complete 48-check Debug, Release and sanitizer suites pass, including the
+longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title.
+A local MinGW GCC 16 Release build also passes all 48 checks under Wine; its actual
+window was inspected through menus, training, flight and stepping out on foot.
+It imports only Windows system DLLs. This does not replace testing on Windows
+hardware. Complete frame ordering, macOS runtime and interactive Wayland sizing
+are not yet independently established.
 
 Ground vehicles use the original renderer distance tiers for speed/pursuit, with
 actual distance checked separately for capture. Near stopped vehicles bypass the

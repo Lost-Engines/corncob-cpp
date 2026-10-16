@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "1198f899570afba987aef9d6ee0956ae307a4f3d70b0a07a24c5b7046c495a59",
+  "routine": "0xced3 DRAWGS",
+  "cases": 2,
+  "stubs": [],
+  "scope": "Complete indexed EGA frames for the cockpit and full-screen on-foot gunsight"
+}

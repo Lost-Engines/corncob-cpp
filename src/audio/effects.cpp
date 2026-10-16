@@ -32,28 +32,12 @@ frame_state observe(game::session const &game) {
     .stalled{game.craft().stalled},
     .dead{game.player() == corncob::game::player_mode::dead},
   };
-  for(auto const &object : game.world().objects) {
-    if(!object.has(corncob::world::object_flag::present)) continue;
-    corncob::maths::fixed_vector relative{0, 0, 0};
-    bool nearby{true};
-    for(unsigned int axis{0}; axis != 3; ++axis) {
-      int64_t const delta{static_cast<int64_t>(object.position[axis]) - observer.position[axis]};
-      if(std::abs(delta) >= 1'048'576) nearby = false;
-      relative[axis] = corncob::maths::word(static_cast<int32_t>(delta >> 6));
-    }
-    if(!nearby) continue;
-    auto const distance{corncob::maths::magnitude(relative)};
-    using enum corncob::world::object_type;
-    if(object.type == generator_orb && distance <= 2000) audio_frame.orb_distance = std::min<uint16_t>(audio_frame.orb_distance, static_cast<uint16_t>(distance * 70 / 2000));
-    if(object.type == kla && (distance >> 4) < audio_frame.kla_distance) {
-      audio_frame.kla_distance = static_cast<uint16_t>(distance >> 4);
-      audio_frame.kla_quality = static_cast<uint8_t>(object.quality());
-    }
-    if((object.type == saucer || object.type == objective_saucer) && (distance >> 4) < audio_frame.saucer_distance && object.has(corncob::world::object_flag::collision_callback)) {
-      audio_frame.saucer_distance = static_cast<uint16_t>(distance >> 4);
-      audio_frame.saucer_frequency = static_cast<uint8_t>((50u - std::min(50u, static_cast<unsigned int>(object.health))) * 256 / 51 + 2);
-    }
-  }
+  auto const &proximity{game.proximity_sounds()};
+  audio_frame.orb_distance = proximity.orb_distance;
+  audio_frame.kla_distance = proximity.kla_distance;
+  audio_frame.kla_quality = proximity.kla_quality;
+  audio_frame.saucer_distance = proximity.saucer_distance;
+  audio_frame.saucer_frequency = proximity.saucer_frequency;
   if(observer.orb_distortion != 0) audio_frame.orb_frequency = static_cast<uint8_t>(128 * corncob::maths::multiply(corncob::maths::sine(static_cast<corncob::maths::angle>(game.frame_number() << 12)), corncob::maths::word(observer.orb_distortion)) / observer.orb_distortion);
   return audio_frame;
 }
@@ -248,21 +232,37 @@ void effects::update(frame_state const &frame) {
     sound.write(0xbd, 0x20);
     sound.percussion_stop = 0;
   }
-  unsigned int const shared_patch{frame.orb_distance < 63 ? 10u : frame.saucer_distance < 255 ? 9u : 3u};
-  if(shared_patch != sound.channel_three_patch) {
-    sound.off(3, 0xff);
-    sound.patch(shared_patch);
-    if(shared_patch != 3) sound.on(3, shared_patch == 10 ? frame.orb_frequency : 0xff);
-    sound.channel_three_patch = shared_patch;
-  }
-  if(shared_patch == 10) {
+  if(frame.orb_distance < 63) {
+    if(sound.channel_three_patch != 10) {
+      sound.off(3, 0xff);
+      sound.patch(10);
+      sound.on(3, frame.orb_frequency);
+      sound.channel_three_patch = 10;
+    }
     auto const level{static_cast<uint8_t>(std::max(0, static_cast<int>(frame.orb_distance) - 13))};
     sound.write(0x4b, level);
     sound.write(0x48, level);
     sound.write(0xa3, frame.orb_frequency);
-  } else if(shared_patch == 9) {
-    sound.write(0x4b, static_cast<uint8_t>(frame.saucer_distance >> 2));
-    sound.write(0xa3, frame.saucer_frequency);
+  } else {
+    if(sound.channel_three_patch == 10) {
+      sound.off(3, 0x10);
+      sound.patch(3);
+      sound.channel_three_patch = 3;
+    }
+    if(frame.saucer_distance < 255) {
+      if(sound.channel_three_patch != 9) {
+        sound.off(3, frame.saucer_distance);
+        sound.patch(9);
+        sound.on(3, 0xff);
+        sound.channel_three_patch = 9;
+      }
+      sound.write(0x4b, static_cast<uint8_t>(frame.saucer_distance >> 2));
+      sound.write(0xa3, frame.saucer_frequency);
+    } else if(sound.channel_three_patch == 9) {
+      sound.off(3, 0x10);
+      sound.patch(3);
+      sound.channel_three_patch = 3;
+    }
   }
   sound.kla_frequency += (frame.kla_quality * 16 + 40 - sound.kla_frequency) >> 2;
   sound.write(0xa4, static_cast<uint8_t>(sound.kla_frequency));
@@ -271,7 +271,7 @@ void effects::update(frame_state const &frame) {
     if(previous.kla_distance >= 64 || !previous.active) sound.on(4, static_cast<uint16_t>(frame.kla_quality << 5));
   } else if(previous.kla_distance < 64) {
     sound.write(0x4c, 63);
-    sound.off(4);
+    sound.off(4, 63);
   }
 }
 void effects::render(std::span<float> const samples) noexcept {

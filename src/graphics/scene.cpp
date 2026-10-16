@@ -114,6 +114,7 @@ struct visible_object {
   unsigned int tier;
   unsigned int reduction;
   uint32_t distance;
+  bool ground_first;
   maths::fixed_vector relative{0, 0, 0};
 };
 
@@ -152,6 +153,7 @@ std::optional<visible_object> visibility(world::placed_object const &object, res
     .tier{tier},
     .reduction{reduction},
     .distance{distance},
+    .ground_first{object.position.z == 0 && (definition.properties & std::to_underlying(world::object_property::runway)) != 0},
     .relative{
       maths::word(delta.x >> (reduction + 1)),
       maths::word(delta.y >> (reduction + 1)),
@@ -380,6 +382,8 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     if(auto item{visibility(object, geometry.definition(object.type), observer.position, geometry.appearance(object), observer.map_mode)}) visible.push_back(std::move(*item));
   }
   if(!observer.map_mode) std::ranges::stable_sort(visible, [](visible_object const &lhs, visible_object const &rhs){
+// CHECKFORRUNWAY paints ground-level runway pieces before the ordinary near-object pass
+    if(lhs.ground_first != rhs.ground_first) return lhs.ground_first;
     return lhs.tier != rhs.tier ? lhs.tier > rhs.tier : lhs.distance > rhs.distance;
   });
   if(observer.map_mode) {
@@ -438,16 +442,11 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
       draw_model(item->model, model_octant(item->relative, inverse), matrix, origin, item->reduction, views.first(1), random);
     }
   }
+  if(observer.gunsight || telemetry) {
+    auto const &view{views.front()};
+    draw_gunsight(indexed, random, view.bounds, {view.centre_x, view.centre_y});
+  }
   if(telemetry) {
-    auto const &main_view{views.front()};
-    raster sight{indexed, main_view.bounds, random};
-    int const x{main_view.centre_x}, y{main_view.centre_y};
-    for(int offset{0}; offset != 2; ++offset) {
-      sight.line({x - 12, y + offset}, {x - 4, y + offset}, 7);
-      sight.line({x + 13, y + offset}, {x + 5, y + offset}, 7);
-      sight.line({x + offset, y - 8}, {x + offset, y - 3}, 7);
-      sight.line({x + offset, y + 9}, {x + offset, y + 4}, 7);
-    }
     if(observer.cockpit) {
       for(auto const &object : theatre.objects) {
         if(!object.has(world::object_flag::present) || !world::in_active_neighbourhood(object.position, observer.position)) continue;

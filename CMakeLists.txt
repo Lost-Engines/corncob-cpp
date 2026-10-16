@@ -96,6 +96,7 @@ add_library(corncob_core STATIC
   src/game/pilots.h
   src/game/statistics.cpp
   src/game/statistics.h
+  src/game/frame_clock.h
   src/game/sortie_clock.cpp
   src/game/portal.cpp
   src/game/rocket.cpp
@@ -219,8 +220,8 @@ if(BUILD_TESTING)
   corncob_check(resource_checks embedded_resources "${PROJECT_SOURCE_DIR}/tests/reference/legacy_world.bin")
   corncob_check(fixed_math_checks native_fixed_math "${PROJECT_SOURCE_DIR}/tests/reference/fixed_math.bin")
   corncob_check(raster_checks native_raster "${PROJECT_SOURCE_DIR}/tests/reference/lines.bin" "${PROJECT_SOURCE_DIR}/tests/reference/line_clipping.bin")
-  corncob_check(scene_checks original_theatres)
-  corncob_check(frame_checks simulation_frame_order)
+  corncob_check(scene_checks original_theatres "${PROJECT_SOURCE_DIR}/tests/reference/scene_order.bin")
+  corncob_check(frame_checks simulation_frame_order "${PROJECT_SOURCE_DIR}/tests/reference/frame_clock.bin")
   corncob_check(ground_checks native_ground_detail "${PROJECT_SOURCE_DIR}/tests/reference/ground.bin")
   corncob_check(flight_checks native_flight "${PROJECT_SOURCE_DIR}/tests/reference/flight.bin")
   corncob_check(control_checks native_controls "${PROJECT_SOURCE_DIR}/tests/reference/controls.bin")
@@ -256,11 +257,14 @@ if(BUILD_TESTING)
   corncob_check(sortie_clock_checks native_sortie_clock "${PROJECT_SOURCE_DIR}/tests/reference/sortie_clock.bin")
   corncob_check(portal_checks native_portals "${PROJECT_SOURCE_DIR}/tests/reference/portals.bin")
   corncob_check(rocket_checks native_rocket "${PROJECT_SOURCE_DIR}/tests/reference/rocket.bin")
-  corncob_check(button_checks native_cockpit_buttons "${PROJECT_SOURCE_DIR}/tests/reference/buttons.bin")
+  corncob_check(button_checks native_cockpit_buttons "${PROJECT_SOURCE_DIR}/tests/reference/buttons.bin" "${PROJECT_SOURCE_DIR}/tests/reference/gunsight.bin")
   corncob_check(mortar_checks native_mortars "${PROJECT_SOURCE_DIR}/tests/reference/mortars.bin")
   corncob_check(orb_checks native_orbs "${PROJECT_SOURCE_DIR}/tests/reference/orbs.bin")
   corncob_check(launcher_checks native_launchers "${PROJECT_SOURCE_DIR}/tests/reference/launchers.bin")
   corncob_check(title_checks native_title "${PROJECT_SOURCE_DIR}/tests/reference/title.bin")
   corncob_check(vision_checks native_visual_feedback "${PROJECT_SOURCE_DIR}/tests/reference/vision.bin")
+  corncob_check(proximity_checks native_proximity "${PROJECT_SOURCE_DIR}/tests/reference/proximity.bin")
+  corncob_check(soundscape_checks native_soundscape "${PROJECT_SOURCE_DIR}/tests/reference/soundscape.bin")
   target_link_libraries(audio_checks PRIVATE corncob_audio)
+  target_link_libraries(soundscape_checks PRIVATE corncob_audio)
 endif()

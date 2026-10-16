@@ -1,0 +1,8 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "e14a917b2a3cf188533ad1aac564d142155ae1b6d2352d9fa3d03b63a7a57762",
+  "routine_file_offsets": "0x2a3f..0x2a51",
+  "cases": 512,
+  "stubs": [],
+  "scope": "Native frame-word increment, 16,384-to-128 restart and word overflow"
+}

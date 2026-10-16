@@ -28,6 +28,8 @@ struct instrument_telemetry {
   flight::damage_state const *damage{nullptr};
 };
 
+void draw_gunsight(indexed_framebuffer &target, random_source &random, clip_rectangle const &bounds, screen_point const &centre);
+
 class instrument_panel {
 private:
   maths::angle airspeed{0};

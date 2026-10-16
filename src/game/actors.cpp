@@ -110,6 +110,7 @@ void actors::update_launcher(world::placed_object &object, actor_context const &
 }
 void actors::update_kla(world::placed_object &object, actor_context const &context, flight::time_step const step) {
   /// KLAs launch vertically, wait through their hundred-frame rest and then steer rather than teleporting their velocity
+  effects.sound.kla_distance = 64;
   if(object.timer >= 23'900) return;
   object.motion.gravity = static_cast<int16_t>(static_cast<uint16_t>(object.motion.gravity) & 0xff00u);
   object.motion.dispersion = 0;
@@ -119,6 +120,11 @@ void actors::update_kla(world::placed_object &object, actor_context const &conte
     object.velocity = maths::fixed_vector{0, 0, 0};
     if(object.timer <= 11'950) object.timer = 1;
     return;
+  }
+  uint16_t const distance{static_cast<uint16_t>(target->distance >> 6)};
+  if(distance <= effects.sound.kla_distance) {
+    effects.sound.kla_distance = distance;
+    last_kla_quality = effects.sound.kla_quality = static_cast<uint8_t>(object.quality());
   }
   auto const &parameters{resources::kla_qualities[object.quality()]};
   int16_t const pitch_error{steer(target->bearing.pitch, object.attitude.pitch, parameters.pitch_turn_limit, step)};
@@ -165,6 +171,14 @@ void actors::update_aaa(world::placed_object &object, actor_context const &conte
 }
 void actors::update_saucer(world::placed_object &object, actor_context const &context, flight::time_step const step) {
   /// Saucers cycle attack, retreat, sideways and coasting modes around the current airbase rather than chasing the pilot directly
+  if(auto const target{relative_target(object.position, context.target, 4)}; target && object.has(world::object_flag::collision_callback)) {
+    auto const distance{maths::square_root(target->distance)};
+    if(distance <= effects.sound.saucer_distance) {
+      effects.sound.saucer_distance = distance;
+      // BMRTIM derives pitch from remaining health before any objective-saucer repair
+      effects.sound.saucer_frequency = static_cast<uint8_t>(static_cast<unsigned int>(object.health) * 256 / 51 + 2);
+    }
+  }
   auto const &parameters{resources::saucer_qualities[object.quality()]};
   if(!object.has(world::object_flag::collision_callback)) {
     object.motion.gravity = 15;
@@ -426,8 +440,10 @@ void actors::update_orb(world::placed_object &object, actor_context const &conte
     }
   }
   if(object.type == world::object_type::generator_orb) {
+    effects.sound.orb_distance = 63;
     auto const target{relative_target(object.position, context.observer)};
     if(target && target->distance <= 2000) {
+      effects.sound.orb_distance = static_cast<uint16_t>(std::min(63, target->distance * 70 / 2000));
       effects.orb_distortion = static_cast<uint16_t>(std::min(35, 71 - target->distance * 70 / 2000));
       if(object.has(world::object_flag::special) && !context.on_foot) {
         unsigned int const divisor{std::max(10u, static_cast<unsigned int>(target->distance) * target->distance / 5000u)};
@@ -467,6 +483,11 @@ void actors::update_mortar(world::placed_object &object, actor_context const &co
   object.timer = full_timer;
   weapons.scatter(object, 2, fragment_pattern::mortar, step);
 }
+proximity_sound const &actors::proximity() const noexcept {
+  /// Retain the original handlers' audio outputs, including overwrite order and KLA quality across frames
+  return effects.sound;
+}
+
 void actors::refresh_census(maths::world_position const &observer) {
   /// Prime freshly loaded/relocated neighbourhoods before goals consume the preceding active-object counts
   previous_counts.fill(0);
@@ -480,6 +501,7 @@ void actors::refresh_census(maths::world_position const &observer) {
 actor_effects const &actors::advance(actor_context const &context, flight::time_step const step) {
   /// Run the original nearby object handlers and rebuild the census for the following pass
   effects = {};
+  effects.sound.kla_quality = last_kla_quality;
   if(!census_ready) refresh_census(context.observer);
   quality_counts aaa{}, kla{};
   std::array<unsigned int, std::to_underlying(world::object_type::count)> counts{};

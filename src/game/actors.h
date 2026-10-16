@@ -14,6 +14,14 @@ struct actor_context {
   bool on_foot;
   uint32_t timer;
 };
+struct proximity_sound {
+  uint16_t orb_distance{63};
+  uint16_t kla_distance{64};
+  uint8_t kla_quality{0};
+  uint16_t saucer_distance{256};
+  uint8_t saucer_frequency{255};
+};
+
 struct actor_effects {
   bool capture_pending{false};
   bool captured{false};
@@ -23,6 +31,7 @@ struct actor_effects {
   uint16_t hallucination{0};
   uint16_t orb_distortion{0};
   maths::fixed_vector attraction{0, 0, 0};
+  proximity_sound sound{};
 };
 
 class actors {
@@ -36,6 +45,7 @@ private:
   actor_effects effects;
   std::vector<unsigned int> active_updates;
   bool census_ready{false};
+  uint8_t last_kla_quality{0};
 
   void update_launcher(world::placed_object &object, actor_context const &context, flight::time_step step);
   void update_kla(world::placed_object &object, actor_context const &context, flight::time_step step);
@@ -50,6 +60,7 @@ private:
 
 public:
   actors(resources::geometry_bank const &geometry, world::theatre &theatre, combat &weapons);
+  proximity_sound const &proximity() const noexcept;
   void refresh_census(maths::world_position const &observer);
   actor_effects const &advance(actor_context const &context, flight::time_step step);
 };

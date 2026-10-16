@@ -1,0 +1,12 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "5efdb36fa8049b5c9b5fe47f0aa55583b55bc9abff94f20a67558754885f86a8",
+  "sound_bank_sha256": "f392c65517b9dbad0700f0399f9072173c466be0f186c196b86d2e58c859b51b",
+  "routine_file_offsets": "0x2cd5..0x2e26",
+  "frames": 512,
+  "register_writes": 10535,
+  "stubs": [
+    "IN returns zero; OUT records OPL address/data writes"
+  ],
+  "scope": "Connected original orb/saucer channel priority, complete patch transitions, note packing, distance attenuation, persistent KLA pitch smoothing and on/off transitions. The supplied ADL bank is loaded into the original 29-byte slots as READSOUNDS would. A default proximity frame primes both implementations before comparisons. No sound logic is replaced."
+}

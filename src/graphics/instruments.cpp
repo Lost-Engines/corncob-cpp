@@ -16,6 +16,18 @@ screen_point needle(screen_point const &centre, screen_point const &diameter, ma
 
 } // anonymous namespace
 
+void draw_gunsight(indexed_framebuffer &target, random_source &random, clip_rectangle const &bounds, screen_point const &centre) {
+  /// DRAWGS uses four double-width grey strokes in both cockpit and on-foot views
+  raster sight{target, bounds, random};
+  int const x{centre.x}, y{centre.y};
+  for(int offset{0}; offset != 2; ++offset) {
+    sight.line({x - 12, y + offset}, {x - 4, y + offset}, 7);
+    sight.line({x + 13, y + offset}, {x + 5, y + offset}, 7);
+    sight.line({x + offset, y - 8}, {x + offset, y - 3}, 7);
+    sight.line({x + offset, y + 9}, {x + offset, y + 4}, 7);
+  }
+}
+
 void recolour_button(indexed_framebuffer &target, cockpit_button const button, colour_index const source, colour_index const destination) {
   /// DRAWBUTTON searches all four colour planes, with an exclusive right edge and inclusive final row
   static std::array<clip_rectangle, 14> constexpr regions{

@@ -1,0 +1,16 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "130a2f7f6da4e64c05f0b44050e7f427c459e2c59a8f4001d2c78d6b6ca08c2f",
+  "cases": 384,
+  "routines": [
+    "0x8dbc orb",
+    "0xbb97 destroyed orb",
+    "0xabd2 KLA",
+    "0xc102 saucer",
+    "0xab2b RADARPROCESS"
+  ],
+  "stubs": [
+    "RADARDOT omits pixels only; bomb/KLA/virtual-AAA constructors return without creating children"
+  ],
+  "scope": "Ordered proximity state from complete original handlers, including live radar magnitude/compression, separate pilot and aircraft targets, KLA launch rest, dead saucers and pre-repair health frequency. Generic movement is excluded; state begins with the native INITNUMBERS defaults."
+}

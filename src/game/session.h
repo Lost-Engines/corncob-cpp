@@ -83,6 +83,7 @@ private:
   world::theatre theatre;
   combat weapons;
   actors enemies;
+  proximity_sound audible_proximity;
   flight::aircraft_state aircraft;
   flight::damage_state damage;
   maths::random_source &random;
@@ -108,6 +109,7 @@ private:
   bool paused{false};
   bool look_mode{false};
   bool looking{false};
+  bool walking{false};
   maths::angles head_angles;
   std::optional<map_view> map;
   bool experimental_clearance{false};
@@ -120,7 +122,7 @@ private:
   rocket_charge rocket_timer;
   portal_transfer pending_portal{portal_transfer::none};
   bool rocket_requested{false};
-  unsigned int frame{0};
+  uint16_t frame{0};
   std::string notice;
   bool messages{true};
   bool exit_warned{false};
@@ -172,6 +174,7 @@ public:
   flight::damage_state const &aircraft_damage() const noexcept;
   combat_statistics const &statistics() const noexcept;
   sound_cues const &sounds() const noexcept;
+  proximity_sound const &proximity_sounds() const noexcept;
   bool remote_control() const noexcept;
   bool low_altitude_warning() const noexcept;
   unsigned int bomb_supply() const noexcept;

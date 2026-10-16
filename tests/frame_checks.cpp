@@ -3,15 +3,24 @@
 #include <iostream>
 #include <stdexcept>
 #include "game/session.h"
+#include "game/frame_clock.h"
+#include "tests/reference_reader.h"
 #include "graphics/scene.h"
 #include "resources/assets.h"
 
-int main() {
+int main(int const argc, char const *const argv[]) {
+  if(argc != 2) throw std::invalid_argument{"native frame-clock fixture required"};
   /// Host refresh rate and paused inspection must not change a sortie's random continuation or rendered simulation frames
   namespace game = corncob::game;
   namespace graphics = corncob::graphics;
   namespace resources = corncob::resources;
   namespace world = corncob::world;
+  corncob::tests::reference_reader input{argv[1], "CORNFRM1"};
+  auto const cases{input.dword()};
+  for(unsigned int i{0}; i != cases; ++i) {
+    auto const current{input.word()}, expected{input.word()};
+    if(game::advance_frame(current) != expected) throw std::runtime_error{"native animation-frame restart differs"};
+  }
   resources::geometry_bank first_geometry{resources::engine_data_asset()}, second_geometry{resources::engine_data_asset()};
   auto const cockpit{resources::decode_cockpit_mask(resources::cockpit_asset())};
   game::session first{first_geometry, world::decode_theatre(resources::morning_asset())};
@@ -48,16 +57,22 @@ int main() {
       }))
       throw std::runtime_error{"extra window refreshes changed gameplay or a rendered simulation frame"};
   }
+  if(first.camera().gunsight) throw std::runtime_error{"walking did not hide the on-foot gunsight"};
+  first.advance({}, std::function_ref<void()>{draw_first});
+  if(!first.camera().gunsight) throw std::runtime_error{"stopping did not restore the on-foot gunsight"};
   auto const seed{first.random_stream().seed()};
   first.press(game::action::pause);
   first.advance({}, std::function_ref<void()>{draw_first});
   for(unsigned int refresh{0}; refresh != 4; ++refresh)
     first_renderer.preview(first.world(), first.camera(), first.frame_number(), static_cast<uint16_t>(first.timer()), first.random_stream(), preview);
-  if(draws != 60 || first.random_stream().seed() != seed) throw std::runtime_error{"pause advanced the frame pipeline or shared randomness"};
+  if(draws != 61 || first.random_stream().seed() != seed) throw std::runtime_error{"pause advanced the frame pipeline or shared randomness"};
   first.press(game::action::pause);
   first.press(game::action::toggle_map);
   first.advance({}, std::function_ref<void()>{draw_first});
-  if(draws != 61 || first.frame_number() != 60) throw std::runtime_error{"map inspection did not draw independently of the stopped flight frame"};
-  std::cout << "Simulation-stage drawing and host-refresh-independent gameplay match" << std::endl;
+  if(draws != 62 || first.frame_number() != 61) throw std::runtime_error{"map inspection did not draw independently of the stopped flight frame"};
+  game::session long_flight{first_geometry, world::theatre{}};
+  for(unsigned int step{0}; step != 16'384; ++step) long_flight.advance({});
+  if(long_flight.frame_number() != 128) throw std::runtime_error{"connected sortie did not restart its animation clock"};
+  std::cout << "512 native frame-clock transitions, simulation-stage drawing and host-refresh-independent gameplay match" << std::endl;
   return EXIT_SUCCESS;
 }
