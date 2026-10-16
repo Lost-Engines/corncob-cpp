@@ -17,7 +17,11 @@ bool in_active_neighbourhood(maths::world_position const &position, maths::world
   return true;
 }
 
-theatre decode_theatre(std::span<uint8_t const> const source) {
+namespace {
+
+enum class type_encoding { coordinates_xor, plain };
+
+theatre decode_tiles(std::span<uint8_t const> const source, type_encoding const encoding) {
   /// Expand the original 64-tile CCT stream while retaining its tile and palette boundaries
   unsigned int constexpr header_bytes{16};
   unsigned int constexpr record_bytes{23};
@@ -38,7 +42,7 @@ theatre decode_theatre(std::span<uint8_t const> const source) {
       for(unsigned int i{0}; i != tile.object_count; ++i) {
         auto const packed{input.word(offset)};
         auto const low_x{input.word(offset + 2)}, low_y{input.word(offset + 4)}, low_z{input.word(offset + 6)};
-        auto const kind{static_cast<uint16_t>(input.word(offset + 21) ^ low_x ^ low_y)};
+        auto const kind{static_cast<uint16_t>(input.word(offset + 21) ^ (encoding == type_encoding::coordinates_xor ? low_x ^ low_y : 0))};
         if(kind >= std::to_underlying(object_type::count)) throw std::invalid_argument{"embedded theatre contains an invalid object type"};
         result.objects.push_back({
           .position{
@@ -63,6 +67,17 @@ theatre decode_theatre(std::span<uint8_t const> const source) {
   if(offset > source.size() || source.size() - offset != 12) throw std::invalid_argument{"embedded theatre has an invalid start-position trailer"};
   result.start = maths::world_position{input.signed_dword(offset), input.signed_dword(offset + 4), input.signed_dword(offset + 8)};
   return result;
+}
+
+} // anonymous namespace
+
+theatre decode_theatre(std::span<uint8_t const> const source) {
+  /// Older saves store plain type words; accept a format only after its entire 64-tile stream validates
+  try {
+    return decode_tiles(source, type_encoding::coordinates_xor);
+  } catch(std::invalid_argument const&) {
+    return decode_tiles(source, type_encoding::plain);
+  }
 }
 
 std::vector<uint8_t> encode_theatre(theatre const &source) {

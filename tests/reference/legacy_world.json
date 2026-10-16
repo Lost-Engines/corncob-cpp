@@ -1,0 +1,8 @@
+{
+  "source": "../corncob-reverse/installs/deluxe_download/THT/1.THT",
+  "source_sha256": "6ab6fbbfa7a22fc64c442aedfb864bd5cce7b062b8b7a9ebf41a000d77c1f0b8",
+  "fixture_sha256": "7a9bd80c92d42041dff3f67c77817734785e4bd9cdeffb4c19af15d34011a128",
+  "encoding": "plain type word",
+  "object_count": 252,
+  "canonical_xor_fnv1a64": "0x95c4046aada506df"
+}

@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <iterator>
 #include <stdexcept>
 #include "render/framebuffer.h"
 #include "resources/assets.h"
@@ -19,7 +21,8 @@ void require(bool const condition, char const *const message) {
 
 } // anonymous namespace
 
-auto main()->int {
+auto main(int const argc, char const *const argv[])->int {
+  if(argc != 2) throw std::invalid_argument{"legacy saved-world fixture required"};
   /// Compare decompression with the mask already verified against the native RIMG routine
   auto const decoded{corncob::resources::decode_cockpit_mask(corncob::resources::cockpit_asset())};
   uint64_t hash{14'695'981'039'346'656'037ull};
@@ -61,6 +64,15 @@ auto main()->int {
     for(auto const &tile : world.tiles) total += tile.object_count;
     require(total == world.objects.size(), "theatre tile ranges do not cover every placed object");
   }
+  std::ifstream legacy_file{argv[1], std::ios::binary};
+  std::vector<uint8_t> const legacy_bytes{std::istreambuf_iterator<char>{legacy_file}, {}};
+  auto const legacy{corncob::world::decode_theatre(legacy_bytes)};
+  require(legacy.objects.size() == 252, "original plain-type saved world was not decoded");
+  auto const canonical{corncob::world::encode_theatre(legacy)};
+  uint64_t canonical_hash{14'695'981'039'346'656'037ull};
+  for(auto const byte : canonical) canonical_hash = (canonical_hash ^ byte) * fnv_prime;
+  require(canonical_hash == 0x95c4046aada506dfull, "plain saved-world conversion changed original packed fields");
+  require(corncob::world::encode_theatre(corncob::world::decode_theatre(canonical)) == canonical, "legacy save did not round trip through the current encoding");
   std::cout << "Embedded cockpit, all 61 model definitions, four original theatres and display checks pass" << std::endl;
   return EXIT_SUCCESS;
 }

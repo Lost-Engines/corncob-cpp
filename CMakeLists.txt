@@ -199,7 +199,7 @@ if(BUILD_TESTING)
     add_test(NAME ${test_name} COMMAND ${target} ${ARGN})
   endfunction()
 
-  corncob_check(resource_checks embedded_resources)
+  corncob_check(resource_checks embedded_resources "${PROJECT_SOURCE_DIR}/tests/reference/legacy_world.bin")
   corncob_check(fixed_math_checks native_fixed_math "${PROJECT_SOURCE_DIR}/tests/reference/fixed_math.bin")
   corncob_check(raster_checks native_raster)
   corncob_check(scene_checks original_theatres)

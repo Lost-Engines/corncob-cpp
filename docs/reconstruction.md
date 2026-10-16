@@ -449,3 +449,12 @@ An isolated real GLFW/X11 window also traversed doorway intelligence, return to
 flight, the original walking Escape warning, outcome, report and main menu, using
 a temporary native-format pilot/world. Captures were inspected and the console
 log was empty. The full 31-check Release suite passes, including sustained play.
+
+## Older saved-world encoding
+
+The world reader accepts both original type-word encodings: coordinate-XOR and
+plain. Each candidate must validate all 64 tile headers, every object type and
+the complete trailer before it is accepted; current saves continue to use XOR.
+An archived 252-object plain world is retained as a reference fixture, with its
+source hash. Its conversion preserves all packed fields and matches the recorded
+canonical XOR stream hash. Normal definition byte-for-byte round trips still pass.
