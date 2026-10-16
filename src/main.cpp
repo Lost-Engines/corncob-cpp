@@ -341,6 +341,7 @@ auto main(int const argc, char const *const argv[])->int {
       if(launch->training) game->set_invincible(launch->training->invincible);
       game->set_beginner_flight(front.flight_controls().beginner_flight);
       front.begin_flight();
+      observer = game->camera();
       flight_frame_valid = false;
       clock_was_flying = true;
       accumulated_time = 0.0;

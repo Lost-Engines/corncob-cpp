@@ -203,6 +203,14 @@ condition follow that branch. Discharged rockets recharge and cannot restart
 on a partial charge. Native comparisons cover 1,024 clock updates, with a full
 connected burn/recharge/reignition scenario.
 
+The original per-frame particle block changes all thirty-five large-cloud,
+small-cloud and flotsam discs, including their individual positions and diameters.
+It consumes 141 shared random draws after physics and supplies the following
+frame, with unchanged authored colour references. All 512 complete native blocks
+and the model-resource bindings match. Previously these clouds retained static
+geometry. The shared random headquarters colour now also comes from that original
+block rather than an extra draw during display refresh.
+
 Original instruments, propeller, ground points, stars, sun directives, radar,
 homing pointer and animated model geometry are connected. Wire forcefields pulse
 with matching collision bounds; saucer discs pulse in opposition. Quality-zero
@@ -269,6 +277,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools; 768 orb/objective/mindbender passes without stubs; 256 mortar passes and 104 complete emitted particles |
 | Debris/training | 530 particles from 64 constructor runs; 2,157 generated placements from 32 training runs |
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks, 12 polygon hashes, 304 line frames and 512 wire-clip cases; four original definition round trips; one 252-object plain saved world |
+| Particles | 512 complete 35-disc/shared-colour frame blocks and PRNG continuations, plus resource bindings across the original models |
 | Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
 | Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
 | Title | 1,024 original animation-state/PRNG passes and 6,144 VGA letter-mask pixels |
@@ -290,7 +299,7 @@ Escape warnings, followed by both story fades and the animated title/credits. A 
 traversal checked the saved training defaults, live bomb-supply indicators, flap
 state and cockpit warning colours.
 Captures were inspected without changing supplied DOS installs.
-The complete 42-check Debug, Release and sanitizer suites pass, including the
+The complete 45-check Debug, Release and sanitizer suites pass, including the
 longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title. Complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.

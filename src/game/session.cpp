@@ -32,7 +32,8 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
   theatre{std::move(theatre)},
   weapons{geometry, this->theatre},
   enemies{geometry, this->theatre, weapons},
-  random{weapons.random_stream()} {
+  random{weapons.random_stream()},
+  particles{geometry.initial_particles()} {
   /// READUNIV starts the pilot on foot three thousand centimetres south of the stored start
   atmosphere = {
     .gravity{this->theatre.environment.gravity},
@@ -656,6 +657,7 @@ void session::advance(input_state const &input, std::optional<std::function_ref<
     .remote{remote},
     .crashed{landing.crash_landing},
   }, fast_ticks, step);
+  particles.advance(random);
   bool const was_low{low_altitude};
   low_altitude = mode == player_mode::in_aircraft && !aircraft.on_ground && aircraft.position.z >= 0 && aircraft.position.z < (was_low ? 5000 : 4500);
   if(messages && !finished()) {
@@ -676,7 +678,11 @@ maths::random_source &session::random_stream() noexcept {
 
 graphics::camera session::camera() const {
   /// Walking, cockpit and remote flight share one renderer but retain separate player and aircraft viewpoints
-  if(map) return map->camera();
+  if(map) {
+    auto observer{map->camera()};
+    observer.particles = &particles;
+    return observer;
+  }
   bool const on_foot{mode != player_mode::in_aircraft && (!controlled_aircraft || theatre.objects[*controlled_aircraft].has(world::object_flag::present))};
   auto attitude{on_foot ? person.attitude : aircraft.attitude};
   if(looking) attitude = maths::extract_angles(maths::rotate_local(maths::make_inverse_rotation(attitude), head_angles));
@@ -689,6 +695,7 @@ graphics::camera session::camera() const {
     .orb_distortion{orb_distortion},
     .palette_phase{vec3<uint16_t>{palette_phase}},
     .palette_brightness{vision.intensity()},
+    .particles{&particles},
   };
 }
 world::theatre const &session::world() const noexcept {

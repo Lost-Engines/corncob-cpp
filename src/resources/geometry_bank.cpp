@@ -93,6 +93,11 @@ unsigned int geometry_bank::load_primitive(unsigned int const kind, model_addres
       for(unsigned int i{0}; i != count; ++i) {
         unsigned int const disc_address{address + 2 + i * 10};
         bind_animation(static_cast<model_address>(disc_address + 6), index, 0, i, 0, true);
+        if(auto const particle{particle_animation::binding(static_cast<uint16_t>(disc_address))}) particle_bindings.push_back({
+          .primitive{index},
+          .vertex{i},
+          .particle{*particle},
+        });
         shape.discs.push_back({
           .position{input.vector(disc_address)},
           .diameter{input.word(disc_address + 6)},
@@ -238,6 +243,19 @@ void geometry_bank::animate(unsigned int const frame) {
       else if constexpr(std::is_same_v<shape_type, polygon>) shape.vertices[binding.vertex][binding.axis] = value;
       else if constexpr(std::is_same_v<shape_type, disc_cloud>) shape.discs[binding.vertex].diameter = static_cast<uint16_t>(value);
     }, primitives[binding.primitive]);
+  }
+}
+particle_animation geometry_bank::initial_particles() const {
+  /// Each sortie owns its mutable particle animation while sharing the original immutable templates
+  return particle_animation{source};
+}
+void geometry_bank::animate_particles(particle_animation const &state) {
+  /// Shared model pointers bind to the same live disc geometry without changing their authored colour references
+  for(auto const &binding : particle_bindings) {
+    auto &target{std::get<disc_cloud>(primitives[binding.primitive]).discs[binding.vertex]};
+    auto const &disc{state.discs()[binding.particle]};
+    target.position = maths::fixed_vector{disc.position};
+    target.diameter = disc.diameter;
   }
 }
 maths::fixed_vector geometry_bank::collision_extents(world::object_type const type, unsigned int const frame) const noexcept {

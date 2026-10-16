@@ -330,6 +330,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
   output.pixels.resize(render::screen_layout::pixel_count);
   statistics = {};
   geometry.animate(frame);
+  if(observer.particles) geometry.animate_particles(*observer.particles);
   set_palette(theatre, observer.position);
   std::ranges::fill(indexed.pixels, 0);
   if(observer.cockpit) {
@@ -390,7 +391,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     // survey markers blink independently of the stopped actor timers
     geometry.set_map_colours(timer);
   }
-  uint8_t const shared_random{static_cast<uint8_t>(random.next() % 15)};
+  uint8_t const shared_random{observer.particles ? observer.particles->colour() : geometry.colour(0x31b6)};
   bool const radar_active{std::ranges::any_of(theatre.objects, [&observer](auto const &object){
     if(object.type != world::object_type::control_tower || !object.has(world::object_flag::present)) return false;
     auto const delta{vec3<int64_t>{object.position} - vec3<int64_t>{observer.position}};

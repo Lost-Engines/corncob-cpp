@@ -1,0 +1,10 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "04ddb6596cb56886ea1df684e42f1be11c17a0b113b858e4c9a1b23a41b5fc6c",
+  "cases": 512,
+  "routines": [
+    "0x3ff1..0x4104 shared colour and SDS/SMS/flotsam disc randomisation"
+  ],
+  "stubs": [],
+  "scope": "Complete unchanged 141-draw native frame block; all 35 disc positions and diameters, shared colour, and PRNG continuation."
+}

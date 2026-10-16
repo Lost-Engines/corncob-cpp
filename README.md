@@ -1,7 +1,7 @@
 # Corncob 3D
 
 A native C++26 reconstruction of Corncob 3D, beginning with the normal 3.42 game.
-One executable will join the original front end, flight, scoring and ending.
+One executable brings together the original front end, flight, scoring and ending.
 
 **Work in progress:** the four original theatres now support walking, flight,
 ejection and remote control, player weapons, active enemies, persistent named

@@ -9,6 +9,7 @@
 #include "maths/fixed.h"
 #include "world/world.h"
 #include "resources/model_animation.h"
+#include "resources/particle_animation.h"
 
 namespace corncob::resources {
 
@@ -94,6 +95,12 @@ private:
     bool diameter;
   };
   std::vector<animation_binding> animation_bindings;
+  struct particle_binding {
+    unsigned int primitive;
+    unsigned int vertex;
+    unsigned int particle;
+  };
+  std::vector<particle_binding> particle_bindings;
   void bind_animation(model_address address, unsigned int primitive, unsigned int line, unsigned int vertex, unsigned int axis, bool diameter = false);
   unsigned int load_primitive(unsigned int kind, model_address address);
   void load_model(model_address address);
@@ -110,6 +117,8 @@ public:
   primitive const &drawing(unsigned int index) const;
   uint8_t colour(colour_reference reference) const noexcept;
   void animate(unsigned int frame);
+  particle_animation initial_particles() const;
+  void animate_particles(particle_animation const &state);
   void set_map_colours(uint16_t timer);
   maths::fixed_vector collision_extents(world::object_type type, unsigned int frame) const noexcept;
   void configure_sun(world::sky_parameters const &sky);
