@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include "game/combat.h"
+#include "game/parked_aircraft.h"
 #include "game/vehicle.h"
 #include "maths/random.h"
 
@@ -24,6 +25,7 @@ struct proximity_sound {
 };
 
 struct actor_effects : vehicle_effects {
+  parking_reset parking{parking_reset::unchanged};
   uint16_t hallucination{0};
   uint16_t orb_distortion{0};
   maths::fixed_vector attraction{0, 0, 0};

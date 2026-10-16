@@ -42,7 +42,8 @@ airbase intelligence and airborne mission starts, F3 shows the current score, F4
 and R toggles the rear view. Walking into a control-tower doorway opens
 intelligence and repairs the retained aircraft before returning to the same flight. `--skip-intro` opens the menu directly.
 
-You start on foot. Keypad 5 walks forward and keypad 0 walks backwards; arrows
+White Sands starts on foot; the other combat theatres automatically board an available normal aircraft.
+Keypad 5 walks forward and keypad 0 walks backwards; arrows
 turn. Walk into an aircraft to board. +/− controls throttle, arrows fly, Z/X
 operate the rudder, F toggles flaps, I uses rocket boost, and . brakes.
 A connected joystick is selected automatically for flight. Button 1 fires guns,

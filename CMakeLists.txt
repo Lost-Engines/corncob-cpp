@@ -102,6 +102,8 @@ add_library(corncob_core STATIC
   src/game/sortie_clock.cpp
   src/game/portal.cpp
   src/game/rocket.cpp
+  src/game/parked_aircraft.cpp
+  src/game/parked_aircraft.h
   src/game/scenery.cpp
   src/game/scenery.h
   src/game/session.cpp
@@ -267,6 +269,7 @@ if(BUILD_TESTING)
   corncob_check(launcher_checks native_launchers "${PROJECT_SOURCE_DIR}/tests/reference/launchers.bin")
   corncob_check(title_checks native_title "${PROJECT_SOURCE_DIR}/tests/reference/title.bin")
   corncob_check(vision_checks native_visual_feedback "${PROJECT_SOURCE_DIR}/tests/reference/vision.bin")
+  corncob_check(parking_checks native_parked_aircraft "${PROJECT_SOURCE_DIR}/tests/reference/parking.bin")
   corncob_check(shard_checks native_shards "${PROJECT_SOURCE_DIR}/tests/reference/shards.bin")
   corncob_check(impact_checks native_impacts "${PROJECT_SOURCE_DIR}/tests/reference/impacts.bin")
   corncob_check(scenery_checks native_scenery "${PROJECT_SOURCE_DIR}/tests/reference/scenery.bin")

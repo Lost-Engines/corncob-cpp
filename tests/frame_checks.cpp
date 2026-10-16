@@ -57,9 +57,14 @@ int main(int const argc, char const *const argv[]) {
       }))
       throw std::runtime_error{"extra window refreshes changed gameplay or a rendered simulation frame"};
   }
-  if(first.camera().gunsight) throw std::runtime_error{"walking did not hide the on-foot gunsight"};
+  game::session pedestrian{first_geometry, world::theatre{}};
+  pedestrian.advance({
+    .walk_forward{true},
+  });
+  if(pedestrian.camera().gunsight) throw std::runtime_error{"walking did not hide the on-foot gunsight"};
+  pedestrian.advance({});
+  if(!pedestrian.camera().gunsight) throw std::runtime_error{"stopping did not restore the on-foot gunsight"};
   first.advance({}, std::function_ref<void()>{draw_first});
-  if(!first.camera().gunsight) throw std::runtime_error{"stopping did not restore the on-foot gunsight"};
   auto const seed{first.random_stream().seed()};
   first.press(game::action::pause);
   first.advance({}, std::function_ref<void()>{draw_first});

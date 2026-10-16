@@ -530,6 +530,7 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
       }
       break;
     case control_tower:
+      if(auto const reset{tower_parking_reset(object.position, context.observer)}; reset != parking_reset::unchanged) effects.parking = reset;
       theatre.start.x = maths::dword(static_cast<int64_t>(object.position.x) + 3001 - 2 * 65'536);
       theatre.start.y = maths::dword(static_cast<int64_t>(object.position.y) - 16'000);
       ++object.timer;

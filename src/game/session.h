@@ -96,6 +96,7 @@ private:
   bool left_ground{false};
   flight::angular_response angular;
   flight::landing_state landing;
+  aircraft_parking parking;
   flight::atmosphere atmosphere;
   person_state person;
   vision_state vision;

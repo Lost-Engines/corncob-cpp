@@ -53,6 +53,7 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
   }
   notice = "On foot - keypad 5/0 walks; arrows turn; walk into an aircraft to board";
   if(this->theatre.training) {
+    parking.new_arrival = false;
     if(auto const index{weapons.spawn(world::object_type::aircraft, this->theatre.start)}) {
       enter_aircraft(*index);
       aircraft.position.y -= 8000;
@@ -282,6 +283,7 @@ void session::enter_aircraft(unsigned int const index) {
     return;
   }
   weapons.rearm();
+  if(controlled_aircraft) theatre.objects[*controlled_aircraft].aircraft_parking_flags |= aircraft_parking::keep_pose;
   controlled_aircraft = index;
   aircraft = flight::aircraft_state{};
   rocket_timer = {
@@ -430,10 +432,14 @@ void session::update_aircraft(input_state const &input, flight::time_step const 
 
 void session::update_scenery() {
   /// Apply nearby permanent handlers while the session owns tower handoffs and one-time objective credit
-  auto const observer{camera().position};
-  for(auto &object : theatre.objects) {
+  for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
+    auto &object{theatre.objects[i]};
+    auto const observer{camera().position};
     if(!object.has(world::object_flag::present) || !object.has(world::object_flag::updates)
       || !world::in_active_neighbourhood(object.position, observer)) continue;
+    if(object.type == world::object_type::aircraft && controlled_aircraft != i) {
+      if(advance_parked_aircraft(object, theatre.start, observer, parking, mode == player_mode::on_foot)) enter_aircraft(i);
+    }
     switch(advance_scenery(object, observer, mode == player_mode::on_foot, fast_ticks)) {
     case scenery_event::contact:
       weapons.complete(object);
@@ -558,6 +564,10 @@ void session::advance(input_state const &input, std::optional<std::function_ref<
     .on_foot{mode == player_mode::on_foot},
     .timer{fast_ticks},
   }, step)};
+  if(effects.parking != parking_reset::unchanged) {
+    parking.resetting = effects.parking == parking_reset::enable;
+    if(parking.resetting) parking.placed_count = 0;
+  }
   orb_distortion = effects.orb_distortion;
   if(mode == player_mode::on_foot && effects.capture_closing) vision.close_capture(step);
   for(unsigned int axis{0}; axis != 3; ++axis) {

@@ -193,6 +193,7 @@ object_definition const &geometry_bank::definition(world::object_type const type
 }
 model_levels geometry_bank::appearance(world::placed_object const &object) const {
   /// Typed visual states retain the model-pointer switches authored in the original object handlers
+  if(object.pose == world::model_pose::experimental_aircraft) return {experimental_model, experimental_model, 0x4ee3};
   if(object.type == world::object_type::aircraft && (object.flags & 0x100u) != 0) return {0x47a1, 0x47a1, 0x4ee3};
   switch(object.pose) {
   case world::model_pose::damaged:

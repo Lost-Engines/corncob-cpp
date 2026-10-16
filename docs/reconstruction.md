@@ -110,6 +110,16 @@ pilot’s model uses bit `0x20` at `0x23b` (set for advanced). New pilot setup
 bytes match an unchanged MOAG-created record. Explicit device indices remain
 startup choices because DOS only stores keyboard versus joystick.
 
+Parked aircraft now run the original placement/repair handler. Eligible standard
+and reserve aircraft line up 7,200 cm apart; a new arrival takes a positioned
+normal aircraft to the runway automatically. Experimental and permanently
+crashed aircraft retain their distinct paths. The tower keeps parked poses within
+4,200 scaled distance units and resets them outside that radius; its separate
+5,200 limit controls home/radar status. A manually retained or abandoned aircraft
+keeps its pose until the original reset clears its placement lock. All 512 native
+parked-aircraft cases and 256 tower reset cases match; connected checks cover the
+normal arrival, stepping out and avoiding immediate automatic re-entry.
+
 Digital joysticks supply two calibrated axes and two buttons through GLFW. The
 original squared response and clipping are retained, without analogue-port timing
 or calibration prompts. Arrows override both stick axes; head-view keys leave the
@@ -347,7 +357,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Motion/collision | 512 generic movement, 512 strict boxes, 512 fast and 512 ordinary projectile contacts |
 | Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools; 768 orb/objective/mindbender passes without stubs; 256 mortar passes and 104 complete emitted particles |
 | Destruction | 704 hit callbacks and 128 paired contacts; complete object/models, 130 score bytes, 3,772 emitted effects and PRNG continuation |
-| Scenery | 576 complete permanent handlers, 512 local interaction ranges and connected tower/boarding/contact checks |
+| Scenery | 512 parked-aircraft handlers, 256 tower reset cases, 576 complete permanent handlers, 512 local interaction ranges and connected tower/boarding/contact checks |
 | Debris/training | 192 complete debris/shard/explosion constructor runs; 512 shard colour/PRNG cases; 2,157 generated placements from 32 training runs |
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks, 12 polygon hashes, 304 line frames and 512 wire-clip cases; four original definition round trips; one 252-object plain saved world |
 | Ground/stars | 512 point regenerations, 256 stars and 64 complete three-bank initialisations with PRNG continuation |
@@ -380,9 +390,9 @@ and P/Escape return were also inspected in the actual window. A clean Release
 installation contains only the embedded executable and opens without the research
 workspace or external game assets.
 Captures were inspected without changing supplied DOS installs.
-The complete 51-check Debug, Release and sanitizer suites pass, including the
+The complete 52-check Debug, Release and sanitizer suites pass, including the
 longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title.
-A local MinGW GCC 16 Release build also passes all 51 checks under Wine; its actual
+A local MinGW GCC 16 Release build also passes all 52 checks under Wine; its actual
 window was inspected through menus, training, flight and stepping out on foot.
 It imports only Windows system DLLs. This does not replace testing on Windows
 hardware. Complete frame ordering, macOS runtime and interactive Wayland sizing
@@ -401,8 +411,7 @@ match without stubs; the connected rescue scenario still passes.
   the inspected presentation captures.
 - Complete remaining front-end/bookkeeping details: remaining theatre-header words and original configuration bits; broaden
   original configuration comparisons.
-- Broaden parked-aircraft placement/repair and complete campaign comparisons
-  against native executions.
+- Broaden complete campaign comparisons against native executions.
 - Broaden complete cockpit/gauge-frame comparisons and whole scene painter/
   collision ordering.
 - Broaden connected special transitions against longer DOS sessions. Scripted

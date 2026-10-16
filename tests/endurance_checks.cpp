@@ -37,7 +37,7 @@ int main(int const argc, char const *const argv[]) {
     game::session flight{geometry, std::move(theatre)};
     flight.set_experimental_clearance(true);
     flight.set_invincible(true);
-    flight.advance({});
+    for(unsigned int ready{0}; ready != 8 && flight.player() == game::player_mode::on_foot; ++ready) flight.advance({});
     if(flight.player() != game::player_mode::in_aircraft) throw std::runtime_error{"endurance pilot could not board"};
     auto const &site{locations[start % locations.size()]};
     flight.relocate({

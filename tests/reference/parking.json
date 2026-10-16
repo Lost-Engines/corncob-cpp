@@ -1,0 +1,16 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "7fa48d4f8f140b19d71483e88f0b405339494373f3e66f1bb828b1c56f177367",
+  "parked_aircraft_cases": 512,
+  "tower_cases": 256,
+  "routines": [
+    "0x96d6 OBJ5DATIM",
+    "0x96ac PLACEPLANE",
+    "0xa610 HOMEDETECT",
+    "0x967e EVALDIST"
+  ],
+  "stubs": [
+    "0x1e6a GETINPLANE records a boarding request without entering the separate player-flight handoff"
+  ],
+  "scope": "Complete timed parked-aircraft handler including position/pose repair, all runtime-placement bits, reset/exit gates, reserve/experimental/crashed variants, first-arrival runway departure, normal boarding and updated placement counter. Tower near/far parking reset executes unchanged, with no stubs."
+}
