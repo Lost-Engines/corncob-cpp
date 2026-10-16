@@ -1,0 +1,15 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "26e61bd3e0b8884a68cfc252c691175c667b74463b1e2648276c9d933e7740c6",
+  "vision_cases": 512,
+  "palette_cases": 512,
+  "routines": [
+    "0x1a5c DODVELAVG",
+    "0x2ef5..0x2f30 capture fade",
+    "0x6519 SETCOLORS"
+  ],
+  "stubs": [
+    "SETCOLORS returns without I/O in state cases; the separate palette cases execute and capture all original DAC writes"
+  ],
+  "scope": "Force averaging, signed high-word clamps, on-foot recovery, first-frame gate, fractional capture fade and native six-bit palette products at every intensity"
+}

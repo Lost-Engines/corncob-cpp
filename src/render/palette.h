@@ -87,4 +87,6 @@ inline std::array<rgba_pixel, 16> constexpr ega_palette{
   },
 };
 
+void fade_palette(std::array<rgba_pixel, 16> &colours, uint8_t intensity) noexcept;
+
 } // namespace corncob::render

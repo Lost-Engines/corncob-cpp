@@ -5,6 +5,7 @@
 #include "flight/landing.h"
 #include "game/map_view.h"
 #include "game/pilot_motion.h"
+#include "game/vision.h"
 #include "flight/damage.h"
 #include "game/combat.h"
 #include "game/actors.h"
@@ -91,6 +92,7 @@ private:
   flight::landing_state landing;
   flight::atmosphere atmosphere;
   person_state person;
+  vision_state vision;
   std::optional<unsigned int> controlled_aircraft;
   player_mode mode{player_mode::on_foot};
   bool reentry_allowed{false};

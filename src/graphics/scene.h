@@ -22,6 +22,7 @@ struct camera {
   maths::world_position map_position{0, 0, 0};
   uint16_t orb_distortion{0};
   vec3<uint16_t> palette_phase{0, 0, 0};
+  uint8_t palette_brightness{255};
 };
 
 struct render_statistics {

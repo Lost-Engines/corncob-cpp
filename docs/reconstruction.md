@@ -128,6 +128,11 @@ range compression and draws relative to the aircraft after ejection. Num Lock an
 Control select eased head views. The overhead map retains depth reduction, stored
 survey/player markers, pan/zoom/rotation and frozen sortie state.
 
+High-G vision filters the original vertical force accumulator before reducing the
+six-bit DAC palette. Capture retains its fractional fade word, including native
+word wrapping; ejection and tower return restore the intensity byte. Each scene
+uses the resulting original quantised palette rather than an RGB overlay.
+
 Original VGA/IMG data and presentation scripts supply two story panels, fifteen
 outcomes and ten help screens. MEDAL.FNC replaces sixteen BIOS glyphs; ten award
 entries use MOAG's original pair/colour table at file offset `0x1fa82`. Full animated
@@ -166,6 +171,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Debris/training | 530 particles from 64 constructor runs; 2,157 generated placements from 32 training runs |
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks and 12 polygon hashes; four original definition round trips; one 252-object plain saved world |
 | Model/map/radar | 512 geometry-animation, 512 map reductions, 512 radar positions; all 32,768 compressed radar-distance inputs |
+| Visual feedback | 512 force/fade states and 512 complete DAC palettes, including capture and frame wrapping |
 | Ending | All 768 initial stars and 64 complete indexed native star frames |
 | Score/persistence | 512 score calculations; 16,384 original mask bytes; native roster/high-score round trips and restart scenarios |
 | Sound | 512 engine/register-write cases and finite, non-silent PCM from the actual engine patch |
@@ -181,7 +187,7 @@ Private GLFW/X11 checks traversed pilot creation, mission selection, radio boxes
 map, boss screen, help, score, abort/report, tower intelligence, repair/resume and
 Escape warnings. Captures were inspected without changing supplied DOS installs.
 The complete 32-check Release and sanitizer suites pass, including the longer
-scenarios. A subsequent 33rd check verifies the full ground-vehicle handler. Wire rasterisation, complete frame ordering,
+scenarios. Subsequent checks verify the full ground-vehicle handler and visual feedback. Wire rasterisation, complete frame ordering,
 Windows/macOS runtime and interactive Wayland sizing are not yet independently
 established.
 
@@ -200,10 +206,9 @@ match without stubs; the connected rescue scenario still passes.
   and automatic saved-world naming.
 - Verify remaining launcher and special-site handlers against
   full native executions, and broaden complete campaign comparisons.
-- Finish unconnected cockpit/visual feedback, including the full high-G fade and
-  any remaining auxiliary instrument states; compare wire rasterisation and whole
-  scene painter/collision ordering.
-- Check capture fading, portal placement and other connected special transitions
+- Finish remaining auxiliary instrument states; compare wire rasterisation and
+  whole scene painter/collision ordering.
+- Check portal placement and other connected special transitions
   against longer DOS sessions. Scripted coverage is not proof of every transition.
 - Reconcile rendering's separate visual random stream with original complete-frame
   draw order before claiming identical whole-session random continuation.

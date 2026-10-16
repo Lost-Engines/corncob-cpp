@@ -80,6 +80,8 @@ add_library(corncob_core STATIC
   src/game/actors.h
   src/game/joystick.cpp
   src/game/joystick.h
+  src/game/vision.cpp
+  src/game/vision.h
   src/game/combat.cpp
   src/game/combat.h
   src/game/front_end.cpp
@@ -126,6 +128,8 @@ add_library(corncob_core STATIC
   src/maths/fixed.h
   src/render/framebuffer.cpp
   src/render/framebuffer.h
+  src/render/palette.cpp
+  src/render/palette.h
   src/resources/assets.h
   src/resources/collection.cpp
   src/resources/collection.h
@@ -236,5 +240,6 @@ if(BUILD_TESTING)
   corncob_check(endurance_checks sustained_gameplay)
   corncob_check(joystick_checks native_joystick "${PROJECT_SOURCE_DIR}/tests/reference/joystick.bin")
   corncob_check(vehicle_checks native_vehicles "${PROJECT_SOURCE_DIR}/tests/reference/vehicles.bin")
+  corncob_check(vision_checks native_visual_feedback "${PROJECT_SOURCE_DIR}/tests/reference/vision.bin")
   target_link_libraries(audio_checks PRIVATE corncob_audio)
 endif()

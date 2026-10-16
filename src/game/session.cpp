@@ -299,6 +299,7 @@ void session::enter_aircraft(unsigned int const index) {
   landing = {};
   damage = {};
   damage.invincible = invincible;
+  vision = {};
   airframe_destroyed = false;
   left_ground = false;
   if((object.flags & 0x104u) != 0) {
@@ -344,6 +345,7 @@ void session::leave_aircraft() {
   person.attitude = aircraft.attitude;
   person.ejection_attitude = aircraft.attitude;
   person.swing_frames = 0;
+  vision.restore();
   person.velocity = maths::fixed_vector{aircraft.velocity};
   person.standing = aircraft.on_ground || landing.crash_landing || landing.stopped;
   person.parachute = false;
@@ -532,6 +534,10 @@ void session::advance(input_state const &input) {
   if(input.throttle_down) press(action::throttle_down);
   fast_ticks += 40;
   ++frame;
+  vision.advance(aircraft.body_force.z, mode != player_mode::in_aircraft, frame, {
+    .elapsed{static_cast<int16_t>(input.advance_time ? 50 : 5)},
+    .normal{5},
+  });
   for(auto &object : theatre.objects) switch(object.type) {
   case world::object_type::wire_forcefield_x:
   case world::object_type::wire_forcefield_y:
@@ -556,6 +562,7 @@ void session::advance(input_state const &input) {
     .timer{fast_ticks},
   }, step)};
   orb_distortion = effects.orb_distortion;
+  if(mode == player_mode::on_foot && effects.capture_closing) vision.close_capture(step);
   for(unsigned int axis{0}; axis != 3; ++axis) {
     aircraft.velocity[axis] = maths::word(aircraft.velocity[axis] + effects.attraction[axis]);
     std::array<int16_t, 3> constexpr rates{310, 186, 242};
@@ -654,6 +661,7 @@ graphics::camera session::camera() const {
     .ground_detail{ground_detail},
     .orb_distortion{orb_distortion},
     .palette_phase{vec3<uint16_t>{palette_phase}},
+    .palette_brightness{vision.intensity()},
   };
 }
 world::theatre const &session::world() const noexcept {
@@ -854,6 +862,7 @@ void session::resume_from_tower() {
   damage.worst = worst;
   damage.invincible = invincible;
   angular.wing_damage = angular.rudder_damage = angular.stability_damage = 0;
+  vision.restore();
   notice = "Returned from airbase intelligence";
 }
 void session::set_invincible(bool const value) noexcept {

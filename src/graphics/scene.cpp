@@ -474,6 +474,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
       channel = static_cast<uint8_t>((value << 2) | (value >> 4));
     }
   }
+  if(observer.palette_phase == vec3<uint16_t>{0, 0, 0}) render::fade_palette(palette, observer.palette_brightness);
   for(unsigned int i{0}; i != output.pixels.size(); ++i) output.pixels[i] = palette[indexed.pixels[i] & 15u];
   return statistics;
 }
