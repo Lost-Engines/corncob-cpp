@@ -1,0 +1,17 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "15ef31e65c443f89351eea75715b9eea46008af0be392022142122b9cdbf4af2",
+  "cases": 1536,
+  "shell_launches": 7,
+  "routines": [
+    "0xa64c AATIM",
+    "0xb88a BBTIM",
+    "0xb875 BBSMTIM",
+    "0xc6cc ALTIM"
+  ],
+  "stubs": [
+    "0xaa93 ADDAA score accumulation",
+    "0x9fdb EXPSTRT: allocation only, copies the requested original template"
+  ],
+  "scope": "Living actor tracking, target lead, firing and shell initialization, balloon bounds/reversals, bee angles, alien activation/hops; original relative-vector and random routines execute unchanged"
+}

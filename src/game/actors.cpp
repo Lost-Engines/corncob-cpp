@@ -17,11 +17,11 @@ struct target_vector {
   maths::angles bearing;
 };
 std::optional<target_vector> relative_target(maths::world_position const &object, maths::world_position const &target, unsigned int const shift = 6) {
-  /// GETOBSVEC and RADARPROCESS use different word scales but the same one-megacentimetre component gate
+  /// GETOBSVEC and RADARPROCESS use different word scales but the same eight-high-word component gate
   target_vector result{};
   for(unsigned int axis{0}; axis != 3; ++axis) {
     auto const delta{maths::dword(static_cast<int64_t>(object[axis]) - target[axis])};
-    if(std::abs(static_cast<int64_t>(delta)) >= 1'048'576) return std::nullopt;
+    if(std::abs(static_cast<int64_t>(delta)) >= 524'288) return std::nullopt;
     result.direction[axis] = maths::negate(maths::word(delta >> shift));
   }
   maths::fixed_vector const horizontal{result.direction.x, result.direction.y, 0};
@@ -59,10 +59,11 @@ bool objective_in_range(world::placed_object const &object, resources::object_de
 
 } // anonymous namespace
 
-actors::actors(resources::geometry_bank const &geometry, world::theatre &theatre, combat &weapons) :
+actors::actors(resources::geometry_bank const &geometry, world::theatre &theatre, combat &weapons, uint32_t const seed) :
   geometry{geometry},
   theatre{theatre},
-  weapons{weapons} {
+  weapons{weapons},
+  random{seed} {
   /// Keep the preceding active census separate from this pass's live actor updates
 }
 void actors::update_launcher(world::placed_object &object, actor_context const &context, flight::time_step const step) {
@@ -341,7 +342,11 @@ void actors::update_vehicle(world::placed_object &object, actor_context const &c
 void actors::update_alien(world::placed_object &object, actor_context const &context, flight::time_step const /*step*/) {
   /// Aliens activate around the on-foot pilot and hop with quality-specific gravity and horizontal drift
   ++object.timer;
-  if((object.flags & 4u) == 0) return;
+  if((object.flags & 4u) == 0) {
+    auto const delta{vec3<int64_t>{object.position} - vec3<int64_t>{context.observer}};
+    if(std::max({std::abs(delta.x), std::abs(delta.y), std::abs(delta.z)}) >= 32'768) object.flags = 0;
+    return;
+  }
   if(context.on_foot) {
     auto const delta{vec3<int64_t>{object.position} - vec3<int64_t>{context.observer}};
     if(std::max({std::abs(delta.x), std::abs(delta.y), std::abs(delta.z)}) < 32'768) {
@@ -364,17 +369,22 @@ void actors::update_alien(world::placed_object &object, actor_context const &con
 }
 void actors::update_balloon(world::placed_object &object, flight::time_step const step) {
   /// Barrage balloons bounce vertically and occasionally reverse while bees also randomise all three angles
+  bool skip_movement{false};
+  if(object.type == world::object_type::bee_swarm) {
+    object.attitude.heading = random.next();
+    object.attitude.pitch = random.next();
+    auto const roll{random.next_with_carry()};
+    object.attitude.roll = roll.value;
+    skip_movement = roll.carry;
+  }
   object.timer = 32'000;
+  if(skip_movement) return;
   auto const &parameters{resources::balloon_qualities[object.quality()]};
   int16_t const speed{timed(maths::word(parameters.vertical_launch_speed), step)};
   if(object.velocity.z == 0 || object.position.z < 16'383) object.velocity.z = speed;
   else if(object.position.z > 65'535) object.velocity.z = maths::negate(speed);
   else if(random.next() <= static_cast<uint16_t>(timed(maths::word(parameters.reversal_threshold), step))) object.velocity.z = maths::negate(object.velocity.z);
-  if(object.type == world::object_type::bee_swarm) object.attitude = {
-    .heading{random.next()},
-    .pitch{random.next()},
-    .roll{random.next()},
-  };
+
 }
 void actors::update_orb(world::placed_object &object, actor_context const &context, flight::time_step const step) {
   /// Orb objectives consume the preceding active census; destruction leaves the objective anchor in place

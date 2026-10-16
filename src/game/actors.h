@@ -47,7 +47,7 @@ private:
   void update_mortar(world::placed_object &object, actor_context const &context, flight::time_step step);
 
 public:
-  actors(resources::geometry_bank const &geometry, world::theatre &theatre, combat &weapons);
+  actors(resources::geometry_bank const &geometry, world::theatre &theatre, combat &weapons, uint32_t seed = 2'949'243u);
   void refresh_census(maths::world_position const &observer);
   actor_effects const &advance(actor_context const &context, flight::time_step step);
 };

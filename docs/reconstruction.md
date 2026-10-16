@@ -378,3 +378,21 @@ state. The stored modes select retreat, circling, approach and coasting in that
 order. These checks cover altitude correction, wave motion, transition randomness
 and speed limiting; weapon constructors and radar/audio are isolated explicitly.
 Active control towers also update the current airbase coordinates, as in TOWERTIM.
+
+## Ground guns, balloons, bees and aliens
+
+Another 1,536 unchanged native handler executions cover all eight qualities,
+AAA tracking and target leading, shell construction, balloon bounds and random
+reversals, bee orientation, and alien activation/hopping/removal. The target
+component cutoff is eight high words (524,288 cm), rather than the provisional
+doubled range. Ordinary contacts do not destroy barrage balloons.
+
+Bees consume three random angles before their shared balloon update. The final
+RAND_W carry flag accidentally decides whether that update takes its contact
+return, skipping vertical motion; this original dependency is retained explicitly.
+The reference harness supplies effect allocation and isolates AAA score reporting;
+movement, angle math, relative vectors and random arithmetic execute unchanged.
+
+An initial complete run of the existing 29 checks passed with both address and
+undefined-behaviour sanitizers, including the all-theatre rendering sweep. This
+is memory/arithmetic coverage, not a claim of full game equivalence.

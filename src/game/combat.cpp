@@ -313,6 +313,10 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
     }
     return;
   }
+  if(object.type == world::object_type::barrage_balloon || object.type == world::object_type::bee_swarm) {
+    object.timer = 32'000;
+    return;
+  }
   if(!object.has(world::object_flag::collision_callback)) return;
   using enum world::object_type;
   if(object.type == bomb || object.type == missile || object.type == aa_shell) {
@@ -442,7 +446,6 @@ void combat::damage(unsigned int const index, world::placed_object const &attack
   case aaa_site:
   case saucer_site:
   case mortar:
-  case barrage_balloon:
     object.flags = 0;
     ++statistics.resources_destroyed;
     this->explosion(object.position, 0x20);
