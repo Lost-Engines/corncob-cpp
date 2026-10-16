@@ -52,10 +52,13 @@ intervals and vehicles retain the same pursuit reset used by ordinary movement.
 Shards retain their authored initial tilt, 6,200-frame lifetime and original
 per-slot red/yellow flicker, becoming black on the ground. Explosions retain their
 random drift. Anti-aircraft shells use the original nine-fragment damaging burst;
-bombs preserve the native crater transition and time-adjusted lifetime.
+bombs preserve the native crater transition and time-adjusted lifetime. Rescue
+vans share the original vehicle hit/wreck handler. Ordinary flotsam ignores hits,
+while mortar fragments burst on contact; doorways remain harmless and forcefield
+hits briefly reveal their near model at a distance.
 
-All 704 independent hit callbacks and 128 paired SLAM contacts match unchanged
-native executions: both object records/models, all 130 score bytes, 3,772 emitted
+All 992 independent hit callbacks and 128 paired SLAM contacts match unchanged
+native executions: both object records/models, all 130 score bytes, 3,916 emitted
 effects and complete PRNG continuation. A second collision callback sees the
 first object's changed state. TETTIM also leaves its scratch pointer at a harmless
 fragment, so SLAM can skip the original projectile's second callback; this quirk
@@ -88,7 +91,10 @@ orbs and mindbenders overwrite their shared visual effects in handler order;
 objective callbacks retain the previous census and one-time credit. All 768 native
 orb/objective/mindbender cases match without stubs, including preceding-orb effects,
 all qualities, attraction, regenerated health and PRNG continuation. Remaining
-actor equivalence is under comparison.
+actor equivalence is under comparison. The live census includes concealed fuel
+and counts rescue vans in the shared vehicle total. Alien corpses and overturned
+vehicles remain visible without blocking their clear-all objectives; connected
+checks exercise these states through destruction and objective completion.
 
 Portal quality rows now drive their original transfer, damage, repair and objective
 bits. Transfers occur on the following pass, preserve full coordinate words, consume
@@ -356,7 +362,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Person | 512 free-fall damping and 512 parachute swing cases |
 | Motion/collision | 512 generic movement, 512 strict boxes, 512 fast and 512 ordinary projectile contacts |
 | Damage/actors | 256 aircraft damage passes; 512 KLA and 512 living saucer passes; 512 vehicle updates with capture/rescue flags and PRNG continuation; 1,536 AAA/balloon/bee/alien updates, including shell initialization; 768 launch-site passes and 133 complete child constructors, including exhausted pools; 768 orb/objective/mindbender passes without stubs; 256 mortar passes and 104 complete emitted particles |
-| Destruction | 704 hit callbacks and 128 paired contacts; complete object/models, 130 score bytes, 3,772 emitted effects and PRNG continuation |
+| Destruction | 992 hit callbacks and 128 paired contacts; complete object/models, 130 score bytes, 3,916 emitted effects and PRNG continuation |
 | Scenery | 512 parked-aircraft handlers, 256 tower reset cases, 576 complete permanent handlers, 512 local interaction ranges and connected tower/boarding/contact checks |
 | Debris/training | 192 complete debris/shard/explosion constructor runs; 512 shard colour/PRNG cases; 2,157 generated placements from 32 training runs |
 | Raster/resources | All 224,000 cockpit pixels; 30 complete disc masks, 12 polygon hashes, 304 line frames and 512 wire-clip cases; four original definition round trips; one 252-object plain saved world |

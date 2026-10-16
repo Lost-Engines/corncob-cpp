@@ -9,6 +9,8 @@
 
 namespace corncob::game {
 
+using actor_census = std::array<unsigned int, std::to_underlying(world::object_type::count)>;
+
 struct actor_context {
   maths::world_position const &observer;
   maths::world_position const &target;
@@ -38,7 +40,7 @@ private:
   world::theatre &theatre;
   combat &weapons;
   maths::random_source &random;
-  std::array<unsigned int, std::to_underlying(world::object_type::count)> previous_counts{};
+  actor_census previous_counts{};
   unsigned int observed_aliens{0};
   actor_effects effects;
   std::vector<unsigned int> active_updates;

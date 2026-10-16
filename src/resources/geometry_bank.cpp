@@ -210,6 +210,12 @@ model_levels geometry_bank::appearance(world::placed_object const &object) const
   case world::model_pose::radar_wreck: return {0x406a, 0x4132, 0x4132};
   case world::model_pose::fuel_wreck: return {0x3521, 0x3569, 0x3569};
   case world::model_pose::blast_crater: return {0x72c6, 0x72c6, 0x72c6};
+  case world::model_pose::revealed_forcefield:
+    {
+      auto result{definition(object.type).models};
+      result.far = result.near;
+      return result;
+    }
   case world::model_pose::distant_hidden:
     {
       auto result{definition(object.type).models};

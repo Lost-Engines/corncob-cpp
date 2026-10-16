@@ -117,6 +117,61 @@ int main() {
   require(!targets.objects[3].has(world::object_flag::present) && std::ranges::any_of(targets.objects, [](auto const &object){
     return object.has(world::object_flag::present) && object.type == world::object_type::vehicle_site && object.quality() == 7;
   }), "concealed site did not reveal its configured contents when struck");
+  auto objective_world{[&](world::object_type const target_type, uint16_t const objective_quality, uint16_t const target_quality){
+    world::theatre result;
+    result.objects.push_back({
+      .position{0, 0, 10'000},
+      .attitude{},
+      .type{world::object_type::generator_orb},
+      .flags{static_cast<uint16_t>(orb_definition.flags | objective_quality << 12)},
+      .timer{32'000},
+    });
+    result.objects.push_back({
+      .position{10'000, 0, 0},
+      .attitude{},
+      .type{target_type},
+      .flags{static_cast<uint16_t>(geometry.definition(target_type).flags | target_quality << 12 | 8u)},
+      .timer{32'000},
+    });
+    return result;
+  }};
+  auto hidden_fuel{objective_world(world::object_type::shell, 1, 6)};
+  game::combat hidden_weapons{geometry, hidden_fuel};
+  game::actors hidden_actors{geometry, hidden_fuel, hidden_weapons};
+  for(unsigned int frame{0}; frame != 2; ++frame) hidden_actors.advance(context, {});
+  require(hidden_weapons.stats().objectives_completed == 0, "concealed fuel failed to block a clear-fuel objective");
+  hidden_weapons.damage(1, bomb);
+  auto const revealed{std::ranges::find_if(hidden_fuel.objects, [](auto const &object){return object.type == world::object_type::fuel_dump && object.has(world::object_flag::present);})};
+  require(revealed != hidden_fuel.objects.end(), "concealed fuel did not reveal its fuel dump");
+  hidden_actors.advance(context, {});
+  hidden_weapons.damage(static_cast<unsigned int>(revealed - hidden_fuel.objects.begin()), bomb, true);
+  for(unsigned int frame{0}; frame != 2; ++frame) hidden_actors.advance(context, {});
+  require(hidden_weapons.stats().objectives_completed == 1, "destroying the revealed fuel failed to complete its objective");
+  auto alien_target{objective_world(world::object_type::alien, 7, 0)};
+  game::combat alien_weapons{geometry, alien_target};
+  game::actors alien_actors{geometry, alien_target, alien_weapons};
+  alien_actors.advance(context, {});
+  world::placed_object const bullet{
+    .position{0, 0, 0},
+    .attitude{},
+    .type{world::object_type::bullets},
+    .flags{0x89},
+  };
+  alien_weapons.damage(1, bullet);
+  for(unsigned int frame{0}; frame != 2; ++frame) alien_actors.advance(context, {});
+  require(alien_weapons.stats().objectives_completed == 1 && alien_target.objects[1].has(world::object_flag::present),
+    "a visible alien corpse blocked the cleared-alien objective");
+  for(auto const type : {world::object_type::ground_vehicle, world::object_type::rescue_van}) {
+    auto wrecked_vehicle{objective_world(type, 3, 0)};
+    game::combat wreck_weapons{geometry, wrecked_vehicle};
+    game::actors wreck_actors{geometry, wrecked_vehicle, wreck_weapons};
+    for(unsigned int frame{0}; frame != 2; ++frame) wreck_actors.advance(context, {});
+    require(wreck_weapons.stats().objectives_completed == 0, "a living vehicle failed to block its objective");
+    wreck_weapons.damage(1, bomb, true);
+    for(unsigned int frame{0}; frame != 2; ++frame) wreck_actors.advance(context, {});
+    require(wreck_weapons.stats().objectives_completed == 1 && wrecked_vehicle.objects[1].has(world::object_flag::present),
+      "a visible overturned vehicle blocked the cleared-vehicle objective");
+  }
   world::theatre barriers;
   auto const &barrier_definition{geometry.definition(world::object_type::forcefield_x)};
   barriers.objects.push_back({
@@ -131,7 +186,7 @@ int main() {
   for(unsigned int frame{0}; frame != 10; ++frame) barrier_actors.advance({observer, observer, velocity, false, 0}, {});
   require(geometry.appearance(barriers.objects[0]).far == 0 && barriers.objects[0].has(world::object_flag::present), "distant blinking wall did not retain its near barrier");
   barrier_weapons.damage(0, bomb);
-  require(geometry.appearance(barriers.objects[0]).far == barrier_definition.models.far && barriers.objects[0].health == barrier_definition.hit_points, "barrier contact damaged the field instead of briefly revealing it");
+  require(geometry.appearance(barriers.objects[0]).far == barrier_definition.models.near && barriers.objects[0].health == barrier_definition.hit_points, "barrier contact damaged the field instead of briefly revealing it");
   game::session rescue{geometry, world::theatre{}};
   rescue.press(game::action::call_rescue);
   rescue.press(game::action::call_rescue);

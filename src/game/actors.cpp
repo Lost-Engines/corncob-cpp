@@ -11,6 +11,16 @@ namespace corncob::game {
 
 namespace {
 
+void count_actor(world::placed_object const &object, actor_census &counts) {
+  /// Native census groups count living actors; concealed fuel and rescue vans also contribute to their shared resource/vehicle totals
+  using enum world::object_type;
+  if(object.type == alien && (object.flags & 4u) == 0) return;
+  if((object.type == ground_vehicle || object.type == rescue_van) && (object.flags & 255u) == 0x71u) return;
+  ++counts[std::to_underlying(object.type)];
+  if(object.type == shell && object.quality() == 6) ++counts[std::to_underlying(fuel_dump)];
+  if(object.type == rescue_van) ++counts[std::to_underlying(ground_vehicle)];
+}
+
 struct target_vector {
   maths::fixed_vector direction{0, 0, 0};
   uint16_t distance;
@@ -450,7 +460,9 @@ void actors::refresh_census(maths::world_position const &observer) {
   previous_counts.fill(0);
   for(auto const &object : theatre.objects) {
     if(object.has(world::object_flag::present) && object.has(world::object_flag::updates)
-      && world::in_active_neighbourhood(object.position, observer)) ++previous_counts[std::to_underlying(object.type)];
+      && world::in_active_neighbourhood(object.position, observer)) {
+      count_actor(object, previous_counts);
+    }
   }
   observed_aliens = std::max(observed_aliens, previous_counts[std::to_underlying(world::object_type::alien)]);
   census_ready = true;
@@ -462,7 +474,7 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
   effects.sound.kla_quality = last_kla_quality;
   if(!census_ready) refresh_census(context.observer);
   quality_counts aaa{}, kla{};
-  std::array<unsigned int, std::to_underlying(world::object_type::count)> counts{};
+  actor_census counts{};
   active_updates.clear();
   for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
     auto const &object{theatre.objects[i]};
@@ -480,7 +492,7 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
       if(object.motion.spin != maths::fixed_vector{0, 0, 0} || object.motion.gravity != 0 || object.motion.dispersion != 0 || object.velocity != maths::fixed_vector{0, 0, 0})
         world::advance_motion(object, definition.rotate_below_tier != 0, random, step);
     }
-    ++counts[std::to_underlying(object.type)];
+    count_actor(object, counts);
     if(object.type == world::object_type::aaa_site) ++aaa[object.quality()];
     if(object.type == world::object_type::kla) ++kla[object.quality()];
     using enum world::object_type;

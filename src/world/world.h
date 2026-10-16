@@ -65,6 +65,7 @@ enum class model_pose {
   fuel_wreck,
   blast_crater,
   experimental_aircraft,
+  revealed_forcefield,
   distant_hidden,
 };
 

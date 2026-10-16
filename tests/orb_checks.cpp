@@ -31,14 +31,14 @@ int main(int const argc, char const *const argv[]) {
     game::actors actors{geometry, theatre, weapons};
     for(unsigned int n{0}; n != data.word(offset + 115); ++n) {
       theatre.objects[n].type = world::object_type::alien;
-      theatre.objects[n].flags = 0x11;
+      theatre.objects[n].flags = geometry.definition(world::object_type::alien).flags;
     }
     actors.refresh_census(observer);
     for(auto &entry : theatre.objects) entry.flags = 0;
     unsigned int cursor{0};
     for(unsigned int type{0}; type != census_types.size(); ++type) for(unsigned int n{0}; n != data.word(offset + 95 + type * 2); ++n) {
       theatre.objects[cursor].type = census_types[type];
-      theatre.objects[cursor++].flags = 0x11;
+      theatre.objects[cursor++].flags = census_types[type] == world::object_type::alien ? geometry.definition(world::object_type::alien).flags : 0x11;
     }
     actors.refresh_census(observer);
     for(auto &entry : theatre.objects) entry.flags = 0;

@@ -351,7 +351,7 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
     if(object.type == world::object_type::forcefield_x || object.type == world::object_type::forcefield_y
       || object.type == world::object_type::forcefield_z || object.type == world::object_type::forcefield_z1) {
       object.timer = 32'000;
-      object.pose = world::model_pose::normal;
+      object.pose = world::model_pose::revealed_forcefield;
     }
     return original_partner;
   }
@@ -371,6 +371,14 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
     object.flags = 0;
     return original_partner;
   }
+  if(object.type == tower_doorway) return original_partner;
+  if(object.type == flotsam_1 || object.type == flotsam_2) {
+    if(object.collision_group == 3) {
+      this->explosion(object.position, 0x20);
+      object.flags = 0;
+    }
+    return original_partner;
+  }
   if(object.type == shell) {
     auto const source{object};
     auto const type{static_cast<world::object_type>(resources::shell_contents_qualities[object.quality()].spawn_type)};
@@ -387,12 +395,13 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
     || (object.has(world::object_flag::special) && !attacker.has(world::object_flag::special)))) return original_partner;
   if(object.type == ground_crew && (object.flags & 0x1000u) != 0) return original_partner;
   if(object.type == aircraft && !aircraft_impact && (geometry.definition(attacker.type).properties & std::to_underlying(world::object_property::runway)) != 0) return original_partner;
-  if(object.type == ground_vehicle) object.position.z = 0;
+  bool const vehicle{object.type == ground_vehicle || object.type == rescue_van};
+  if(vehicle) object.position.z = 0;
   auto const react_vehicle{[&]{reset_vehicle(object, current_observer, vehicle_tier(object, current_observer), observer_on_foot, random, hit_vehicle_effects);}};
   if(object.type == ground_crew && (geometry.definition(attacker.type).properties & std::to_underlying(world::object_property::forcefield)) != 0) return original_partner;
   if(object.type == alien && attacker.type != bullets) return original_partner;
   if(object.type == generator_orb && object.quality() == 4 && !aircraft_impact) return original_partner;
-  if(object.type == ground_vehicle && object.has(world::object_flag::special)
+  if(vehicle && object.has(world::object_flag::special)
     && attacker.type != bullets && attacker.type != missile && attacker.type != explosion) {
     react_vehicle();
     return original_partner;
@@ -412,7 +421,7 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
     if(object.type == kla_site) object.timer = resources::kla_site_qualities[object.quality()].launch_reset;
     if(object.type == saucer_site) object.timer = resources::saucer_site_qualities[object.quality()].launch_reset;
     if(object.type == vehicle_site) object.timer = static_cast<uint16_t>(vehicle_site_rest * 3u);
-    if(object.type == ground_vehicle) react_vehicle();
+    if(vehicle) react_vehicle();
     if(object.type == generator_orb && hits >= 6) shatter(object, 2, false);
     if(object.type == tet) {
       // TETTIM leaves DI pointing at a harmless fragment; SLAM consequently skips the original projectile's callback
@@ -429,7 +438,7 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
   switch(object.type) {
   case generator_orb: ++statistics.orb_kills[quality]; break;
   case kla: ++statistics.kla_kills[quality]; break;
-  case ground_vehicle: ++statistics.vehicle_kills[quality]; break;
+  case ground_vehicle: case rescue_van: ++statistics.vehicle_kills[quality]; break;
   case aaa_site: ++statistics.aaa_kills[quality]; break;
   case kla_site: case mortar: ++statistics.site_kills[0]; break;
   case vehicle_site: case saucer_site: ++statistics.site_kills[quality]; break;
@@ -478,6 +487,7 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
     impact_sound();
     break;
   case ground_vehicle:
+  case rescue_van:
     {
       int32_t constexpr wreck_height{428};
       object.health = 255;

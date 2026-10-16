@@ -18,7 +18,7 @@ def main():
     assert hashlib.sha256(exe).hexdigest() == EXPECTED_SHA256
     data = exe[70800:]
     rng = random.Random(0x494d5043)
-    kinds = (0, 1, 2, 3, 6, 7, 11, 12, 13, 20, 21, 22, 23, 24, 27, 30, 42, 50, 51, 52, 53, 57)
+    kinds = (0, 1, 2, 3, 6, 7, 11, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 24, 25, 26, 27, 30, 34, 42, 48, 49, 50, 51, 52, 53, 57)
     singles, pairs = len(kinds) * 32, 128
     cases = singles + pairs
     output = bytearray(b'CORNIMP2' + struct.pack('<I', cases))
@@ -36,6 +36,7 @@ def main():
         if rng.randrange(3) == 0: flags |= 0x800
         if kind == 7 and case // len(kinds) % 8 == 0: flags |= 0x1000
         struct.pack_into('<H', record, 24, flags)
+        if kind in (25, 26): record[19] = rng.randrange(4)
         record[27] = rng.choice((1, 6, 25, 26, 65, 127, 128, 255))
         struct.pack_into('<3h', record, 46, *(rng.randrange(-1500, 1500) for _ in range(3)))
         attacker_kind = rng.choice((30, 21, 20) if paired else (30, 21, 20, 32, 15, 12, 19, 28))
