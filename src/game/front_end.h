@@ -35,6 +35,7 @@ enum class interface_page {
   records,
   sortie_summary,
   current_score,
+  boss,
   briefing,
   help,
   quit_confirmation,
@@ -94,6 +95,7 @@ public:
   void show_intelligence(world::theatre const &world);
   void show_missions(world::theatre const &world);
   void show_current_score(sortie_statistics const &result);
+  void show_boss();
   std::optional<world::mission_start> take_relocation();
   void show_flight_help();
   void ask_to_end_sortie();

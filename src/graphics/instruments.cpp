@@ -94,6 +94,7 @@ void instrument_panel::draw(indexed_framebuffer &target, random_source &random, 
       }
     }
   }};
+  button({205, 209, 248, 218}, telemetry.autopilot ? 15 : 7, telemetry.autopilot ? 2 : 0);
   button({205, 219, 248, 228}, telemetry.paused ? 15 : 7, telemetry.paused ? 5 : 0);
   button({205, 229, 248, 241}, aircraft.flaps ? 15 : 7, aircraft.flaps ? 6 : 0);
   button({443, 209, 484, 219}, aircraft.stalled ? 14 : 7, aircraft.stalled ? 12 : 0);

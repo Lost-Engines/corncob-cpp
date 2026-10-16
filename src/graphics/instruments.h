@@ -12,6 +12,7 @@ struct instrument_telemetry {
   flight::control_input controls;
   bool paused{false};
   bool completed{false};
+  bool autopilot{false};
   flight::damage_state const *damage{nullptr};
 };
 

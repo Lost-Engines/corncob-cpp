@@ -214,7 +214,8 @@ aboard the runway aircraft, retaining a separate spare aircraft in the world.
 TWR mission names and Sxyth start coordinates are decoded as explicit data.
 The F2 selector relocates the retained aircraft rather than recreating a theatre.
 DONEWMISS's aircraft/damage gate, forward airflow, full throttle and retained
-pitch/roll are preserved. F1 displays current airbase intelligence and F3
+pitch/roll are preserved. F1 retains the original BOSS.TXT DOS-prompt disguise, F2 opens current
+airbase intelligence/airborne starts, and F3
 inspects the current score without ending or recording a sortie.
 
 ## Special sites and effects
@@ -234,3 +235,21 @@ addition without a carry. Special-site scenarios also verify first-visit census
 priming, protected objectives, attraction, barrages and shell conversion.
 The connected special effects still need broader full-session comparison with DOS;
 constructor equivalence alone does not establish whole-frame timing equivalence.
+
+## Autopilot and campaign clearance
+
+A toggles the original autopilot, including its pitch-by-speed table, feedback,
+altitude capture and low-speed disengagement. All 512 isolated feedback runs
+match the original code without arithmetic or helper stubs. This preserves two
+quirks: a repeated word in the vertical-airflow correction and an unsigned
+vertical-speed test that prevents a descending aircraft from capturing altitude.
+The cockpit AUTO light follows actual engagement.
+
+The three required normal combat theatres now feed completion medals and Combat
+Master clearance. A scripted campaign persists all three, verifies that clearance
+is withheld until the third, boards the White Sands experimental aircraft, reaches
+the original altitude condition and records the Earth-saved/Major result. This
+is a state-transition test, not a claim that an autonomous pilot completed every
+objective through combat. Repeated visits do not re-award theatre medals. Detailed
+original scanner bookkeeping, resurrection qualifications and reporting remain
+under investigation.

@@ -30,8 +30,8 @@ The window uses the largest integer multiple of its 640 x 480 display that fits
 within the available desktop. The native 640 x 350 EGA framebuffer is presented
 at the intended 4:3 CRT aspect ratio, using nearest-neighbour sampling. The window
 floats and remains resizable. `--scale 1` selects the initial scale explicitly;
-Escape asks to end the current sortie; F1 opens airbase intelligence, F2 selects
-an airborne mission start, F3 shows the current score, F4 opens flight help,
+Escape asks to end the current sortie; F1 opens the original boss screen, F2 opens
+airbase intelligence and airborne mission starts, F3 shows the current score, F4 opens flight help,
 and R toggles the rear view. `--skip-intro` opens the menu directly.
 
 You start on foot. Keypad 5 walks forward and keypad 0 walks backwards; arrows

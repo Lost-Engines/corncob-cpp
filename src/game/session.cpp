@@ -98,6 +98,12 @@ void session::press(action const command) {
   case action::throttle_down:
     if(flying) aircraft.throttle = static_cast<uint16_t>(std::max(20, static_cast<int>(aircraft.throttle) - 20));
     break;
+  case action::toggle_autopilot:
+    if(flying) {
+      angular.autopilot.engaged = !angular.autopilot.engaged;
+      notice = angular.autopilot.engaged ? "Autopilot engaged" : "Autopilot off";
+    }
+    break;
   case action::toggle_flaps:
     if(flying) aircraft.flaps = !aircraft.flaps;
     break;
@@ -572,6 +578,10 @@ bool session::is_paused() const noexcept {
   /// Paused frames neither consume simulation time nor advance objective/weapon counters
   return paused;
 }
+bool session::autopilot_engaged() const noexcept {
+  /// The indicator follows actual engagement, including the native low-speed disengagement
+  return angular.autopilot.engaged;
+}
 flight::damage_state const &session::aircraft_damage() const noexcept {
   /// Report individual native damage channels for the instrument panel
   return damage;
@@ -610,6 +620,7 @@ sortie_statistics session::results(bool const aborted) const {
   if(mode == player_mode::captured) result.mark(sortie_status::captured);
   if(mode == player_mode::rescued) result.mark(sortie_status::rescued);
   if(mode == player_mode::earth_saved) result.mark(sortie_status::earth_saved);
+  if(invincible) result.mark(sortie_status::invincible);
   if(aborted) result.mark(sortie_status::aborted);
   return result;
 }

@@ -65,8 +65,8 @@
     {
       "path": "front_end.dat",
       "source": "Unmodified VGA/IMG artwork, presentation scripts, help, sound patches and DOSBox BIOS fonts; see third_party/dosbox-fonts.txt",
-      "bytes": 502910,
-      "sha256": "3a039902c7d91ecc5d8a455da7306f9ad5abd07e27f676b119f063b1b56677f8"
+      "bytes": 502978,
+      "sha256": "791f0cf6a04e6420313257eeb1aa60029e9f49206a30563893911528a5d48ab4"
     }
   ],
   "front_end_files": [
@@ -294,6 +294,11 @@
       "name": "3.adl",
       "bytes": 942,
       "sha256": "f392c65517b9dbad0700f0399f9072173c466be0f186c196b86d2e58c859b51b"
+    },
+    {
+      "name": "boss.txt",
+      "bytes": 55,
+      "sha256": "91f1f33be697b468503d3faa9c693a2b00e550d3f06fd4846c3bdc70ff7489f1"
     },
     {
       "name": "font8.bin",

@@ -48,6 +48,8 @@ void front_end::accept() {
       if(selection == 0) page = interface_page::flight;
       else if(selection == 1) show_flight_help();
       else ask_to_end_sortie();
+    } else if((selection == 1 || selection == 2) && campaign.active_pilot() && campaign.active_pilot()->unavailable()) {
+      feedback = "Activate a living pilot or resurrect this pilot first";
     } else switch(selection) {
     case 0: page = interface_page::roster; break;
     case 1: page = interface_page::theatres; break;
@@ -120,6 +122,7 @@ void front_end::accept() {
     page = interface_page::roster;
     selection = 0;
     break;
+  case interface_page::boss:
   case interface_page::current_score:
     page = interface_page::flight;
     break;
@@ -136,8 +139,11 @@ void front_end::accept() {
     else adjust_training(1);
     break;
   case interface_page::missions:
-    if(selection < mission_starts.size()) pending_relocation = mission_starts[selection];
-    page = interface_page::flight;
+    if(selection == 0) { scroll = 0; page = interface_page::briefing; }
+    else {
+      if(selection - 1 < mission_starts.size()) pending_relocation = mission_starts[selection - 1];
+      page = interface_page::flight;
+    }
     break;
   case interface_page::theatres:
     {
@@ -215,7 +221,7 @@ void front_end::command(interface_command const command) {
   case interface_command::cancel:
     if(page == interface_page::flight) ask_to_end_sortie();
     else if(page == interface_page::help) page = return_page;
-    else if(session_running && (page == interface_page::briefing || page == interface_page::missions || page == interface_page::current_score)) page = interface_page::flight;
+    else if(session_running && (page == interface_page::briefing || page == interface_page::missions || page == interface_page::current_score || page == interface_page::boss)) page = interface_page::flight;
     else if(page == interface_page::quit_confirmation) page = session_running ? interface_page::flight : interface_page::menu;
     else if(page == interface_page::pilots || page == interface_page::pilot_name || page == interface_page::records) { page = interface_page::roster; selection = 0; feedback.clear(); }
     else if(page == interface_page::title || page == interface_page::story) page = interface_page::menu;
@@ -286,6 +292,14 @@ void front_end::draw_menu(graphics::interface_canvas &canvas, std::string_view c
 }
 void front_end::render(render::framebuffer &target) const {
   /// Menus and helper-program artwork share the native window but retain their original video-mode pixel sizes
+  if(page == interface_page::boss) {
+    graphics::interface_canvas canvas{target, assets.file("font16.bin"), 16, 640, 400};
+    canvas.clear();
+    auto text{std::string{assets.text("boss.txt")}};
+    if(auto const end{text.find('$')}; end != std::string::npos) text.resize(end);
+    canvas.text(0, 0, text, grey);
+    return;
+  }
   if(page == interface_page::story) {
     graphics::draw_presentation(target, assets, stories.at(story_index));
     return;
@@ -329,7 +343,7 @@ void front_end::render(render::framebuffer &target) const {
     std::ranges::copy(labels, choices.begin());
     draw_menu(canvas, "Training - Left/Right changes values", choices);
   } else if(page == interface_page::missions) {
-    std::vector<std::string_view> choices;
+    std::vector<std::string_view> choices{"Read full airbase intelligence"};
     for(auto const &start : mission_starts) choices.push_back(start.title);
     draw_menu(canvas, "Intelligence - choose an airborne start", choices);
     if(choices.empty()) canvas.text(80, 160, "No airborne starts in this theatre", grey);
@@ -386,7 +400,7 @@ unsigned int front_end::choice_count() const {
   case interface_page::roster: return 7;
   case interface_page::theatres: return 4;
   case interface_page::training: return 9;
-  case interface_page::missions: return std::max(1u, static_cast<unsigned int>(mission_starts.size()));
+  case interface_page::missions: return static_cast<unsigned int>(mission_starts.size()) + 1;
   case interface_page::pilots: return std::max(1u, static_cast<unsigned int>(campaign.pilots().size()));
   case interface_page::quit_confirmation: return 2;
   default: return 1;
@@ -411,8 +425,14 @@ void front_end::show_missions(world::theatre const &world) {
   /// Intelligence starts are explicit directives in the original theatre text
   session_running = true;
   mission_starts = world.missions;
+  briefing = world.briefing;
   selection = 0;
   page = interface_page::missions;
+}
+void front_end::show_boss() {
+  /// F1 retains the original deliberately uninteresting DOS prompt disguise
+  session_running = true;
+  page = interface_page::boss;
 }
 void front_end::show_current_score(sortie_statistics const &result) {
   /// F3 inspects this sortie without finalizing or saving it

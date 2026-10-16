@@ -27,6 +27,38 @@ int32_t wide_word(int16_t const value) noexcept {
 
 } // anonymous namespace
 
+void advance_autopilot(aircraft_state const &aircraft, angular_response &response) {
+  /// PITCHLOCK first levels the flight path, then the original feedback loop captures and holds altitude
+  auto &pilot{response.autopilot};
+  if(!pilot.engaged) return;
+  if(std::abs(static_cast<int>(aircraft.velocity.z)) >= 150) {
+    unsigned int const magnitude{maths::magnitude(aircraft.velocity)};
+    if(magnitude < 3900) {
+      pilot.engaged = false;
+      return;
+    }
+    unsigned int const speed{std::clamp(magnitude, 3901u, 15'500u)};
+    unsigned int const scaled{speed * 8}, index{scaled / 15'591 - 2}, remainder{scaled % 15'591};
+    std::array<int16_t, 8> constexpr pitch_by_speed{-2109, -1507, -1005, -772, -671, -571, -500, -450};
+    int const target{pitch_by_speed[index] + (pitch_by_speed[index + 1] - pitch_by_speed[index]) * static_cast<int>(remainder) / 15'591};
+    int16_t const error{static_cast<int16_t>(std::clamp<int>(maths::word(aircraft.attitude.pitch - target), -2000, 3200))};
+    response.pitch = add(response.pitch, maths::rounded_divide(wide_word(error), 70));
+    return;
+  }
+  int16_t const change{static_cast<int16_t>(std::clamp<int>(maths::word(aircraft.body_velocity.z - pilot.previous_vertical_airflow), -150, 150))};
+  // MOV DX,AX repeats the word before SAR/RCR; this is deliberately not a sign extension
+  int32_t const paired{std::bit_cast<int32_t>(static_cast<uint32_t>(static_cast<uint16_t>(change)) * 65'537u)};
+  int const feedback{std::clamp<int>(maths::negate(aircraft.velocity.z), -50, 50)};
+  response.pitch = add(response.pitch, add(paired >> 3, feedback * std::abs(feedback) * 20));
+  // DOHLOCK computes ABS into AX but compares the stored unsigned velocity: descent does not capture a lock
+  if(static_cast<uint16_t>(aircraft.velocity.z) > 15) pilot.height_locked = false;
+  else if(!pilot.height_locked) {
+    pilot.height_locked = true;
+    pilot.height = aircraft.position.z;
+  } else response.pitch = add(response.pitch, maths::scale(maths::dword(static_cast<int64_t>(pilot.height) - aircraft.position.z), 655));
+  pilot.previous_vertical_airflow = aircraft.body_velocity.z;
+}
+
 void advance_controls(aircraft_state &aircraft, angular_response &response, control_input const &input,
                       atmosphere const &environment, time_step const step, maths::random_source *const random) {
   /// Apply original stick torque, inertia, weathercock yaw, ground pitch and stall protection
@@ -69,6 +101,7 @@ void advance_controls(aircraft_state &aircraft, angular_response &response, cont
   pitch_torque = maths::scale(pitch_torque, pitch_scale);
   response.pitch = add(response.pitch, maths::rounded_divide(add(pitch_torque, -response.pitch), pitch_inertia));
 
+  advance_autopilot(aircraft, response);
   int16_t pitch{std::bit_cast<int16_t>(aircraft.attitude.pitch)};
   if(aircraft.on_ground) {
     int const speed{std::abs(static_cast<int>(aircraft.body_velocity.x))};

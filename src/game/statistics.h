@@ -17,6 +17,7 @@ enum class sortie_status : uint16_t {
   rescued = 0x0100,
   crashed_home = 0x0200,
   earth_saved = 0x0400,
+  invincible = 0x2000,
   aborted = 0x4000,
 };
 using quality_counts = std::array<uint16_t, 8>;

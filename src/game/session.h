@@ -26,6 +26,7 @@ enum class action {
   throttle_up,
   throttle_down,
   toggle_flaps,
+  toggle_autopilot,
   rocket,
   eject,
   parachute,
@@ -125,6 +126,7 @@ public:
   uint32_t timer() const noexcept;
   unsigned int frame_number() const noexcept;
   bool is_paused() const noexcept;
+  bool autopilot_engaged() const noexcept;
   flight::damage_state const &aircraft_damage() const noexcept;
   combat_statistics const &statistics() const noexcept;
   void relocate(world::mission_start const &start);

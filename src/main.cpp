@@ -205,6 +205,7 @@ auto main(int const argc, char const *const argv[])->int {
     auto &front{state.front};
     if(!front.in_flight()) {
       using enum corncob::game::interface_command;
+      if(front.current_page() == corncob::game::interface_page::boss) { front.command(accept); return; }
       switch(key) {
       case GLFW_KEY_UP: front.command(up); break;
       case GLFW_KEY_DOWN: front.command(down); break;
@@ -223,10 +224,11 @@ auto main(int const argc, char const *const argv[])->int {
     }
     switch(key) {
     case GLFW_KEY_ESCAPE: front.ask_to_end_sortie(); break;
-    case GLFW_KEY_F1: front.show_intelligence(game->world()); break;
+    case GLFW_KEY_F1: front.show_boss(); break;
     case GLFW_KEY_F2: front.show_missions(game->world()); break;
     case GLFW_KEY_F3: front.show_current_score(game->results()); break;
     case GLFW_KEY_F4: front.show_flight_help(); break;
+    case GLFW_KEY_A: game->press(corncob::game::action::toggle_autopilot); break;
     case GLFW_KEY_R: game->press(corncob::game::action::toggle_rear); break;
     case GLFW_KEY_L: game->press(corncob::game::action::toggle_cockpit); break;
     case GLFW_KEY_G: game->press(corncob::game::action::toggle_ground); break;
@@ -361,6 +363,7 @@ auto main(int const argc, char const *const argv[])->int {
       .controls{input.stick},
       .paused{game->is_paused()},
       .completed{game->statistics().objectives_completed != 0},
+      .autopilot{game->autopilot_engaged()},
       .damage{&game->aircraft_damage()},
     };
     auto const *const panel{!inspect && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};

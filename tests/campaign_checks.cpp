@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include "game/campaign.h"
 #include "resources/assets.h"
+#include "game/session.h"
 
 namespace {
 
@@ -55,6 +56,47 @@ int main(int const argc, char const *const argv[]) {
     require(campaign.load_world("morning").has_value(), "switching pilots lost the original saved world");
     campaign.deactivate();
     require(campaign.active_pilot() == nullptr && !campaign.load_world("morning"), "trainee retained named pilot state");
+  }
+  {
+    game::campaign_store campaign{directory};
+    campaign.activate(0);
+    auto finish_world{[&](std::string_view const name, std::span<uint8_t const> const asset){
+      auto world{world::decode_theatre(asset)};
+      for(auto &object : world.objects) object.flags |= std::to_underlying(world::object_flag::objective_complete);
+      game::sortie_statistics result{
+        .objectives_completed{4},
+      };
+      result.mark(game::sortie_status::home);
+      result.mark(game::sortie_status::landed);
+      campaign.finish_sortie(name, world, result);
+    }};
+    finish_world("morning", corncob::resources::morning_asset());
+    finish_world("dusk", corncob::resources::dusk_asset());
+    require(campaign.active_pilot()->awards(game::medal::combat_master) == 0, "clearance awarded before the third theatre");
+    finish_world("wasteland", corncob::resources::wasteland_asset());
+    require(campaign.active_pilot()->awards(game::medal::combat_master) == 1 && campaign.active_pilot()->rank() == game::pilot_rank::captain,
+      "clearing the required theatres did not award Captain/Combat Master clearance");
+    auto const awards{campaign.active_pilot()->awards(game::medal::theatre_combat)};
+    finish_world("wasteland", corncob::resources::wasteland_asset());
+    require(campaign.active_pilot()->awards(game::medal::theatre_combat) == awards, "a completed theatre repeatedly awarded medals");
+    auto sands{world::decode_theatre(corncob::resources::white_sands_asset())};
+    auto const plane{std::ranges::find_if(sands.objects, [](auto const &object){return object.type == world::object_type::aircraft && (object.flags & 0x2000u) != 0;})};
+    sands.start = corncob::maths::world_position{plane->position};
+    sands.start.y += 3000;
+    corncob::resources::geometry_bank geometry{corncob::resources::engine_data_asset()};
+    game::session ending{geometry, std::move(sands)};
+    ending.set_experimental_clearance(campaign.active_pilot()->awards(game::medal::combat_master) != 0);
+    ending.advance({});
+    require(ending.player() == game::player_mode::in_aircraft, "ending pilot could not enter the experimental aircraft");
+    ending.relocate({
+      .title{"High altitude test"},
+      .position{0, 0, 1'000'000},
+      .heading{0},
+    });
+    ending.advance({});
+    require(ending.player() == game::player_mode::earth_saved && ending.finished(), "cleared experimental high-altitude flight did not reach the ending");
+    campaign.finish_sortie("white_sands", ending.snapshot(), ending.results());
+    require(campaign.active_pilot()->rank() == game::pilot_rank::major, "saving Earth did not award the normal game's final rank");
   }
   std::filesystem::remove_all(directory);
   std::cout << "Native masked roster, career progression and independent live theatre persistence survive restart" << std::endl;

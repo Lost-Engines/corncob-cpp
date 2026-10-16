@@ -1,0 +1,11 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "ed83ff99ba1108ec1ec505f7121e07ad796918acbaecef363b1e705c9b7f486b",
+  "cases": 512,
+  "routines": [
+    "0x34d5..0x3545 autopilot feedback",
+    "0x1327 PITCHLOCK",
+    "0x13bc DOHLOCK"
+  ],
+  "stubs": []
+}

@@ -13,6 +13,13 @@ struct control_input {
   bool brakes{false};
 };
 
+struct autopilot_state {
+  bool engaged{false};
+  bool height_locked{false};
+  int32_t height{0};
+  int16_t previous_vertical_airflow{0};
+};
+
 struct angular_response {
   int32_t roll{0};
   int32_t pitch{0};
@@ -23,7 +30,10 @@ struct angular_response {
   uint16_t almost_stall_angle{2548};
   uint16_t last_protected_pitch_rate{0};
   bool stall_protection{false};
+  autopilot_state autopilot{};
 };
+
+void advance_autopilot(aircraft_state const &aircraft, angular_response &response);
 
 void advance_controls(aircraft_state &aircraft, angular_response &response, control_input const &input,
                       atmosphere const &environment, time_step step, maths::random_source *random = nullptr);

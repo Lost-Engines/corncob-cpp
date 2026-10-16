@@ -19,6 +19,21 @@ std::string definition_name(std::string_view const theatre) {
   throw std::invalid_argument{"unknown saved theatre"};
 }
 
+bool required_theatre(std::string_view const name) {
+  /// The normal Earth campaign requires these three combat theatres; White Sands is its subsequent test flight
+  return name == "morning" || name == "dusk" || name == "wasteland";
+}
+unsigned int remaining_objectives(world::theatre const &theatre) {
+  /// INT's survey treats preset-complete anchors separately from objectives still available to the pilot
+  return static_cast<unsigned int>(std::ranges::count_if(theatre.objects, [](auto const &object){
+    if(!object.has(world::object_flag::present) || object.has(world::object_flag::objective_complete)) return false;
+    using enum world::object_type;
+    return object.type == generator_orb || object.type == destroyed_generator_orb || object.type == objective_saucer
+      || (object.type == ground_crew && object.has(world::object_flag::special))
+      || (object.type == portal && (object.quality() == 4 || object.quality() == 7));
+  }));
+}
+
 } // anonymous namespace
 
 campaign_store::campaign_store(std::filesystem::path directory) :
@@ -103,6 +118,20 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
   if(!selected) return;
   auto &pilot{roster.pilots[*selected]};
   pilot.finish_sortie(result);
+  if(required_theatre(theatre) && remaining_objectives(world) == 0) {
+    auto const previous{load_world(theatre)};
+    if(!previous || remaining_objectives(*previous) != 0) {
+      pilot.award(medal::theatre_combat);
+      if(!result.has(sortie_status::invincible)) pilot.award(medal::distinguished_flying_cross);
+    }
+    bool all_completed{true};
+    for(auto const name : {"morning", "dusk", "wasteland"}) {
+      if(name == theatre) continue;
+      auto const saved{load_world(name)};
+      if(!saved || remaining_objectives(*saved) != 0) all_completed = false;
+    }
+    if(all_completed && pilot.awards(medal::combat_master) == 0 && !result.has(sortie_status::killed)) pilot.award(medal::combat_master);
+  }
   if(theatre == "training") { save_roster(); return; }
   std::vector<uint8_t> saved(theatre_header_bytes);
   auto const title{std::string{theatre}};
