@@ -301,7 +301,7 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
 }
 void campaign_store::save_scores(std::string_view const theatre, sortie_statistics const &result) {
   /// Persist all three native score lists independently of the selected pilot or live world
-  scores.record(theatre, result, active_pilot());
+  scores.record(theatre == "training" ? "Training Mission" : theatre_title(theatre), result, active_pilot());
   platform::write_binary(directory / "PILOT.HSC", scores.encode());
 }
 score_tables const &campaign_store::high_scores() const noexcept {

@@ -132,6 +132,15 @@ experimental aircraft's altitude condition leads to the Earth-saved ending.
 Invulnerable and aborted flights leave career bytes and high-score lists unchanged.
 World persistence remains separate from career credit.
 
+All 5,040 bytes of the high-score update match 96 native insertion cases. Equal
+points use objective, ground-kill and air-kill word totals as successive tie
+breakers; equal integer career rates use total points. Signed mission counts,
+retired names, empty rows and padding are retained. Existing careers only move
+upward, including the original odd ordering after a declining average. Original
+theatre titles are recorded. White Sands exceeds the original 22-byte theatre
+field and overwrites the first statistics bytes; this saved-record quirk is
+reproduced explicitly within bounds, without unsafe string writes.
+
 PILOT.SCR retains opaque 623-byte records, both observed header layouts and the
 original Borland random mask. PILOT.HSC retains its 5,040-byte layout and padding.
 THT uses the native 671-byte container and compact 64-tile world stream. Both plain
@@ -283,7 +292,7 @@ CTest runs are C++ only; checks do not merely compare two translations of a form
 | Title | 1,024 original animation-state/PRNG passes and 6,144 VGA letter-mask pixels |
 | Ending | All 768 initial stars and 64 complete indexed native star frames |
 | Sortie clock | 512 unchanged two-segment DOS-clock conversions, including pause boundaries and wrapping; connected flight/pause/map timing |
-| Score/persistence | 512 ISCORE calculations, 256 complete MOAG career updates and 512 complete promotion/medal decisions; 16,384 original mask bytes; original control/model/new-pilot fixtures; exact native high-score retirement; roster/world restart, rename and deletion scenarios |
+| Score/persistence | 512 ISCORE calculations, 256 complete MOAG career updates and 512 complete promotion/medal decisions; 16,384 original mask bytes; original control/model/new-pilot fixtures; 96 full 5,040-byte native high-score insertion/tie/padding cases and exact retirement; roster/world restart, rename and deletion scenarios |
 | Sound | 512 engine/register-write cases and finite, non-silent PCM from the actual engine patch |
 
 Connected scenarios cover takeoff, ejection/parachute/remote control, weapons and

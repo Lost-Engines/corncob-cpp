@@ -1,0 +1,15 @@
+{
+  "reference_sha256": "6d8c922d59a873073796b367a2a40993fcaa5e763ed2ca907a945981f0c5bc32",
+  "fixture_sha256": "ea215fd5c1a32d146b00ca5dbe86e713aa9619b6445ccc1282682d25d1328124",
+  "cases": 96,
+  "routines": [
+    "MOAG 0xf269..0xf61c insertion",
+    "0xf713 statistics comparator",
+    "0xf7d0 career-rate comparator"
+  ],
+  "stubs": [
+    "0xf61d file loader: tables already supplied in native global buffers, returns descriptor 3",
+    "0xf6bd file writer: observes supplied in-memory tables without writing a file"
+  ],
+  "scope": "All 5040 bytes after mission/career/fastest insertion, including empty names, occupied tables, score and kill-count ties, live/retired same-name rows, signed sortie counts, integer rates, original upward-only updates, and preserved string padding. Cached original theatre lookup is unchanged; includes the White Sands label and its original bounded overwrite into mission statistics."
+}

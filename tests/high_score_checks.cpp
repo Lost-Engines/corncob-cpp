@@ -5,6 +5,7 @@
 #include "game/high_scores.h"
 #include "maths/random.h"
 #include "platform/storage.h"
+#include "tests/reference_reader.h"
 
 namespace {
 
@@ -54,6 +55,25 @@ int main(int const argc, char const *const argv[]) {
   require(std::ranges::equal(retired.encode(), corncob::platform::read_binary(reference / "scores_retired.bin")), "native retirement changed unexpected bytes or used the wrong flag");
   retired.rename(old_name, "New career");
   require(game::score_text(retired.best_careers()[0].name) == old_name, "rename changed an already retired career");
-  std::cout << "Native high-score record preservation, career replacement and three-sortie eligibility pass" << std::endl;
+  corncob::tests::reference_reader input{(reference / "high_scores.bin").string().c_str(), "CORNHSC1"};
+  unsigned int const cases{input.dword()};
+  for(unsigned int i{0}; i != cases; ++i) {
+    std::string label(input.byte(), ' ');
+    for(auto &letter : label) letter = static_cast<char>(input.byte());
+    std::array<uint8_t, 623> pilot_bytes;
+    for(auto &byte : pilot_bytes) byte = input.byte();
+    game::pilot_record const pilot{pilot_bytes};
+    std::array<uint8_t, game::score_tables::native_bytes> before, after;
+    for(auto &byte : before) byte = input.byte();
+    for(auto &byte : after) byte = input.byte();
+    auto tables{game::score_tables::decode(before)};
+    tables.record(label, pilot.last_sortie(), &pilot);
+    auto const actual{tables.encode()};
+    if(actual != after) {
+      auto const mismatch{std::ranges::mismatch(actual, after)};
+      throw std::runtime_error{"native high-score insertion " + std::to_string(i) + " byte " + std::to_string(mismatch.in1 - actual.begin())};
+    }
+  }
+  std::cout << cases << " complete native high-score insertion/tie/padding cases and connected career checks pass" << std::endl;
   return EXIT_SUCCESS;
 }
