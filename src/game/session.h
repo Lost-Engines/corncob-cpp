@@ -9,6 +9,7 @@
 #include "game/actors.h"
 #include "graphics/scene.h"
 #include "resources/geometry_bank.h"
+#include "resources/radio_messages.h"
 #include "world/world.h"
 
 namespace corncob::game {
@@ -38,6 +39,7 @@ enum class action {
   toggle_look,
   toggle_map,
   call_rescue,
+  toggle_messages,
   pause,
   drop_bomb,
   plant_charge,
@@ -119,6 +121,10 @@ private:
   uint32_t fast_ticks{0};
   unsigned int frame{0};
   std::string notice;
+  bool messages{true};
+  bool low_altitude{false};
+  bool steering_warned{false};
+  std::optional<resources::radio_notice> radio;
 
   void update_aircraft(input_state const &input, flight::time_step step);
   void update_scenery();
@@ -148,6 +154,8 @@ public:
   bool autopilot_engaged() const noexcept;
   bool looking_around() const noexcept;
   bool in_map() const noexcept;
+  bool messages_enabled() const noexcept;
+  std::optional<resources::radio_notice> take_radio();
   flight::damage_state const &aircraft_damage() const noexcept;
   combat_statistics const &statistics() const noexcept;
   sound_cues const &sounds() const noexcept;

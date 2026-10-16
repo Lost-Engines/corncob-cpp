@@ -8,6 +8,7 @@
 #include "graphics/interface.h"
 #include "graphics/space_sequence.h"
 #include "resources/cockpit_mask.h"
+#include "resources/radio_messages.h"
 
 namespace corncob::game {
 
@@ -39,6 +40,7 @@ enum class interface_page {
   high_scores,
   current_score,
   boss,
+  radio,
   briefing,
   help,
   quit_confirmation,
@@ -59,6 +61,11 @@ private:
   unsigned int pilot_index{0};
   unsigned int score_list{0};
   std::optional<graphics::space_sequence> ending;
+  render::framebuffer radio_backdrop;
+  std::optional<resources::radio_message> radio;
+  bool map_after_radio{false};
+  bool pending_map{false};
+  bool pending_abort{false};
   std::string entered_name;
   std::string feedback;
   bool renaming{false};
@@ -95,6 +102,10 @@ public:
   void character(uint32_t codepoint);
   bool editing_name() const noexcept;
   bool take_finish();
+  bool take_abort();
+  bool take_map();
+  void abort_sortie();
+  void show_radio(resources::radio_notice notice, render::framebuffer const &backdrop, bool enter_map = false);
   void finish_sortie(sortie_statistics const &result);
   void command(interface_command command);
   void begin_flight();

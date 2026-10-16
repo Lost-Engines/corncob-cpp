@@ -106,6 +106,8 @@ add_library(corncob_core STATIC
   src/flight/landing.h
   src/graphics/instruments.cpp
   src/graphics/instruments.h
+  src/graphics/homing.cpp
+  src/graphics/homing.h
   src/graphics/raster.cpp
   src/graphics/raster.h
   src/graphics/radar.cpp
@@ -123,6 +125,8 @@ add_library(corncob_core STATIC
   src/resources/assets.h
   src/resources/collection.cpp
   src/resources/collection.h
+  src/resources/radio_messages.cpp
+  src/resources/radio_messages.h
   src/graphics/interface.cpp
   src/graphics/interface.h
   src/resources/geometry_bank.cpp

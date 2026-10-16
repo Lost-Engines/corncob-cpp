@@ -66,6 +66,11 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
 
 void session::press(action const command) {
   /// Handle discrete game commands independently of window callbacks for scripted and native checks
+  if(command == action::toggle_messages) {
+    messages = !messages;
+    if(!messages) radio.reset();
+    return;
+  }
   if(command == action::toggle_map) {
     if(map) map.reset();
     else if(theatre.training) notice = "Map mode is not available in training missions";
@@ -521,6 +526,7 @@ void session::advance(input_state const &input) {
     .normal{5},
   };
   auto const observer{camera().position};
+  auto const previous_objectives{weapons.stats().objectives_completed};
   weapons.move(observer, step);
   auto const &effects{enemies.advance({
     .observer{observer},
@@ -601,6 +607,17 @@ void session::advance(input_state const &input) {
     .remote{remote},
     .crashed{landing.crash_landing},
   }, fast_ticks, step);
+  if(messages && !finished()) {
+    if(frame == 7 && aircraft.throttle == 20) radio = theatre.training ? resources::radio_notice::training : resources::radio_notice::choose_mission;
+    if(weapons.stats().objectives_completed > previous_objectives) radio = damage.total >= 16 ? resources::radio_notice::objective_damaged : resources::radio_notice::objective_complete;
+    bool const low{mode == player_mode::in_aircraft && !aircraft.on_ground && aircraft.position.z >= 0 && aircraft.position.z < (low_altitude ? 5000 : 4500)};
+    if(low && !low_altitude && aircraft.position.z >= 2000 && !at_home()) radio = resources::radio_notice::low_altitude;
+    low_altitude = low;
+    if(!steering_warned && mode == player_mode::in_aircraft && aircraft.on_ground && input.stick.roll != 0 && input.stick.rudder == 0) {
+      radio = resources::radio_notice::ground_steering;
+      steering_warned = true;
+    }
+  }
 }
 
 graphics::camera session::camera() const {
@@ -650,6 +667,14 @@ unsigned int session::frame_number() const noexcept {
 bool session::is_paused() const noexcept {
   /// Paused frames neither consume simulation time nor advance objective/weapon counters
   return paused;
+}
+bool session::messages_enabled() const noexcept {
+  /// O toggles the original explanatory message boxes without changing simulation rules
+  return messages;
+}
+std::optional<resources::radio_notice> session::take_radio() {
+  /// Presentation consumes one original queued message while the core keeps no window or font state
+  return std::exchange(radio, std::nullopt);
 }
 bool session::in_map() const noexcept {
   /// Map inspection freezes the sortie but continues the original independent input and blink clock

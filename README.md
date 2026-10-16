@@ -44,6 +44,9 @@ M opens the original overhead map; keypad arrows pan, keypad 9/3 changes height,
 Shift turns the view, Home recentres and Space returns. Num Lock or held Control
 switches the keypad to looking around. V calls a rescue van while stranded on
 foot. S toggles AdLib sound effects. `--no-sound` starts with effects disabled.
+Original message boxes explain mission selection, map controls and warnings; O
+toggles them. The homing pointer along the viewport border points back to base.
+Control-C aborts a sortie without awarding points.
 The experimental aircraft at White Sands requires campaign clearance before
 its throttle operates. Create or activate a pilot through the duty roster to save
 your career and changes to each theatre. The default trainee does not save progress.

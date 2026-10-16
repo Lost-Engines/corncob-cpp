@@ -28,6 +28,7 @@ struct window_state {
   std::unique_ptr<corncob::game::session> &game;
   corncob::game::front_end &front;
   bool &sound_enabled;
+  corncob::render::framebuffer &frame;
 };
 
 corncob::world::theatre load_theatre(std::string const &name) {
@@ -201,15 +202,20 @@ auto main(int const argc, char const *const argv[])->int {
   glfwMakeContextCurrent(window.get());
   glfwSwapInterval(1);
   bool sound_enabled{!arguments.contains("no-sound")};
-  window_state state{game, front, sound_enabled};
+  window_state state{game, front, sound_enabled, frame};
   glfwSetWindowUserPointer(window.get(), &state);
-  glfwSetKeyCallback(window.get(), [](GLFWwindow *const window, int const key, int const /*scancode*/, int const action, int const /*modifiers*/){
+  glfwSetKeyCallback(window.get(), [](GLFWwindow *const window, int const key, int const /*scancode*/, int const action, int const modifiers){
     if(action != GLFW_RELEASE) return;
     auto &state{*static_cast<window_state*>(glfwGetWindowUserPointer(window))};
     auto &game{state.game};
     auto &front{state.front};
     if(!front.in_flight()) {
       using enum corncob::game::interface_command;
+      if(front.current_page() == corncob::game::interface_page::radio) {
+        if(key == GLFW_KEY_O && game->messages_enabled()) game->press(corncob::game::action::toggle_messages);
+        front.command(accept);
+        return;
+      }
       if(front.current_page() == corncob::game::interface_page::boss) { front.command(accept); return; }
       switch(key) {
       case GLFW_KEY_UP: front.command(up); break;
@@ -232,7 +238,12 @@ auto main(int const argc, char const *const argv[])->int {
       return;
     }
     switch(key) {
-    case GLFW_KEY_M: game->press(corncob::game::action::toggle_map); break;
+    case GLFW_KEY_M:
+      if(game->messages_enabled()) front.show_radio(game->world().training ? corncob::resources::radio_notice::no_training_map : corncob::resources::radio_notice::map_instructions, state.frame, !game->world().training);
+      else game->press(corncob::game::action::toggle_map);
+      break;
+    case GLFW_KEY_O: game->press(corncob::game::action::toggle_messages); break;
+    case GLFW_KEY_C: if((modifiers & GLFW_MOD_CONTROL) != 0) front.abort_sortie(); break;
     case GLFW_KEY_V: game->press(corncob::game::action::call_rescue); break;
     case GLFW_KEY_ESCAPE: front.ask_to_end_sortie(); break;
     case GLFW_KEY_F1: front.show_boss(); break;
@@ -298,6 +309,7 @@ auto main(int const argc, char const *const argv[])->int {
       front.begin_flight();
       accumulated_time = 0.0;
     }
+    if(front.take_map()) game->press(corncob::game::action::toggle_map);
     if(auto const relocation{front.take_relocation()}) game->relocate(*relocation);
     double const now{glfwGetTime()};
     double const elapsed{std::min(now - previous_time, 0.1)};
@@ -393,11 +405,12 @@ auto main(int const argc, char const *const argv[])->int {
     audio_frame.dead = audio_frame.dead && sound_enabled;
     sound.update(audio_frame);
     if(!inspect && (front.take_finish() || (front.in_flight() && game->finished()))) {
-      auto const result{game->results()};
+      auto const result{game->results(front.take_abort())};
       campaign->finish_sortie(theatre_name, game->snapshot(), result);
       front.finish_sortie(result);
       if(result.has(corncob::game::sortie_status::earth_saved)) front.begin_ending(renderer->indexed_frame(), renderer->colours());
     }
+    if(front.in_flight() && !inspect) if(auto const notice{game->take_radio()}) front.show_radio(*notice, frame);
     if(!front.in_flight() && !inspect) {
       accumulated_time = 0.0;
       front.render(frame);

@@ -73,6 +73,16 @@ int main(int const argc, char const *const argv[]) {
     front.command(game::interface_command::accept);
   }
   if(!front.in_flight()) throw std::runtime_error{"help sequence did not return to flight"};
+  for(unsigned int notice{0}; notice != static_cast<unsigned int>(std::to_underlying(corncob::resources::radio_notice::count)); ++notice) {
+    auto const type{static_cast<corncob::resources::radio_notice>(notice)};
+    auto const message{corncob::resources::read_radio_message(type)};
+    if(message.lines.empty() || message.border.left < 0 || message.border.left + message.border.width > 640) throw std::runtime_error{"original radio message has invalid placement"};
+    front.show_radio(type, frame, type == corncob::resources::radio_notice::map_instructions);
+    front.render(frame);
+    if(argc == 2) capture(frame, std::filesystem::path{argv[1]} / ("radio" + std::to_string(notice) + ".ppm"));
+    front.command(game::interface_command::accept);
+    if(!front.in_flight() || front.take_map() != (type == corncob::resources::radio_notice::map_instructions)) throw std::runtime_error{"radio acknowledgement lost flight/map continuation"};
+  }
   front.ask_to_end_sortie();
   front.command(game::interface_command::cancel);
   if(!front.in_flight()) throw std::runtime_error{"quit cancellation lost the flight"};
@@ -80,6 +90,8 @@ int main(int const argc, char const *const argv[]) {
   front.command(game::interface_command::up);
   front.command(game::interface_command::accept);
   if(!front.take_finish() || front.take_finish()) throw std::runtime_error{"end-sortie request lost or repeated"};
+  front.abort_sortie();
+  if(!front.take_finish() || !front.take_abort() || front.take_abort()) throw std::runtime_error{"abort status was lost or repeated"};
   std::filesystem::remove_all(scratch);
   std::cout << "Two story panels, fifteen outcomes, ten help pages and native menu navigation exercised" << std::endl;
   return EXIT_SUCCESS;

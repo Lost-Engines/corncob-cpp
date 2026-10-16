@@ -339,3 +339,20 @@ spawn into range as the original does. A scenario calls one van, rejects duplica
 calls, walks to it and reaches the rescued sortie result. Hostile vehicles now
 pull the pilot toward them instead of declaring capture at the larger approach
 radius; capture itself uses the original object collision bounds.
+
+## In-flight guidance and exit paths
+
+Eleven BLACKBOX message records now decode directly from the embedded data segment,
+retaining the original red/black rectangles, BIOS positions and text. Mission
+selection, objective completion, low-altitude and ground-steering events queue
+their corresponding messages. Map instructions acknowledge into the map instead
+of dropping the request. O toggles messages, including while dismissing a box.
+The viewport's original black homing chevron and home-range radar-dish blink are
+connected. Control-C has a distinct abort result and zero native score.
+
+A private X11 run inspected the actual mission box, map, boss screen, help, score,
+abort outcome and report without changing supplied DOS installations. Headless
+interface checks decode/render every message and verify acknowledgements return
+to the retained flight. These checks do not establish every original warning's
+full-session timing, and the existing explanatory Escape confirmation is still
+a native-interface adaptation.

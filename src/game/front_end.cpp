@@ -36,6 +36,11 @@ front_end::front_end(resources::collection const &assets, campaign_store &campai
 void front_end::accept() {
   /// Advance coherent title/story/menu chains without launching DOS helpers
   switch(page) {
+  case interface_page::radio:
+    radio.reset();
+    page = interface_page::flight;
+    pending_map = std::exchange(map_after_radio, false);
+    break;
   case interface_page::ending:
     ending->toggle_warp();
     break;
@@ -227,7 +232,8 @@ void front_end::command(interface_command const command) {
     if(page == interface_page::help || page == interface_page::story || page == interface_page::title) accept();
     break;
   case interface_command::cancel:
-    if(page == interface_page::ending) { ending.reset(); show_outcome(14); }
+    if(page == interface_page::radio) accept();
+    else if(page == interface_page::ending) { ending.reset(); show_outcome(14); }
     else if(page == interface_page::flight) ask_to_end_sortie();
     else if(page == interface_page::help) page = return_page;
     else if(session_running && (page == interface_page::briefing || page == interface_page::missions || page == interface_page::current_score || page == interface_page::boss)) page = interface_page::flight;
@@ -261,6 +267,26 @@ void front_end::advance(double const seconds) {
     ending->advance(seconds);
     if(ending->finished()) { ending.reset(); show_outcome(14); }
   }
+}
+void front_end::show_radio(resources::radio_notice const notice, render::framebuffer const &backdrop, bool const enter_map) {
+  /// BLACKBOX overlays the retained flight screen and pauses flight until the pilot acknowledges its original text
+  radio = resources::read_radio_message(notice);
+  radio_backdrop = backdrop;
+  map_after_radio = enter_map;
+  page = interface_page::radio;
+}
+void front_end::abort_sortie() {
+  /// Control-C is a distinct original exit path with the abort result bit and no awarded score
+  pending_abort = true;
+  pending_finish = true;
+}
+bool front_end::take_abort() {
+  /// Consume abort status alongside the single finalization request
+  return std::exchange(pending_abort, false);
+}
+bool front_end::take_map() {
+  /// Map instructions return to the original retained session before entering its independent observer loop
+  return std::exchange(pending_map, false);
 }
 void front_end::show_menu() {
   /// The native helper flow can return to a retained flight without recreating its world
@@ -313,6 +339,15 @@ void front_end::draw_menu(graphics::interface_canvas &canvas, std::string_view c
 }
 void front_end::render(render::framebuffer &target) const {
   /// Menus and helper-program artwork share the native window but retain their original video-mode pixel sizes
+  if(page == interface_page::radio) {
+    target = radio_backdrop;
+    graphics::interface_canvas canvas{target, assets.file("font14.bin"), 14};
+    auto fill{[&](resources::message_box const &box, render::rgba_pixel const colour){canvas.rectangle(box.left, box.top, box.left + box.width, box.top + box.height, colour);}};
+    fill(radio->border, {170, 0, 0});
+    fill(radio->background, {0, 0, 0});
+    for(auto const &line : radio->lines) canvas.text(line.column * 8, line.row * 14, line.text, grey);
+    return;
+  }
   if(page == interface_page::ending) { ending->render(target); return; }
   if(page == interface_page::boss) {
     graphics::interface_canvas canvas{target, assets.file("font16.bin"), 16, 640, 400};

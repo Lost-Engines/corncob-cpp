@@ -10,6 +10,7 @@
 #include "graphics/stars.h"
 #include "graphics/radar.h"
 #include "graphics/map_projection.h"
+#include "graphics/homing.h"
 
 namespace corncob::graphics {
 
@@ -369,6 +370,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     strip(20'340, 1, 91);
     strip(20'379, 1, 91);
   }
+  if(!observer.map_mode) homing_pointer(indexed, random, theatre.start, observer.position, telemetry ? telemetry->aircraft.attitude.heading : observer.attitude.heading, main_view.bottom);
   auto const rotation{maths::make_rotation(observer.attitude)};
   for(auto const &view : views) background(view, rotation);
 
@@ -394,9 +396,15 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     geometry.set_map_colours(timer);
   }
   uint8_t const shared_random{static_cast<uint8_t>(random.next() % 15)};
+  bool const radar_active{std::ranges::any_of(theatre.objects, [&observer](auto const &object){
+    if(object.type != world::object_type::control_tower || !object.has(world::object_flag::present)) return false;
+    auto const delta{vec3<int64_t>{object.position} - vec3<int64_t>{observer.position}};
+    if(std::max({std::abs(delta.x), std::abs(delta.y), std::abs(delta.z)}) >= 1'048'576) return false;
+    return maths::magnitude({maths::word(static_cast<int32_t>(delta.x >> 6)), maths::word(static_cast<int32_t>(delta.y >> 6)), maths::word(static_cast<int32_t>(delta.z >> 6))}) <= 5200;
+  })};
   for(auto const &item : visible) {
     auto const &object{*item.object};
-    geometry.prepare_colours(object, frame, timer, shared_random, false);
+    geometry.prepare_colours(object, frame, timer, shared_random, radar_active);
     auto const inverse{maths::make_inverse_rotation(object.attitude)};
     auto const matrix{item.tier < geometry.definition(object.type).rotate_below_tier ? maths::compose(rotation, inverse) : rotation};
     auto const origin{maths::transform(rotation, item.relative)};
@@ -456,7 +464,7 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
         bool const saucer{object.type == world::object_type::saucer || object.type == world::object_type::objective_saucer};
         if(!kla && !saucer) continue;
         if(auto const position{radar_position(object.position, telemetry->aircraft.position, telemetry->aircraft.attitude.heading)}) {
-          geometry.prepare_colours(object, frame, timer, shared_random, false);
+          geometry.prepare_colours(object, frame, timer, shared_random, radar_active);
           radar_dot(indexed, random, *position, kla ? 10 : geometry.colour((timer & 512u) != 0 ? 0x68e0 : 0x68e2));
         }
       }
