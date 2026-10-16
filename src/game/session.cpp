@@ -7,6 +7,7 @@
 #include "maths/integer.h"
 #include "resources/actor_tables.h"
 #include "game/frame_clock.h"
+#include "game/scenery.h"
 
 namespace corncob::game {
 
@@ -15,11 +16,6 @@ namespace {
 bool has(resources::object_definition const &definition, world::object_property const property) noexcept {
   /// Keep original type properties distinct from each placed object's changing live flags
   return (definition.properties & std::to_underlying(property)) != 0;
-}
-int64_t distance_squared(maths::world_position const &a, maths::world_position const &b) noexcept {
-  /// World centimetres need a wider distance accumulator than the local word-vector routines
-  auto const difference{vec3<int64_t>{a} - vec3<int64_t>{b}};
-  return difference.length_sq();
 }
 int16_t timed_word(int16_t const value, flight::time_step const step) noexcept {
   /// WTADJ truncates a signed product/division, unlike the force routine's rounded dword helper
@@ -323,12 +319,14 @@ void session::enter_aircraft(unsigned int const index) {
 void session::check_aircraft_entry() {
   /// The retained aircraft needs a four-thousand-centimetre departure before a two-thousand-centimetre re-entry
   if(mode != player_mode::on_foot) return;
-  if(controlled_aircraft && distance_squared(person.position, aircraft.position) > 4000ll * 4000) reentry_allowed = true;
+  if(controlled_aircraft) {
+    if(auto const distance{interaction_range(aircraft.position, person.position)}; distance && *distance > reentry_departure_distance) reentry_allowed = true;
+  }
   for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
     auto const &object{theatre.objects[i]};
     if(object.type != world::object_type::aircraft || !object.has(world::object_flag::present)) continue;
     if(controlled_aircraft == i && !reentry_allowed) continue;
-    if(distance_squared(person.position, object.position) <= 2000ll * 2000) {
+    if(auto const distance{interaction_range(object.position, person.position)}; distance && *distance <= contact_distance) {
       enter_aircraft(i);
       return;
     }
@@ -431,37 +429,22 @@ void session::update_aircraft(input_state const &input, flight::time_step const 
 }
 
 void session::update_scenery() {
-  /// Permanent handlers refresh their state while the original frame clock drives radar and crew gestures
+  /// Apply nearby permanent handlers while the session owns tower handoffs and one-time objective credit
+  auto const observer{camera().position};
   for(auto &object : theatre.objects) {
-    if(!object.has(world::object_flag::present)) continue;
-    switch(object.type) {
-    case world::object_type::ground_crew:
-      if((object.flags & 0x1000u) != 0) {
-        object.pose = world::model_pose::shot;
-        object.attitude.pitch = 16'384;
-      } else if(mode == player_mode::on_foot && object.pose == world::model_pose::normal
-                && distance_squared(object.position, person.position) <= 2000ll * 2000) {
-        object.pose = world::model_pose::gesture;
-        if(object.has(world::object_flag::special)) {
-          weapons.complete(object);
-          notice = "Contact established - objective complete";
-        }
-      }
+    if(!object.has(world::object_flag::present) || !object.has(world::object_flag::updates)
+      || !world::in_active_neighbourhood(object.position, observer)) continue;
+    switch(advance_scenery(object, observer, mode == player_mode::on_foot, fast_ticks)) {
+    case scenery_event::contact:
+      weapons.complete(object);
+      notice = "Contact established - objective complete";
       break;
-    case world::object_type::tower_doorway:
-      if(mode == player_mode::on_foot && distance_squared(object.position, person.position) <= 2000ll * 2000) {
-        clock.suspend();
-        tower_request = visiting_tower = true;
-        notice = "Airbase intelligence";
-      }
+    case scenery_event::tower:
+      clock.suspend();
+      tower_request = visiting_tower = true;
+      notice = "Airbase intelligence";
       break;
-    case world::object_type::radar_dish:
-      if(object.pose == world::model_pose::normal) object.attitude.heading = static_cast<maths::angle>(fast_ticks * 4);
-      break;
-    case world::object_type::runway_piece:
-      if(object.quality() != 0) object.pose = world::model_pose::paved;
-      break;
-    default:
+    case scenery_event::none:
       break;
     }
   }

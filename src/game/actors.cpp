@@ -572,7 +572,6 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
       ++object.timer;
       break;
     case fuel_dump:
-    case radar_dish:
     case tet:
       ++object.timer;
       break;

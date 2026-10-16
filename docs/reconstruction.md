@@ -118,6 +118,13 @@ rectangles, text and placements. Flight Escape warns once when messages are enab
 and the pilot is beyond the tower's 5,200-unit range; a later Escape ends the sortie.
 Control-C follows the distinct uncounted abort path.
 
+Permanent scenery retains its original timer refreshes and nearby-update gate.
+Ground crew keep their latched gesture or corpse pose; spy contact awards credit
+once, and radar rotation follows the original fast tick word. Local contacts use
+EVALDIST’s word-coordinate gate and integer magnitude, including aircraft boarding
+and the separate departure/re-entry thresholds. All 576 complete native scenery
+handlers and 512 distance cases match without stubs.
+
 Walking into a tower opens intelligence and pauses the retained simulation.
 DOTOWER continuation places the pilot outside the doorway, repairs the retained
 aircraft and recharges its rocket, preserving historical worst damage. It does
@@ -353,9 +360,9 @@ and P/Escape return were also inspected in the actual window. A clean Release
 installation contains only the embedded executable and opens without the research
 workspace or external game assets.
 Captures were inspected without changing supplied DOS installs.
-The complete 48-check Debug, Release and sanitizer suites pass, including the
+The complete 49-check Debug, Release and sanitizer suites pass, including the
 longer scenarios, vehicle/launch/orb handlers, visual feedback and animated title.
-A local MinGW GCC 16 Release build also passes all 48 checks under Wine; its actual
+A local MinGW GCC 16 Release build also passes all 49 checks under Wine; its actual
 window was inspected through menus, training, flight and stepping out on foot.
 It imports only Windows system DLLs. This does not replace testing on Windows
 hardware. Complete frame ordering, macOS runtime and interactive Wayland sizing

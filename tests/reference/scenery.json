@@ -1,0 +1,19 @@
+{
+  "reference_sha256": "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+  "fixture_sha256": "4fa8bcb6294c2c096fcd9bbd9ee5c88610fa3f05122f2b20aed62020a9ad89d8",
+  "range_cases": 512,
+  "handler_cases": 576,
+  "routines": [
+    "0x967e EVALDIST",
+    "0x6ff7 REL3D",
+    "0x792b VMAG",
+    "0x8cfd MANDEST",
+    "0x9887 HUTTIM",
+    "0x8e7e FDESTRDR",
+    "0x9026 ROADTIM",
+    "0x9020 DONOTHING",
+    "0xbdbf INCONDEST"
+  ],
+  "stubs": [],
+  "scope": "Full unchanged timed handlers, original local word-distance gate and magnitude, latched gestures and paved poses, corpse rotation, objective credit and lockout, tower entry, radar heading and permanent timers. Generic motion and painter-table dispatch surround these calls and are excluded. Dword position wrapping is included."
+}
