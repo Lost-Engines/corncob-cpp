@@ -17,7 +17,7 @@ namespace {
 std::array<std::string_view, 11> constexpr main_choices{
   "\\Duty roster", "\\Combat missions", "\\Training missions", "display \\High score list", "\\Select campaign / world group",
   "keyboard/\\Joystick setup", "\\Music toggle", "\\View  the Corncob 3D documentation",
-  "\\Print the Corncob 3D documentation", "get \\Information about this menu", "e\\Xit to dos",
+  "save documentation as \\Plain text", "get \\Information about this menu", "e\\Xit to dos",
 };
 std::array<std::string_view, 9> constexpr roster_choices{
   "\\Create Pilot", "\\Activate Pilot", "\\Deactivate Pilot", "de\\Lete Pilot", "r\\Esurrect Pilot",

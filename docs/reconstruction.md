@@ -154,8 +154,10 @@ counts and wickedness use separate numeric-entry dialogs with their original
 confirms deletion and another key cancels. Insert switches the career overview
 and its decorations to the four-column statistics table. Context help, all
 seventeen documentation chapters and the original Other Worlds notice are
-embedded. The Print entry exports the unmodified document into the save directory
-instead of using a DOS printer port.
+embedded. The Save as plain text entry exports `CORNCOB.txt` into the save directory
+and shows its full path. The export removes in-game emphasis markers, converts DOS
+line endings to ordinary newlines and replaces chapter form feeds with blank lines.
+The embedded originals remain unchanged, including literal key names and DOS paths.
 
 Theaters can be opened, activated, viewed and deleted without starting a sortie.
 Repeated definitions have separate numbered THT files. New theater headers match

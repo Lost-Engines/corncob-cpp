@@ -2,10 +2,12 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
-#include "game/report_format.h"
+#include <filesystem>
 #include <format>
 #include <sstream>
 #include <utility>
+#include <vector>
+#include "game/report_format.h"
 #include "platform/storage.h"
 #include "render/palette.h"
 #include "resources/airfield_survey.h"
@@ -19,6 +21,25 @@ namespace corncob::game {
 namespace {
 
 render::rgba_pixel constexpr white{255, 255, 255}, grey{170, 170, 170}, yellow{255, 255, 85}, blue{0, 0, 170};
+
+std::vector<uint8_t> plain_documentation(std::string_view const source) {
+  /// The DOS .DOC is ASCII with in-game emphasis markers and chapter form feeds, rather than a word-processor document.
+  std::vector<uint8_t> result;
+  result.reserve(source.size());
+  for(unsigned int offset{0}; offset < source.size(); ++offset) {
+    char const character{source[offset]};
+    if(character == '\\' && offset + 1 < source.size() && (source[offset + 1] == '(' || source[offset + 1] == ')')) {
+      ++offset;
+      continue;
+    }
+    if(character == '\r') continue;
+    if(character == '\f') {
+      result.push_back('\n');
+      result.push_back('\n');
+    } else result.push_back(static_cast<uint8_t>(character));
+  }
+  return result;
+}
 
 } // anonymous namespace
 
@@ -152,8 +173,8 @@ void front_end::accept() {
       case 7: document_chapter = 0; numeric_input.clear(); document(campaign_assets().text("corncob.doc"), 0); navigate(interface_page::documentation); break;
       case 8:
         {
-          auto const path{std::filesystem::absolute(campaign.save_directory() / "CORNCOB.DOC").lexically_normal()};
-          platform::write_binary(path, campaign_assets().file("corncob.doc"));
+          auto const path{std::filesystem::absolute(campaign.save_directory() / "CORNCOB.txt").lexically_normal()};
+          platform::write_binary(path, plain_documentation(campaign_assets().text("corncob.doc")));
           notice("Documentation saved to:\n" + path.string());
         }
         break;

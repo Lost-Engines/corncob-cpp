@@ -121,8 +121,10 @@ briefings and airborne starts; mission jumps require an aircraft with less than
 
 Open or activate a theatre under Combat Missions, then choose Fly mission.
 Training Missions has separate number and wickedness settings and a preflight
-briefing. The original documentation is available from the main menu; its Print
-entry saves `CORNCOB.DOC` in the save directory for printing with your usual tools.
+briefing. The original documentation is available from the main menu; its Save as plain text
+entry saves a readable `CORNCOB.txt` in the save directory, with the full location
+shown afterwards. This removes the game's highlighting markers and replaces DOS
+chapter page breaks with blank lines.
 You can also start directly with `--theatre white_sands`, `morning`, `dusk` or `wasteland`.
 Debug and RelWithDebInfo also provide `--free-camera` for scenery inspection:
 WASD moves, arrow keys turn, Page Up/Down changes height, Shift moves faster and
