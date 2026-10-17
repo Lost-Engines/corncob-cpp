@@ -515,6 +515,8 @@ void front_end::command(interface_command const command) {
     }
     break;
   case interface_command::help:
+    // F4 while reading help must preserve both the current page and the original return destination.
+    if(page == interface_page::help) break;
     return_page = page; help_index = 0; navigate(interface_page::help); break;
   }
 }

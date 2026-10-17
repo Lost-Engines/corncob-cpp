@@ -162,12 +162,34 @@ int main(int const argc, char const *const argv[]) {
   if(front.music() != corncob::audio::music_cue::silent) throw std::runtime_error{"menu music continued into a sortie"};
   front.show_flight_help();
   if(front.music() != corncob::audio::music_cue::silent) throw std::runtime_error{"flight helper enabled menu music"};
-  for(unsigned int page{0}; page != 10; ++page) {
+  unsigned int constexpr flight_help_page_count{10};
+  for(unsigned int page{0}; page != flight_help_page_count; ++page) {
     front.render(frame);
     if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / ("help" + std::to_string(page) + ".ppm"));
     front.command(game::interface_command::accept);
   }
   if(!front.in_flight()) throw std::runtime_error{"help sequence did not return to flight"};
+  // Pressing F4 again must not make help its own return destination, including direct launches such as --slalom.
+  for(bool const direct_flight : {false, true}) for(auto const advance : {game::interface_command::accept, game::interface_command::next}) {
+    game::front_end help{assets, career, true, direct_flight};
+    auto const destination{direct_flight ? game::interface_page::flight : game::interface_page::menu};
+    if(direct_flight) { help.begin_flight(); help.show_flight_help(); }
+    else help.command(game::interface_command::help);
+    help.command(game::interface_command::help);
+    for(unsigned int page{0}; page != flight_help_page_count; ++page) {
+      if(help.current_page() != game::interface_page::help) throw std::runtime_error{"help ended before its final page"};
+      if(page == flight_help_page_count / 2) help.command(game::interface_command::help);
+      help.render(frame);
+      help.command(advance);
+    }
+    if(!help.in_flight()) help.render(frame);
+    if(help.current_page() != destination) throw std::runtime_error{"help returned to itself instead of its caller"};
+    help.command(game::interface_command::help);
+    help.command(advance);
+    help.command(game::interface_command::help);
+    help.command(game::interface_command::cancel);
+    if(help.current_page() != destination) throw std::runtime_error{"repeated F4 lost the help cancellation destination"};
+  }
   for(unsigned int notice{0}; notice != static_cast<unsigned int>(std::to_underlying(corncob::resources::radio_notice::count)); ++notice) {
     auto const type{static_cast<corncob::resources::radio_notice>(notice)};
     auto const message{corncob::resources::read_radio_message(type)};
