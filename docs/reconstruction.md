@@ -141,7 +141,7 @@ has not been exercised during automated checks.
 
 The executable joins title/story, roster, theatre selection/intelligence, training,
 controls/help, flight, outcomes, reports and the interactive Earth-saved ending.
-The missing C front end is reconstructed from unchanged MOAG 3.42 captures. Eighteen retained
+The missing C front end is reconstructed from unchanged MOAG 3.42 captures. Twenty retained
 complete 640 x 400 screens match the DOS RGB pixels exactly, covering the duty
 roster, career reports, training and control setup, score tables, documentation,
 Other Worlds information and theatre reports. The main menu and new-world
@@ -312,9 +312,11 @@ clipping. Gauge lines use EGALINE's direction-normalised pixel decisions; model
 wires use KLINE's horizontal spans and long shallow-line runs. Both paths match
 304 complete native indexed frames. Wire viewport clipping retains the original
 inclusive borders and X-first/Y-second order, verified against 512 native cases. OpenGL only presents the CPU framebuffer. Floating window sizing fits
-available desktop space and preserves the intended 4:3 CRT shape. VGA presentations
-use 320 x 200; menus use 640 x 400 BIOS text. Nearest-neighbour sampling preserves
-pixel boundaries. The original cockpit mask's stray diagonal is retained.
+available desktop space. Square pixels are the default, matching DOSBox with
+aspect correction disabled; `--aspect crt` selects the original 4:3 CRT shape.
+VGA presentations use 320 x 200; menus use 640 x 400 BIOS text. Integer enlargement
+follows the current video mode so enlarged rows and columns remain uniform;
+nearest-neighbour sampling preserves pixel boundaries. The original cockpit mask's stray diagonal is retained.
 
 Ground-level runway pieces use CHECKFORRUNWAY's preliminary drawing pass;
 elevated runway pieces retain ordinary distance ordering. Forty-eight scene

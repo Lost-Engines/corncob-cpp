@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCREENS = ('main', 'roster-empty', 'roster', 'records', 'record-statistics',
            'training', 'training-quality', 'training-counts',
            'training-information', 'joystick', 'score-menu', 'high-scores',
-           'top-careers', 'fast-careers', 'documentation', 'read-this',
+           'top-careers', 'fast-careers', 'documentation', 'documentation-one',
+           'documentation-input', 'read-this',
            'combat-empty', 'new-theatre', 'combat', 'theatre-records')
 
 

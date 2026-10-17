@@ -45,9 +45,18 @@ auto main(int const argc, char const *const argv[])->int {
   }
   require(rejected, "truncated cockpit IMG was accepted");
   auto const desktop{corncob::render::fit_viewport(1920, 1080)};
-  require(desktop.width == 1280 && desktop.height == 960 && desktop.x == 320 && desktop.y == 60, "integer display scaling does not fit the desktop");
+  require(desktop.width == 1920 && desktop.height == 1050 && desktop.x == 0 && desktop.y == 15, "integer flight scaling does not fit the desktop");
+  auto const menus{corncob::render::fit_viewport(1920, 1200, 640, 400)};
+  require(menus.width == 1920 && menus.height == 1200 && menus.x == 0 && menus.y == 0, "scale-three menus do not match uncorrected DOSBox");
+  auto const resized{corncob::render::fit_viewport(1365, 1000, 640, 400)};
+  require(resized.width == 1280 && resized.height == 800 && resized.x == 42 && resized.y == 100, "resizing introduced uneven enlarged text pixels");
+  auto const title{corncob::render::fit_viewport(1280, 900, 320, 200)};
+  require(title.width == 1280 && title.height == 800 && title.y == 50, "VGA artwork does not use its actual pixel grid");
+  auto const crt{corncob::render::fit_viewport(1920, 1080, 640, 350, corncob::render::display_aspect::crt)};
+  require(crt.width == 1280 && crt.height == 960 && crt.x == 320 && crt.y == 60, "optional CRT correction lost its 4:3 ratio");
   auto const small{corncob::render::fit_viewport(320, 240)};
-  require(small.width == 320 && small.height == 240, "small-window downscaling changed the display aspect ratio");
+  require(small.width == 320 && small.height == 175, "small-window downscaling changed the source aspect ratio");
+  require(corncob::render::fit_viewport(0, 480).width == 0 && corncob::render::fit_viewport(640, 480, 0, 350).height == 0, "empty video modes have a visible viewport");
   corncob::resources::geometry_bank const geometry{corncob::resources::engine_data_asset()};
   auto const &aircraft{geometry.definition(corncob::world::object_type::aircraft)};
   require(aircraft.models.near == 0x4aa9 && aircraft.hit_points == 2, "embedded aircraft definition differs from the original template");

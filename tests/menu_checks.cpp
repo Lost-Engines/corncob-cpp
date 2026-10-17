@@ -20,7 +20,7 @@ int main(int const argc, char const *const argv[]) {
   std::string name;
   uint64_t hash{0};
   while(reference >> name >> std::hex >> hash) expected.emplace(name, hash);
-  if(expected.size() != 20) throw std::runtime_error{"native menu references missing or incomplete"};
+  if(expected.size() != 22) throw std::runtime_error{"native menu references missing or incomplete"};
   namespace game = corncob::game;
   using enum game::interface_command;
   corncob::resources::collection const assets{corncob::resources::front_end_asset()};
@@ -64,6 +64,9 @@ int main(int const argc, char const *const argv[]) {
   front.command(cancel); front.character('c'); check("top-careers");
   front.command(cancel); front.character('f'); check("fast-careers");
   front.command(cancel); front.command(cancel); front.character('v'); check("documentation");
+  front.character('1'); check("documentation-one");
+  front.character('3'); check("documentation-input");
+  front.command(accept); front.command(cancel);
   front.command(cancel); front.character('r'); check("read-this");
   front.command(cancel); front.character('c'); check("combat-empty");
   front.character('o'); check("new-theatre");
@@ -109,6 +112,6 @@ int main(int const argc, char const *const argv[]) {
   if(career.active_theatre()) throw std::runtime_error{"deleting the trainee world left a dangling index"};
   std::filesystem::remove_all(scratch);
   if(failures != 0) return EXIT_FAILURE;
-  std::cout << "Eighteen retained menu screens match original DOS pixels; combined main/world selectors are tested separately; duplicate, deleted and transient theaters retain correct ownership" << std::endl;
+  std::cout << "Twenty retained menu screens match original DOS pixels; combined main/world selectors are tested separately; duplicate, deleted and transient theaters retain correct ownership" << std::endl;
   return EXIT_SUCCESS;
 }

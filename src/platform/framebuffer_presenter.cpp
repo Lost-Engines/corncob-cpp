@@ -7,8 +7,9 @@
 
 namespace corncob::platform {
 
-framebuffer_presenter::framebuffer_presenter(GLFWwindow &window) :
-  window{window} {
+framebuffer_presenter::framebuffer_presenter(GLFWwindow &window, render::display_aspect const aspect) :
+  window{window},
+  aspect{aspect} {
   /// Allocate a nearest-filtered texture; OpenGL only presents the CPU-rendered framebuffer
   if(glfwGetCurrentContext() != &window) throw std::logic_error{"Corncob presenter requires its window's current GL context"};
   glGenTextures(1, &texture);
@@ -33,12 +34,12 @@ framebuffer_presenter::~framebuffer_presenter() {
 }
 
 void framebuffer_presenter::present(render::framebuffer const &source) {
-  /// Preserve original pixels while fitting the intended CRT aspect ratio to the current window
+  /// Use the active video mode, keeping enlarged pixels uniform unless CRT aspect correction was requested.
   int width{0};
   int height{0};
   glfwGetFramebufferSize(&window, &width, &height);
   if(width == 0 || height == 0) return;
-  auto const viewport{render::fit_viewport(width, height)};
+  auto const viewport{render::fit_viewport(width, height, static_cast<int>(source.width), static_cast<int>(source.height), aspect)};
   glViewport(0, 0, width, height);
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);

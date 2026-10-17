@@ -627,8 +627,12 @@ void front_end::render_menus(render::framebuffer &target) const {
     }
     canvas.rectangle((left + 1) * 8, (bottom - 1) * 16, right * 8, bottom * 16, render::rgba_pixel{});
     if(page == interface_page::documentation && document_chapter == 0) {
-      screen.text(4, 23, "Choose a chapter number for more info, <CR> to continue or <ESC> to exit", 15, 0);
-      if(!numeric_input.empty()) screen.text(74, 23, numeric_input, 15);
+      if(numeric_input.empty()) screen.text(4, 23, "Choose a chapter number for more info, <CR> to continue or <ESC> to exit", 15, 0);
+      else {
+        // MOAG replaces the entire instruction row with its grey chapter-number input field.
+        screen.text(1, 23, std::string(78, ' '), 8, 7);
+        screen.text(4, 23, "Enter a Chapter number:  " + numeric_input + "_", 8, 7);
+      }
     } else screen.text(context ? 13 : 14, bottom - 1, "Type \x18 \x19 <P-UP> <P-DN> etc..., <CR> or <ESC> to exit", 15, 0);
   }
   if(page == interface_page::unavailable_pilot || page == interface_page::resurrect_activate) {

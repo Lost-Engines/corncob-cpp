@@ -13,6 +13,8 @@ high-scores 9e4257fc081a5aea
 top-careers 1dbef9a88991939f
 fast-careers 9ab778f64d202788
 documentation c02e0d5288a27e2a
+documentation-one 584fa42960929526
+documentation-input 1f3c58a5ea706970
 read-this 0b9f5a1e22954c3f
 combat-empty 32328137463f798b
 new-theatre 681e1196b036c03e

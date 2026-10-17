@@ -61,7 +61,8 @@ auto main(int const argc, char const *const argv[])->int {
     ("theatre", boost::program_options::value<std::string>()->default_value("white_sands"), "world identifier; --list-theatres lists Earth, Other Worlds and practice scenarios")
     ("list-theatres", "list all embedded worlds and exit")
     ("save-dir", boost::program_options::value<std::string>()->default_value(corncob::platform::default_save_directory().string()), "directory for pilot careers and persistent theatres")
-    ("scale", boost::program_options::value<int>(), "initial window scale: positive multiple of 640 x 480 (default: fit available screen)");
+    ("aspect", boost::program_options::value<std::string>()->default_value("square"), "pixel aspect: square (uncorrected pixels, like DOSBox aspect=false) or crt (4:3 display)")
+    ("scale", boost::program_options::value<int>(), "initial enlargement of the 640-pixel-wide display (default: largest integer scale that fits)");
 #ifndef NDEBUG
   options.add_options()
     ("free-camera", "developer use: inspect scenery with WASD, arrow keys and Page Up/Down; Shift moves faster, Home resets")
@@ -102,6 +103,9 @@ auto main(int const argc, char const *const argv[])->int {
     if(result.ec != std::errc{} || result.ptr != joystick_argument.data() + joystick_argument.size() || joystick_device < GLFW_JOYSTICK_1 || joystick_device > GLFW_JOYSTICK_LAST)
       return startup_failure("--joystick must be auto, none or a device index from 0 to 15");
   }
+  auto const aspect_argument{arguments["aspect"].as<std::string>()};
+  if(aspect_argument != "square" && aspect_argument != "crt") return startup_failure("--aspect must be square or crt");
+  auto const aspect{aspect_argument == "crt" ? corncob::render::display_aspect::crt : corncob::render::display_aspect::square_pixels};
   bool const automatic_scale{!arguments.contains("scale")};
   int const scale{automatic_scale ? 1 : arguments["scale"].as<int>()};
   if(scale < 1 || scale > std::numeric_limits<int>::max() / corncob::render::screen_layout::display_width) {
@@ -175,6 +179,14 @@ auto main(int const argc, char const *const argv[])->int {
     return EXIT_SUCCESS;
   }
 #endif // NDEBUG
+#ifndef NDEBUG
+  bool const inspect{free_camera || cockpit_preview};
+#else
+  bool constexpr inspect{false};
+#endif // NDEBUG
+  if(!front.in_flight() && !inspect) front.render(frame);
+  int const display_height{aspect == corncob::render::display_aspect::crt ? corncob::render::screen_layout::crt_height
+    : corncob::render::screen_layout::display_width * static_cast<int>(frame.height) / static_cast<int>(frame.width)};
   glfwSetErrorCallback([](int const code, char const *const message){
     std::cerr << "ERROR: GLFW " << code << ": " << message << std::endl;
   });
@@ -197,7 +209,7 @@ auto main(int const argc, char const *const argv[])->int {
   bool const compositor_sizing{automatic_scale && glfwGetPlatform() == GLFW_PLATFORM_WAYLAND};
   glfwWindowHint(GLFW_MAXIMIZED, compositor_sizing ? GLFW_TRUE : GLFW_FALSE);
   std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> const window{
-    glfwCreateWindow(corncob::render::screen_layout::display_width * scale, corncob::render::screen_layout::display_height * scale,
+    glfwCreateWindow(corncob::render::screen_layout::display_width * scale, display_height * scale,
                      "Corncob 3D", nullptr, nullptr),
     glfwDestroyWindow,
   };
@@ -209,7 +221,7 @@ auto main(int const argc, char const *const argv[])->int {
       int left{0}, top{0}, right{0}, bottom{0};
       glfwGetWindowFrameSize(window.get(), &left, &top, &right, &bottom);
       if(width > left + right && height > top + bottom) {
-        auto const fitted{corncob::render::fit_viewport(width - left - right, height - top - bottom)};
+        auto const fitted{corncob::render::fit_viewport(width - left - right, height - top - bottom, corncob::render::screen_layout::display_width, display_height)};
         glfwSetWindowSize(window.get(), fitted.width, fitted.height);
         glfwSetWindowPos(window.get(), x + left + fitted.x, y + top + fitted.y);
       }
@@ -222,7 +234,7 @@ auto main(int const argc, char const *const argv[])->int {
     glfwRestoreWindow(window.get());
     double const deadline{glfwGetTime() + 1.0};
     while(glfwGetWindowAttrib(window.get(), GLFW_MAXIMIZED) && glfwGetTime() < deadline) glfwWaitEventsTimeout(0.01);
-    auto const fitted{corncob::render::fit_viewport(width, height)};
+    auto const fitted{corncob::render::fit_viewport(width, height, corncob::render::screen_layout::display_width, display_height)};
     glfwSetWindowSize(window.get(), fitted.width, fitted.height);
   }
   glfwMakeContextCurrent(window.get());
@@ -387,7 +399,7 @@ auto main(int const argc, char const *const argv[])->int {
   } mix{sound, music};
   bool audio_unavailable{false};
   std::unique_ptr<corncob::platform::audio_output> audio_output;
-  corncob::platform::framebuffer_presenter presenter{*window};
+  corncob::platform::framebuffer_presenter presenter{*window, aspect};
   corncob::render::framebuffer flight_frame;
   bool flight_frame_valid{false};
   unsigned int frame_number{0};
@@ -481,11 +493,7 @@ auto main(int const argc, char const *const argv[])->int {
       }
     }
 #endif // NDEBUG
-    bool inspect{false};
     corncob::game::input_state input;
-#ifndef NDEBUG
-    inspect = free_camera || cockpit_preview;
-#endif // NDEBUG
     auto draw_flight{[&](bool const preview){
       observer = game->camera();
 #ifndef NDEBUG

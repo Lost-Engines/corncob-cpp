@@ -63,10 +63,12 @@ world; **B** in the world selector edits a fresh copy of any selected theatre.
 
 ## Playing
 
-The window uses the largest integer multiple of its 640 x 480 display that fits
-within the available desktop. The native 640 x 350 EGA framebuffer is presented
-at the intended 4:3 CRT aspect ratio, using nearest-neighbour sampling. The window
-floats and remains resizable. `--scale 1` selects the initial scale explicitly;
+The window starts at the largest integer scale that fits the available desktop,
+using square pixels like DOSBox with `aspect=false`. Menus are 640 x 400, flight
+is 640 x 350, and presentations are 320 x 200. Enlarged pixels use nearest-neighbour
+sampling and remain uniform when you resize the window; spare space forms a border.
+`--scale 3 --skip-intro` opens a 1920 x 1200 menu window. `--aspect crt` enables
+4:3 CRT aspect correction instead. The window floats and remains resizable.
 Escape ends the sortie, showing the original one-time warning first when away
 from base; F1 opens the original boss screen, F2 opens
 airbase intelligence, F3 shows the current score, F4 opens flight help,

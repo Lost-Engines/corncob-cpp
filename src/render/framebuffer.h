@@ -13,7 +13,7 @@ struct screen_layout {
   static unsigned int constexpr mask_stride{width / 8};
   static unsigned int constexpr mask_bytes{mask_stride * height};
   static int constexpr display_width{640};
-  static int constexpr display_height{480};
+  static int constexpr crt_height{480};
 };
 
 struct rgba_pixel {
@@ -30,6 +30,8 @@ struct framebuffer {
   std::vector<rgba_pixel> pixels{screen_layout::pixel_count};
 };
 
+enum class display_aspect { square_pixels, crt };
+
 struct viewport {
   int x;
   int y;
@@ -37,6 +39,7 @@ struct viewport {
   int height;
 };
 
-viewport fit_viewport(int width, int height) noexcept;
+viewport fit_viewport(int width, int height, int source_width = screen_layout::width, int source_height = screen_layout::height,
+                      display_aspect aspect = display_aspect::square_pixels) noexcept;
 
 } // namespace corncob::render
