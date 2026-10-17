@@ -76,10 +76,12 @@ known gaps, and [Other Worlds](docs/other_worlds.md) for campaign and builder de
 
 ## Development
 
-Run the tests after building:
+Automated tests are disabled by default. Enable them explicitly when needed:
 
 ```sh
-ctest --test-dir build --output-on-failure
+cmake -B build-tests -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
+cmake --build build-tests --parallel
+ctest --test-dir build-tests --output-on-failure
 ```
 
 For an optimised build, configure with `-DCMAKE_BUILD_TYPE=Release`.
@@ -94,7 +96,7 @@ Additional CMake options:
 
 | Option | Purpose |
 | --- | --- |
-| `-DBUILD_TESTING=OFF` | Omit test executables. |
+| `-DBUILD_TESTING=ON` | Build automated tests; disabled by default. |
 | `-DGLFW_BUILD_WAYLAND=OFF` | Disable the Wayland backend on Linux. |
 | `-DGLFW_BUILD_X11=OFF` | Disable the X11 backend on Linux. |
 | `-DCORNCOB_STATIC_RUNTIME=ON` | Link compiler runtimes statically; enabled by default for MinGW. |
