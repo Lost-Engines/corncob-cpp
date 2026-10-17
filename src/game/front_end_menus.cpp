@@ -717,10 +717,21 @@ void front_end::render_menus(render::framebuffer &target) const {
     screen.text(17, row, "Type almost anything else to select a new tower.");
   }
   if(page == interface_page::notice) {
-    screen.heading("Information"); screen.panel(8, 9, 72, 16);
-    std::istringstream text{feedback}; std::string line; int row{11};
-    while(std::getline(text, line) && row < 15) screen.text(10, row++, line.substr(0, 61));
-    screen.text(10, 15, "Type almost any key to continue...", 14);
+    // Wrap long file paths rather than losing the destination at the right edge of the dialog.
+    unsigned int constexpr columns{61}, maximum_rows{19};
+    std::vector<std::string> lines;
+    std::istringstream text{feedback};
+    std::string line;
+    while(std::getline(text, line)) {
+      if(line.empty()) lines.emplace_back();
+      for(unsigned int start{0}; start < line.size(); start += columns) lines.push_back(line.substr(start, columns));
+    }
+    unsigned int const rows{std::min(static_cast<unsigned int>(lines.size()), maximum_rows)};
+    int const height{std::max(8, static_cast<int>(rows) + 4)};
+    int const top{std::min(9, 24 - height)}, bottom{top + height - 1};
+    screen.heading("Information"); screen.panel(8, top, 72, bottom);
+    for(unsigned int row{0}; row != rows; ++row) screen.text(10, top + 2 + static_cast<int>(row), lines[row]);
+    screen.text(10, bottom - 1, "Type almost any key to continue...", 14);
   }
 }
 

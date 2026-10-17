@@ -151,8 +151,12 @@ void front_end::accept() {
       case 6: music_on = !music_on; campaign.music_enabled(music_on); break;
       case 7: document_chapter = 0; numeric_input.clear(); document(campaign_assets().text("corncob.doc"), 0); navigate(interface_page::documentation); break;
       case 8:
-        platform::write_binary(campaign.save_directory() / "CORNCOB.DOC", campaign_assets().file("corncob.doc"));
-        notice("The original documentation has been saved for printing.\nCORNCOB.DOC is in your save directory."); break;
+        {
+          auto const path{std::filesystem::absolute(campaign.save_directory() / "CORNCOB.DOC").lexically_normal()};
+          platform::write_binary(path, campaign_assets().file("corncob.doc"));
+          notice("Documentation saved to:\n" + path.string());
+        }
+        break;
       case 9: information(1); break;
       case 10: quit_requested = true; break;
       }
