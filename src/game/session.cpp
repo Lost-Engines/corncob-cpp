@@ -32,6 +32,7 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
   enemies{geometry, this->theatre, weapons},
   random{weapons.random_stream()},
   particles{geometry.initial_particles()} {
+  if(this->theatre.slalom) course.emplace(this->theatre.start.x);
   /// READUNIV starts the pilot on foot three thousand centimetres south of the stored start
   atmosphere = {
     .gravity{this->theatre.environment.gravity},
@@ -67,6 +68,7 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
       retain_aircraft();
     }
   }
+  if(course) notice = "Slalom: +/- throttle; six markers, alternating sides; weapons disabled";
 }
 
 void session::press(action const command) {
@@ -152,13 +154,13 @@ void session::press(action const command) {
     }
     break;
   case action::drop_bomb:
-    if(flying) weapons.drop_bomb(aircraft, fast_ticks, {});
+    if(!course && flying) weapons.drop_bomb(aircraft, fast_ticks, {});
     break;
   case action::plant_charge:
-    if(mode == player_mode::on_foot) weapons.plant_charge(person.position);
+    if(!course && mode == player_mode::on_foot) weapons.plant_charge(person.position);
     break;
   case action::arm_charges:
-    weapons.arm_charges();
+    if(!course) weapons.arm_charges();
     break;
   case action::call_rescue:
     if(mode == player_mode::on_foot && person.standing && !at_home()
@@ -537,6 +539,7 @@ void session::update_person(input_state const &input, flight::time_step const st
 
 void session::advance(input_state const &requested, std::optional<std::function_ref<void()>> const draw_frame) {
   input_state input{requested};
+  if(course) input.weapons = {};
   if(recording && !paused && !visiting_tower) {
     auto const frames{recording->frames()};
     if(recorded_index >= frames.size()) { recording_complete = true; return; }
@@ -706,8 +709,14 @@ void session::advance(input_state const &requested, std::optional<std::function_
   particles.advance(random);
   bool const was_low{low_altitude};
   low_altitude = mode == player_mode::in_aircraft && !aircraft.on_ground && aircraft.position.z >= 0 && aircraft.position.z < (was_low ? 5000 : 4500);
+  if(course && course->advance(camera().position, mode == player_mode::in_aircraft ? aircraft.on_ground : person.standing, at_home())) {
+    // Keep the objective anchor explicit when replacing the assembly routine's implicit SI input.
+    auto marker{std::ranges::find_if(theatre.objects, [](world::placed_object const &object){ return object.type == world::object_type::tet; })};
+    if(marker != theatre.objects.end()) weapons.complete(*marker);
+    notice = "Slalom course complete!";
+  }
   if(messages && !finished()) {
-    if(frame == 7 && aircraft.throttle == 20) radio = theatre.training ? resources::radio_notice::training : resources::radio_notice::choose_mission;
+    if(!course && frame == 7 && aircraft.throttle == 20) radio = theatre.training ? resources::radio_notice::training : resources::radio_notice::choose_mission;
     if(weapons.stats().objectives_completed > previous_objectives) radio = damage.total >= 16 ? resources::radio_notice::objective_damaged : resources::radio_notice::objective_complete;
     if(low_altitude && !was_low && aircraft.position.z >= 2000 && !at_home()) radio = resources::radio_notice::low_altitude;
     if(!steering_warned && mode == player_mode::in_aircraft && aircraft.on_ground && input.stick.roll != 0 && input.stick.rudder == 0) {

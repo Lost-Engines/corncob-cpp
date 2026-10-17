@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -31,7 +32,7 @@ int main(int const argc, char const *const argv[]) {
     offset += 8;
   }
   corncob::graphics::indexed_framebuffer backdrop{};
-  backdrop.pixels.fill(5);
+  std::ranges::fill(backdrop.pixels, 5);
   std::array<corncob::render::rgba_pixel, 16> palette{};
   for(unsigned int i{0}; i != 16; ++i) palette[i] = {static_cast<uint8_t>(i * 17), 0, 0};
   corncob::graphics::space_sequence sequence{backdrop, palette};

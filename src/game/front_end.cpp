@@ -543,6 +543,15 @@ void front_end::show_radio(resources::radio_notice const notice, render::framebu
   /// BLACKBOX overlays the retained flight screen and pauses flight until the pilot acknowledges its original text
   radio = resources::read_radio_message(notice);
   radio_backdrop = backdrop;
+  // Helper text retains its original font/layout even when the optional flight mode uses a smaller framebuffer.
+  if(backdrop.width != render::screen_layout::width || backdrop.height != render::screen_layout::height) {
+    radio_backdrop.width = render::screen_layout::width;
+    radio_backdrop.height = render::screen_layout::height;
+    radio_backdrop.pixels.resize(render::screen_layout::pixel_count);
+    for(unsigned int y{0}; y != radio_backdrop.height; ++y) for(unsigned int x{0}; x != radio_backdrop.width; ++x) {
+      radio_backdrop.pixels[y * radio_backdrop.width + x] = backdrop.pixels[(y * backdrop.height / radio_backdrop.height) * backdrop.width + x * backdrop.width / radio_backdrop.width];
+    }
+  }
   map_after_radio = enter_map;
   page = interface_page::radio;
 }

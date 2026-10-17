@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
+#include "resources/source_models.h"
 #include <optional>
 #include "resources/binary_reader.h"
 #include "resources/colour_rules.h"
@@ -134,8 +135,9 @@ void geometry_bank::load_model(model_address const address) {
   models.emplace(address, std::move(result));
 }
 
-geometry_bank::geometry_bank(std::span<uint8_t const> const source) :
-  source{source} {
+geometry_bank::geometry_bank(std::span<uint8_t const> const source, bool const slalom) :
+  source{source},
+  slalom_models{slalom} {
   /// Decode the original data segment as resources; no original instructions are interpreted
   unsigned int constexpr template_table{0x2cca};
   binary_reader const input{source};
@@ -185,6 +187,63 @@ geometry_bank::geometry_bank(std::span<uint8_t const> const source) :
   load_model(map_marker_model);
   load_model(sun_model);
   load_model(experimental_model);
+  // Data-only source branches use a reserved address range, independently of the original executable's resources.
+  std::vector<uint8_t> recovered(source_model_base + source_model_bytes.size());
+  std::ranges::copy(source_model_bytes, recovered.begin() + source_model_base);
+  std::ranges::copy(source_model_bytes, colours.begin() + source_model_base);
+  this->source = recovered;
+  for(auto const address : {source_bmrobj, source_shellobj, source_streeobj, source_sstreeobj, source_tetobj, source_crtrobj}) load_model(address);
+  this->source = source;
+  if(slalom_models) {
+    using enum world::object_type;
+    auto &tree{definitions[std::to_underlying(shell)]};
+    tree.models = {
+      .near{source_shellobj},
+      .middle{source_shellobj},
+      .far{source_streeobj},
+    };
+    tree.collision_extents = maths::fixed_vector{8000, 8000, 8000};
+    tree.limits = {
+      .near_squared{977'625'289},
+      .middle_squared{556'680'332},
+      .far_squared{16'680'332},
+    };
+    auto &farm{definitions[std::to_underlying(saucer)]};
+    farm.models.near = farm.models.middle = source_bmrobj;
+    farm.flags = 0x1b9;
+    farm.collision_group = 2;
+    farm.collision_extents = maths::fixed_vector{3000, 2000, 1000};
+    farm.motion = {};
+    auto &marker{definitions[std::to_underlying(tet)]};
+    marker.models.near = marker.models.middle = source_tetobj;
+    marker.collision_extents = maths::fixed_vector{1732, 1732, 18'116};
+    auto &crater_definition{definitions[std::to_underlying(world::object_type::crater)]};
+    crater_definition.models.near = crater_definition.models.middle = source_crtrobj;
+    auto &plane{definitions[std::to_underlying(saucer_site)]};
+    auto const &aircraft_definition{definitions[std::to_underlying(aircraft)]};
+    plane.models = {
+      .near{aircraft_definition.models.middle},
+      .middle{aircraft_definition.models.far},
+      .far{aircraft_definition.models.far},
+    };
+    plane.limits = {
+      .near_squared{977'625'289},
+      .middle_squared{256'680'332},
+      .far_squared{16'680'332},
+    };
+    plane.hit_points = 2;
+    plane.rotate_below_tier = 3;
+    plane.flags = 0xb9;
+    plane.collision_group = 1;
+    plane.collision_extents = maths::fixed_vector{1440, 1440, 1440};
+    plane.properties = 0;
+    plane.motion = {};
+    plane.initial_timer = 32'000;
+    for(auto const type : {forcefield_x, forcefield_y, forcefield_z, forcefield_z1}) {
+      auto &definition{definitions[std::to_underlying(type)]};
+      definition.models.far = definition.models.near;
+    }
+  }
   // Other Worlds' extra 5c86 model is the builder cursor: six coloured spheres around the local axes.
   disc_cloud cursor;
   std::array<maths::fixed_vector, 6> const positions{
@@ -316,7 +375,14 @@ void geometry_bank::configure_sun(world::sky_parameters const &sky) {
 }
 
 void geometry_bank::prepare_colours(world::placed_object const &object, unsigned int const frame, uint16_t const timer, uint8_t const random, bool const radar_active) {
-  /// Apply the traced per-object quality, shared random and timer-based colour bindings
+  /// Apply the traced per-object quality, shared random and timer-based colour bindings.
+  if(slalom_models && object.type == world::object_type::tet) colours[source_tetclr] = random;
+  if(slalom_models) {
+    colour_reference constexpr wing_colour_address{0x44ce};
+    if(object.type == world::object_type::saucer_site) colours[wing_colour_address] = 0;
+    else if(object.type == world::object_type::aircraft || object.type == world::object_type::internal_aircraft)
+      colours[wing_colour_address] = (object.flags & 0x1000u) != 0 ? 6 : 1;
+  }
   uint64_t const type_bit{uint64_t{1} << std::to_underlying(object.type)};
   for(auto const &rule : colour_rules) {
     if(rule.types != 0 && (rule.types & type_bit) == 0) continue;

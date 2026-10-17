@@ -144,6 +144,7 @@ struct theatre {
   std::string briefing;
   std::vector<mission_start> missions;
   bool training{false};
+  bool slalom{false};
 };
 
 bool in_active_neighbourhood(maths::world_position const &position, maths::world_position const &observer) noexcept;

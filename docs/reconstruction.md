@@ -559,3 +559,40 @@ match without stubs; the connected rescue scenario still passes.
   shared simulation stream.
 - Compare the complete soundscape and confirm platform/device behaviour beyond
   the Linux development host.
+
+## Recovered source experiments
+
+`--slalom` restores the `KA.INC` slalom/guns=0/saucey=0 training branch as an
+optional standalone run. The common training placements and PRNG sequence are
+retained, followed by the source's three NPC aircraft, fifty trees, farm building,
+blue crater and two rows of six tall Tet markers. The checkpoint logic checks
+ordered X-sector crossings, alternating sides of the original Y centreline, and
+resets on a mistake or ground contact away from home. Completing all six awards
+one local objective. Source progress rectangles replace the bomb indicators;
+player guns, missiles, dropped bombs and planted charges are disabled. Training
+invulnerability is enabled. Exiting this experiment does not update pilot careers.
+
+The hidden geometry is bundled as 935 bytes of generated data in
+`resources/source_models.h`, with original-source hashes in
+`assets/source_models_provenance.json`. No assembly instructions run in the port.
+The independent extraction tool and browser in corncob-reverse also expose the
+otherwise unused foliage-only tree helper. These are source-only reconstructions,
+not comparisons against a retained released slalom executable. The source's
+slalom object handlers and layouts are experimental, and no separate released
+slalom edition has been identified.
+
+`--graphics-mode` makes the `3DVID.INC` flight profiles selectable at runtime:
+`ega` uses 640x350 colour, `ega-low` uses 320x200 colour, and `hercules` uses
+720x348 monochrome. Scenery is projected and rasterized at the selected native
+resolution, rather than shrinking a completed 640x350 scene. Hercules uses the
+source's BKCLRS fill masks and HGCLINE solid-line interpretation. Default EGA
+continues to pass the original pixel/raster/scene reference checks.
+
+The alternative source paths are incomplete as complete historical builds:
+several helpers and full-view paths assume the usual dimensions, and alternate
+cockpit bitmap assets were not preserved. The port therefore adapts the known
+cockpit and instruments with nearest-neighbour sampling, derives full-view bounds
+for those modes, and retains the established display modes of menus, text helpers
+and the ending. These options recover the alternate scene-rendering intent;
+they do not claim an exact reproduction of an unknown shipped low-resolution or
+Hercules edition.

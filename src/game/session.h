@@ -3,18 +3,19 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include "flight/damage.h"
 #include "flight/landing.h"
+#include "game/actors.h"
+#include "game/combat.h"
 #include "game/map_view.h"
 #include "game/mission_builder.h"
-#include "game/recorded_flight.h"
 #include "game/pilot_motion.h"
-#include "game/vision.h"
-#include "game/rocket.h"
 #include "game/portal.h"
+#include "game/recorded_flight.h"
+#include "game/rocket.h"
+#include "game/slalom.h"
 #include "game/sortie_clock.h"
-#include "flight/damage.h"
-#include "game/combat.h"
-#include "game/actors.h"
+#include "game/vision.h"
 #include "graphics/scene.h"
 #include "resources/geometry_bank.h"
 #include "resources/radio_messages.h"
@@ -117,6 +118,7 @@ private:
   maths::angles head_angles;
   std::optional<map_view> map;
   std::optional<mission_builder> builder;
+  std::optional<slalom_course> course;
   std::optional<recorded_flight> recording;
   unsigned int recorded_index{0}, recorded_ticks{0};
   bool recording_complete{false};
@@ -171,6 +173,9 @@ public:
   void suspend_clock() noexcept;
   unsigned int frame_number() const noexcept;
   bool is_paused() const noexcept;
+  unsigned int slalom_progress() const noexcept {
+    return course ? course->progress() : 0;
+  }
   bool autopilot_engaged() const noexcept;
   bool looking_around() const noexcept;
   bool in_map() const noexcept;

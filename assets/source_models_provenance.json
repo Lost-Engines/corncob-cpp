@@ -1,0 +1,14 @@
+[
+  {
+    "path": "analysis/original_source/FARM.INC",
+    "sha256": "0bfcd28c15adca301eccbd3e6b1ed36153bffa58fd48b29877eed28b5ea37259"
+  },
+  {
+    "path": "analysis/original_source/DEFOBJS.ASM",
+    "sha256": "a850d9c3ea2e49ec13cd49b4cc2fa760433e5b73d5d52163c365cb4e82018f90"
+  },
+  {
+    "path": "analysis/original_source/KA.INC",
+    "sha256": "4d522c9a4bb00223f08bf05afa827db22d35d62f34fe502a7aa29520f2503ac9"
+  }
+]

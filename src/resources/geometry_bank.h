@@ -7,9 +7,9 @@
 #include <variant>
 #include <vector>
 #include "maths/fixed.h"
-#include "world/world.h"
 #include "resources/model_animation.h"
 #include "resources/particle_animation.h"
+#include "world/world.h"
 
 namespace corncob::resources {
 
@@ -80,6 +80,7 @@ struct model {
 class geometry_bank {
 private:
   std::span<uint8_t const> source;
+  bool slalom_models;
   std::array<object_definition, std::to_underlying(world::object_type::count)> definitions;
   std::unordered_map<model_address, model> models;
   std::vector<primitive> primitives;
@@ -112,7 +113,7 @@ public:
   static model_address constexpr sun_model{0x545c};
   static model_address constexpr experimental_model{0x6838};
 
-  geometry_bank(std::span<uint8_t const> source);
+  geometry_bank(std::span<uint8_t const> source, bool slalom = false);
   object_definition const &definition(world::object_type type) const;
   model_levels appearance(world::placed_object const &object) const;
   std::span<draw_command const> commands(model_address address, unsigned int octant) const;

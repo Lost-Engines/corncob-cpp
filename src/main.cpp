@@ -57,18 +57,20 @@ auto main(int const argc, char const *const argv[])->int {
     ("list-joysticks", "list connected joystick device indices and names, then exit")
     ("no-music", "start with title and menu music disabled")
     ("no-sound", "start with sound effects disabled; S toggles effects during flight")
+    ("graphics-mode", boost::program_options::value<std::string>()->default_value("ega"), "flight graphics: ega (640x350), ega-low (320x200), hercules (720x348 monochrome); alternate cockpits are adapted")
+    ("slalom", "launch the recovered source-only slalom course with player weapons disabled")
     ("skip-intro", "open the main menu without the title and story")
     ("theatre", boost::program_options::value<std::string>()->default_value("white_sands"), "world identifier; --list-theatres lists Earth, Other Worlds and practice scenarios")
     ("list-theatres", "list all embedded worlds and exit")
     ("save-dir", boost::program_options::value<std::string>()->default_value(corncob::platform::default_save_directory().string()), "directory for pilot careers and persistent theatres")
     ("aspect", boost::program_options::value<std::string>()->default_value("square"), "pixel aspect: square (uncorrected pixels, like DOSBox aspect=false) or crt (4:3 display)")
-    ("scale", boost::program_options::value<int>(), "initial enlargement of the 640-pixel-wide display (default: largest integer scale that fits)");
+    ("scale", boost::program_options::value<int>(), "initial enlargement of the active display (default: largest integer scale that fits)");
 #ifndef NDEBUG
   options.add_options()
     ("free-camera", "developer use: inspect scenery with WASD, arrow keys and Page Up/Down; Shift moves faster, Home resets")
     ("no-cockpit", "developer use: show the scene using the original full-screen viewport")
     ("cockpit-preview", "developer use: display the raw cockpit resource instead of scenery")
-    ("screenshot", boost::program_options::value<std::string>(), "developer use: save the initial 640 x 350 scene as PPM and exit without a window")
+    ("screenshot", boost::program_options::value<std::string>(), "developer use: save the initial flight scene as PPM and exit without a window")
     ("seconds", boost::program_options::value<double>()->default_value(0.0), "developer use: close after this many seconds; zero disables the time limit");
 #endif // NDEBUG
   boost::program_options::variables_map arguments;
@@ -93,6 +95,12 @@ auto main(int const argc, char const *const argv[])->int {
     std::cout << "Corncob C++ 0.1.0 (reconstruction in progress)" << std::endl;
     return EXIT_SUCCESS;
   }
+  auto const graphics_argument{arguments["graphics-mode"].as<std::string>()};
+  if(graphics_argument != "ega" && graphics_argument != "ega-low" && graphics_argument != "hercules") return startup_failure("--graphics-mode must be ega, ega-low or hercules");
+  auto const video{graphics_argument == "ega-low" ? corncob::render::video_mode::ega_low
+    : graphics_argument == "hercules" ? corncob::render::video_mode::hercules : corncob::render::video_mode::ega};
+  bool const slalom_mode{arguments.contains("slalom")};
+  if(slalom_mode && !arguments["theatre"].defaulted()) return startup_failure("--slalom and --theatre select different scenarios; use one");
   auto const flight_model{arguments["flight-model"].as<std::string>()};
   if(flight_model != "advanced" && flight_model != "beginner") return startup_failure("--flight-model must be advanced or beginner");
   int joystick_device{-1};
@@ -108,7 +116,7 @@ auto main(int const argc, char const *const argv[])->int {
   auto const aspect{aspect_argument == "crt" ? corncob::render::display_aspect::crt : corncob::render::display_aspect::square_pixels};
   bool const automatic_scale{!arguments.contains("scale")};
   int const scale{automatic_scale ? 1 : arguments["scale"].as<int>()};
-  if(scale < 1 || scale > std::numeric_limits<int>::max() / corncob::render::screen_layout::display_width) {
+  if(scale < 1 || scale > std::numeric_limits<int>::max() / 720) {
     return startup_failure("--scale must be a positive integer whose window dimensions fit in an int");
   }
 #ifndef NDEBUG
@@ -127,7 +135,7 @@ auto main(int const argc, char const *const argv[])->int {
   try {
     campaign->select_campaign(corncob::world::find_theatre(theatre_name).campaign);
     theatre = corncob::world::load_theatre(theatre_name);
-    if(auto saved{campaign->load_world(theatre_name)}) {
+    if(auto saved{slalom_mode ? std::nullopt : campaign->load_world(theatre_name)}) {
       saved->sky = theatre.sky;
       saved->environment = theatre.environment;
       saved->briefing = std::move(theatre.briefing);
@@ -139,17 +147,19 @@ auto main(int const argc, char const *const argv[])->int {
   }
   corncob::render::framebuffer frame;
   auto const cockpit{corncob::resources::decode_cockpit_mask(corncob::resources::cockpit_asset())};
-  corncob::resources::geometry_bank geometry{corncob::resources::engine_data_asset()};
-  auto renderer{std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit)};
+  corncob::resources::geometry_bank geometry{corncob::resources::engine_data_asset(), slalom_mode};
+  if(slalom_mode) { theatre = corncob::world::generate_slalom(geometry); theatre_name = "training"; }
+  auto renderer{std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit, video)};
   auto game{std::make_unique<corncob::game::session>(geometry, std::move(theatre))};
   renderer->initialise(game->camera().position, game->random_stream());
   corncob::resources::collection interface_assets{corncob::resources::front_end_asset()};
-  corncob::game::front_end front{interface_assets, *campaign, arguments.contains("skip-intro"), !arguments["theatre"].defaulted(), corncob::game::control_setup{
+  corncob::game::front_end front{interface_assets, *campaign, arguments.contains("skip-intro"), slalom_mode || !arguments["theatre"].defaulted(), corncob::game::control_setup{
     .joystick_device{arguments["joystick"].defaulted() ? (campaign->keyboard_control() ? -2 : -1) : joystick_device},
     .beginner_flight{arguments["flight-model"].defaulted() ? (!campaign->active_pilot() || campaign->active_pilot()->beginner_flight()) : flight_model == "beginner"},
   }, arguments.contains("no-music") ? std::optional{false} : std::nullopt};
   game->set_experimental_clearance(game->world().expansion || (campaign->active_pilot() && campaign->active_pilot()->awards(corncob::game::medal::combat_master) != 0));
   game->set_beginner_flight(front.flight_controls().beginner_flight);
+  if(slalom_mode) { game->set_invincible(true); front.begin_flight(); }
   auto observer{game->camera()};
 #ifndef NDEBUG
   bool const no_cockpit{arguments.contains("no-cockpit")};
@@ -169,7 +179,7 @@ auto main(int const argc, char const *const argv[])->int {
   if(arguments.contains("screenshot")) {
     std::ofstream file{arguments["screenshot"].as<std::string>(), std::ios::binary};
     file.exceptions(std::ios::failbit | std::ios::badbit);
-    file << "P6\n" << corncob::render::screen_layout::width << ' ' << corncob::render::screen_layout::height << "\n255\n";
+    file << "P6\n" << frame.width << ' ' << frame.height << "\n255\n";
     for(auto const &pixel : frame.pixels) {
       file.put(static_cast<char>(pixel.red));
       file.put(static_cast<char>(pixel.green));
@@ -185,8 +195,8 @@ auto main(int const argc, char const *const argv[])->int {
   bool constexpr inspect{false};
 #endif // NDEBUG
   if(!front.in_flight() && !inspect) front.render(frame);
-  int const display_height{aspect == corncob::render::display_aspect::crt ? corncob::render::screen_layout::crt_height
-    : corncob::render::screen_layout::display_width * static_cast<int>(frame.height) / static_cast<int>(frame.width)};
+  int const display_width{static_cast<int>(frame.width)};
+  int const display_height{aspect == corncob::render::display_aspect::crt ? display_width * 3 / 4 : static_cast<int>(frame.height)};
   glfwSetErrorCallback([](int const code, char const *const message){
     std::cerr << "ERROR: GLFW " << code << ": " << message << std::endl;
   });
@@ -209,7 +219,7 @@ auto main(int const argc, char const *const argv[])->int {
   bool const compositor_sizing{automatic_scale && glfwGetPlatform() == GLFW_PLATFORM_WAYLAND};
   glfwWindowHint(GLFW_MAXIMIZED, compositor_sizing ? GLFW_TRUE : GLFW_FALSE);
   std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> const window{
-    glfwCreateWindow(corncob::render::screen_layout::display_width * scale, display_height * scale,
+    glfwCreateWindow(display_width * scale, display_height * scale,
                      "Corncob 3D", nullptr, nullptr),
     glfwDestroyWindow,
   };
@@ -221,7 +231,7 @@ auto main(int const argc, char const *const argv[])->int {
       int left{0}, top{0}, right{0}, bottom{0};
       glfwGetWindowFrameSize(window.get(), &left, &top, &right, &bottom);
       if(width > left + right && height > top + bottom) {
-        auto const fitted{corncob::render::fit_viewport(width - left - right, height - top - bottom, corncob::render::screen_layout::display_width, display_height)};
+        auto const fitted{corncob::render::fit_viewport(width - left - right, height - top - bottom, display_width, display_height)};
         glfwSetWindowSize(window.get(), fitted.width, fitted.height);
         glfwSetWindowPos(window.get(), x + left + fitted.x, y + top + fitted.y);
       }
@@ -234,7 +244,7 @@ auto main(int const argc, char const *const argv[])->int {
     glfwRestoreWindow(window.get());
     double const deadline{glfwGetTime() + 1.0};
     while(glfwGetWindowAttrib(window.get(), GLFW_MAXIMIZED) && glfwGetTime() < deadline) glfwWaitEventsTimeout(0.01);
-    auto const fitted{corncob::render::fit_viewport(width, height, corncob::render::screen_layout::display_width, display_height)};
+    auto const fitted{corncob::render::fit_viewport(width, height, display_width, display_height)};
     glfwSetWindowSize(window.get(), fitted.width, fitted.height);
   }
   glfwMakeContextCurrent(window.get());
@@ -442,7 +452,7 @@ auto main(int const argc, char const *const argv[])->int {
       corncob::world::select_airfield(world, launch->airfield);
       game = std::make_unique<corncob::game::session>(geometry, std::move(world), reserve_aircraft);
       game->set_experimental_clearance(game->world().expansion || (campaign->active_pilot() && campaign->active_pilot()->awards(corncob::game::medal::combat_master) != 0));
-      renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit);
+      renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit, video);
       renderer->initialise(game->camera().position, game->random_stream());
       game->set_invincible(launch->invincible);
       if(launch->editing) game->begin_builder();
@@ -510,6 +520,8 @@ auto main(int const argc, char const *const argv[])->int {
         .bombs{game->bomb_supply()},
         .rocket_colour{game->rocket_indicator_colour()},
         .damage{&game->aircraft_damage()},
+        .slalom{slalom_mode},
+        .slalom_progress{game->slalom_progress()},
       };
       auto const *const panel{!game->in_map() && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
       if(preview) renderer->preview(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), game->random_stream(), flight_frame, panel);
@@ -594,6 +606,7 @@ auto main(int const argc, char const *const argv[])->int {
     }
     update_audio();
     if(!inspect && (front.take_finish() || (front.in_flight() && game->finished()))) {
+      if(slalom_mode) break; // Source experiments never write into a named pilot's campaign.
       auto const result{game->results(front.take_abort())};
       auto const previous{campaign->active_pilot() ? std::optional{*campaign->active_pilot()} : std::nullopt};
       auto const active_theatre{campaign->active_theatre()};

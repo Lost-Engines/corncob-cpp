@@ -199,7 +199,8 @@ void scene_renderer::background(view_parameters const &view, maths::rotation con
         - static_cast<int64_t>(rotation.rows[1].z) * (x - view.centre_x) * view.focal_y * direction
         - static_cast<int64_t>(rotation.rows[2].z) * (y - view.centre_y) * view.focal_x
       };
-      indexed.pixels[static_cast<unsigned int>(y) * render::screen_layout::width + static_cast<unsigned int>(x)] = height >= 0 ? 11 : 2;
+      indexed.pixels[static_cast<unsigned int>(y) * indexed.width + static_cast<unsigned int>(x)] = indexed.monochrome
+        ? render::hercules_colour(height >= 0 ? 11 : 2, x) : height >= 0 ? 11 : 2;
     }
   }
 }
@@ -300,9 +301,10 @@ void scene_renderer::draw_model(resources::model_address const address, unsigned
   }
 }
 
-scene_renderer::scene_renderer(resources::geometry_bank &geometry, resources::cockpit_mask const &cockpit) :
+scene_renderer::scene_renderer(resources::geometry_bank &geometry, resources::cockpit_mask const &cockpit, render::video_mode const video) :
   geometry{geometry},
-  cockpit{cockpit} {
+  cockpit{cockpit},
+  video{video} {
   /// Keep immutable world resources outside the renderer and own only frame-local display state
 }
 
@@ -321,19 +323,55 @@ std::array<render::rgba_pixel, 16> const &scene_renderer::colours() const noexce
 }
 render_statistics scene_renderer::render(world::theatre const &theatre, camera const &observer, unsigned int const frame,
                                         uint16_t const timer, random_source &random, render::framebuffer &output, instrument_telemetry const *const telemetry) {
-  /// Render the original world through fixed-point transforms into a 640x350 indexed software surface
-  output.width = render::screen_layout::width;
-  output.height = render::screen_layout::height;
-  output.pixels.resize(render::screen_layout::pixel_count);
+  /// Retain the original fixed-point projection while selecting the source's compile-time flight view at runtime.
+  auto const size{render::dimensions(video)};
+  indexed.width = output.width = size.width;
+  indexed.height = output.height = size.height;
+  indexed.monochrome = video == render::video_mode::hercules;
+  indexed.pixels.resize(size.width * size.height);
+  output.pixels.resize(indexed.pixels.size());
+  // Alternative cockpit bitmaps were not preserved: adapt the normal panel while rendering the world at its real selected resolution.
+  std::optional<indexed_framebuffer> adapted_panel;
+  if(video != render::video_mode::ega) adapted_panel.emplace();
+  auto &panel{adapted_panel ? *adapted_panel : indexed};
   statistics = {};
   geometry.animate(frame);
   if(observer.particles) geometry.animate_particles(*observer.particles);
   set_palette(theatre, observer.position);
   std::ranges::fill(indexed.pixels, 0);
   if(observer.cockpit) {
-    for(unsigned int i{0}; i != indexed.pixels.size(); ++i) indexed.pixels[i] = (cockpit[i / 8] & (0x80u >> (i & 7))) != 0 ? 7 : 0;
+    for(unsigned int i{0}; i != panel.pixels.size(); ++i) panel.pixels[i] = (cockpit[i / 8] & (0x80u >> (i & 7))) != 0 ? 7 : 0;
   }
   std::array<view_parameters, 2> view_storage{observer.cockpit ? cockpit_view : full_view, rear_view};
+  if(video != render::video_mode::ega) {
+    bool const low{video == render::video_mode::ega_low};
+    view_storage[0] = {
+      .bounds{
+        .left{8},
+        .top{4},
+        .right{low ? 315 : 712},
+        .bottom{observer.cockpit ? (low ? 114 : 199) : static_cast<int>(size.height) - 5},
+      },
+      .focal_x{low ? 150 : 338},
+      .focal_y{low ? 114 : 200},
+      .centre_x{low ? 161 : 360},
+      .centre_y{observer.cockpit ? (low ? 59 : 101) : static_cast<int>(size.height) / 2 - 1},
+      .rear{false},
+    };
+    view_storage[1] = {
+      .bounds{
+        .left{low ? 88 : 189},
+        .top{low ? 145 : 254},
+        .right{low ? 236 : 529},
+        .bottom{low ? 198 : 344},
+      },
+      .focal_x{low ? 75 : 169},
+      .focal_y{low ? 57 : 100},
+      .centre_x{low ? 162 : 359},
+      .centre_y{low ? 171 : 299},
+      .rear{true},
+    };
+  }
   if(observer.orb_distortion != 0) {
     int16_t const amount{maths::word(observer.orb_distortion)};
     auto const horizontal_phase{static_cast<maths::angle>(maths::cosine(static_cast<maths::angle>(frame * 3111u)))};
@@ -341,6 +379,12 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     view_storage[0].focal_y += maths::multiply(maths::sine(static_cast<maths::angle>(frame << 12)), amount) - amount / 2;
   }
   std::span<view_parameters const> const views{view_storage.data(), observer.cockpit && observer.rear_view ? 2u : 1u};
+  if(observer.cockpit && video != render::video_mode::ega) {
+    for(unsigned int y{0}; y != indexed.height; ++y) for(unsigned int x{0}; x != indexed.width; ++x) {
+      auto const colour{panel.pixels[(y * panel.height / indexed.height) * panel.width + x * panel.width / indexed.width]};
+      indexed.pixels[y * indexed.width + x] = indexed.monochrome ? static_cast<uint8_t>(colour == 0 ? 0 : 15) : colour;
+    }
+  }
   // EPAGE writes byte-wide frame strips before the scenery overwrites each view
   auto strip{[this](unsigned int const first_byte, unsigned int const bytes, unsigned int const rows){
     unsigned int constexpr bytes_per_row{render::screen_layout::width / 8};
@@ -351,17 +395,29 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     }
   }};
   auto const &main_view{view_storage.front().bounds};
-  unsigned int const first_row{static_cast<unsigned int>(main_view.top) * 80};
-  unsigned int const main_height{static_cast<unsigned int>(main_view.bottom - main_view.top)};
-  strip(first_row, 1, main_height);
-  strip(first_row + 78, 1, main_height);
-  strip(0, 80, 8);
-  strip(static_cast<unsigned int>(main_view.bottom) * 80, 80, 8);
-  if(observer.cockpit && observer.rear_view) {
-    strip(19'940, 40, 5);
-    strip(27'540, 40, 5);
-    strip(20'340, 1, 91);
-    strip(20'379, 1, 91);
+  if(video == render::video_mode::ega) {
+    unsigned int const first_row{static_cast<unsigned int>(main_view.top) * 80};
+    unsigned int const main_height{static_cast<unsigned int>(main_view.bottom - main_view.top)};
+    strip(first_row, 1, main_height);
+    strip(first_row + 78, 1, main_height);
+    strip(0, 80, 8);
+    strip(static_cast<unsigned int>(main_view.bottom) * 80, 80, 8);
+    if(observer.cockpit && observer.rear_view) {
+      strip(19'940, 40, 5);
+      strip(27'540, 40, 5);
+      strip(20'340, 1, 91);
+      strip(20'379, 1, 91);
+    }
+  } else {
+    raster border{indexed, {0, 0, static_cast<int>(size.width), static_cast<int>(size.height)}, random};
+    auto fill{[&](int const left, int const top, int const right, int const bottom){
+      std::array<screen_point, 4> const points{screen_point{left, top}, screen_point{right, top}, screen_point{right, bottom}, screen_point{left, bottom}};
+      border.polygon(points, 7);
+    }};
+    fill(0, 0, static_cast<int>(size.width), 8);
+    fill(0, main_view.bottom, static_cast<int>(size.width), std::min(main_view.bottom + 8, static_cast<int>(size.height)));
+    fill(0, main_view.top, 8, main_view.bottom);
+    fill(main_view.right, main_view.top, static_cast<int>(size.width), main_view.bottom);
   }
   if(!observer.map_mode) homing_pointer(indexed, random, theatre.start, observer.position, telemetry ? telemetry->aircraft.attitude.heading : observer.attitude.heading, main_view.bottom);
   auto const rotation{maths::make_rotation(observer.attitude)};
@@ -455,10 +511,32 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
         if(!kla && !saucer) continue;
         if(auto const position{radar_position(object.position, telemetry->aircraft.position, telemetry->aircraft.attitude.heading)}) {
           geometry.prepare_colours(object, frame, timer, shared_random, radar_active);
-          radar_dot(indexed, random, *position, kla ? 10 : geometry.colour((timer & 512u) != 0 ? 0x68e0 : 0x68e2));
+          radar_dot(panel, random, *position, kla ? 10 : geometry.colour((timer & 512u) != 0 ? 0x68e0 : 0x68e2));
         }
       }
-      instruments.draw(indexed, random, *telemetry, frame);
+      instruments.draw(panel, random, *telemetry, frame);
+      if(telemetry->slalom) {
+        raster progress{panel, {0, 0, 640, 350}, random};
+        std::array<screen_point, 6> const positions{
+          screen_point{495, 214}, screen_point{502, 214}, screen_point{509, 214},
+          screen_point{495, 225}, screen_point{502, 225}, screen_point{509, 225},
+        };
+        for(unsigned int i{0}; i != positions.size(); ++i) {
+          auto const &p{positions[i]};
+          std::array<screen_point, 4> const cell{screen_point{p.x, p.y}, screen_point{p.x + 6, p.y}, screen_point{p.x + 6, p.y + 9}, screen_point{p.x, p.y + 9}};
+          progress.polygon(cell, static_cast<uint8_t>(i < telemetry->slalom_progress ? 12 : 0));
+        }
+      }
+    }
+  }
+  if(observer.cockpit && video != render::video_mode::ega) {
+    for(unsigned int y{0}; y != indexed.height; ++y) for(unsigned int x{0}; x != indexed.width; ++x) {
+      bool in_view{false};
+      for(auto const &view : views) if(static_cast<int>(x) >= view.bounds.left && static_cast<int>(x) < view.bounds.right
+        && static_cast<int>(y) >= view.bounds.top && static_cast<int>(y) < view.bounds.bottom) in_view = true;
+      if(in_view) continue;
+      auto const colour{panel.pixels[(y * panel.height / indexed.height) * panel.width + x * panel.width / indexed.width]};
+      indexed.pixels[y * indexed.width + x] = indexed.monochrome ? static_cast<uint8_t>(colour == 0 ? 0 : 15) : colour;
     }
   }
   if(observer.palette_phase != vec3<uint16_t>{0, 0, 0}) {
@@ -470,7 +548,8 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     }
   }
   if(observer.palette_phase == vec3<uint16_t>{0, 0, 0}) render::fade_palette(palette, observer.palette_brightness);
-  for(unsigned int i{0}; i != output.pixels.size(); ++i) output.pixels[i] = palette[indexed.pixels[i] & 15u];
+  for(unsigned int i{0}; i != output.pixels.size(); ++i) output.pixels[i] = indexed.monochrome
+    ? (indexed.pixels[i] != 0 ? render::rgba_pixel{255, 255, 255} : render::rgba_pixel{0, 0, 0}) : palette[indexed.pixels[i] & 15u];
   return statistics;
 }
 

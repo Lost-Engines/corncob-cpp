@@ -12,8 +12,8 @@ viewport fit_viewport(int const width, int const height, int const source_width,
     .width{0},
     .height{0},
   };
-  int const image_width{aspect == display_aspect::crt ? screen_layout::display_width : source_width};
-  int const image_height{aspect == display_aspect::crt ? screen_layout::crt_height : source_height};
+  int const image_width{source_width};
+  int const image_height{aspect == display_aspect::crt ? source_width * 3 / 4 : source_height};
   double const available{std::min(width / static_cast<double>(image_width), height / static_cast<double>(image_height))};
   double const scale{available >= 1.0 ? std::floor(available) : available};
   int const fitted_width{std::max(1, static_cast<int>(image_width * scale))};

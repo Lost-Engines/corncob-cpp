@@ -36,6 +36,8 @@ pilot to save your career; the default trainee's progress is temporary.
 | `--help`, `-h` | Show available options. |
 | `--version` | Show the version. |
 | `--skip-intro` | Open the main menu without the title sequence. |
+| `--slalom` | Launch the recovered source-only flying course, with six checkpoints and player weapons disabled. |
+| `--graphics-mode ega\|ega-low\|hercules` | Flight display: 640×350 colour (default), 320×200 colour, or 720×348 monochrome. |
 | `--theatre NAME` | Select a world, e.g. `white_sands` or `other_worlds/iceworld`. |
 | `--list-theatres` | List all world identifiers and exit. |
 | `--flight-model beginner\|advanced` | Override the saved pilot's flight model; otherwise defaults to beginner for new pilots. |
@@ -46,6 +48,13 @@ pilot to save your career; the default trainee's progress is temporary.
 | `--scale N` | Set the initial integer enlargement; normally the largest that fits the desktop. |
 | `--aspect square\|crt` | Use square pixels (default) or a 4:3 CRT display aspect. |
 | `--save-dir PATH` | Choose where careers and worlds are saved; defaults to the platform's user-data directory. |
+
+The optional slalom course comes from an experimental branch in the preserved
+source. Run `./build/corncob --slalom`, optionally with
+`--graphics-mode=ega-low` or `--graphics-mode=hercules`. Pass the six markers
+in order, alternating sides; the six cockpit lights show progress. Leaving the
+course closes that run without saving it into a pilot's career. Alternate flight
+modes use the recovered projection settings with adapted cockpit artwork.
 
 ## Differences from DOS
 
@@ -97,7 +106,7 @@ Developer command-line options are available in Debug and RelWithDebInfo builds:
 | `--free-camera` | Inspect scenery with a freely movable camera. |
 | `--no-cockpit` | Use the original full-screen flight viewport. |
 | `--cockpit-preview` | Display the raw cockpit artwork. |
-| `--screenshot FILE` | Save the initial 640 × 350 scene as PPM and exit without opening a window. |
+| `--screenshot FILE` | Save the initial flight scene as PPM and exit without opening a window. |
 | `--seconds N` | Close automatically after N seconds; zero disables the limit. |
 
 [Reconstruction reference](docs/reconstruction.md) ·

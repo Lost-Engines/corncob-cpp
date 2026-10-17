@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <span>
+#include <vector>
 #include "vectorstorm/vector/vector2.h"
 #include "render/framebuffer.h"
+#include "render/video_mode.h"
 #include "maths/random.h"
 
 namespace corncob::graphics {
@@ -21,7 +23,10 @@ struct clip_rectangle {
 bool clip_wire_line(screen_point &start, screen_point &end, clip_rectangle const &bounds) noexcept;
 
 struct indexed_framebuffer {
-  std::array<colour_index, render::screen_layout::pixel_count> pixels;
+  unsigned int width{render::screen_layout::width};
+  unsigned int height{render::screen_layout::height};
+  bool monochrome{false};
+  std::vector<colour_index> pixels = std::vector<colour_index>(render::screen_layout::pixel_count);
 };
 
 using random_source = maths::random_source;
@@ -39,7 +44,7 @@ private:
   pixel_operation operation;
 
   bool clip_line(screen_point &start, screen_point &end) const noexcept;
-  void raw_pixel(int x, int y, colour_index colour) noexcept;
+  void raw_pixel(int x, int y, colour_index colour, bool patterned = true) noexcept;
   void span(int y, int left, int right, colour_index colour, uint8_t mask = 0xff) noexcept;
 
 public:

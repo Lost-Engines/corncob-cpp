@@ -113,6 +113,8 @@ add_library(corncob_core STATIC
   src/game/parked_aircraft.h
   src/game/scenery.cpp
   src/game/scenery.h
+  src/game/slalom.cpp
+  src/game/slalom.h
   src/game/session.cpp
   src/game/session.h
   src/game/recorded_flight.cpp
@@ -151,6 +153,7 @@ add_library(corncob_core STATIC
   src/maths/fixed.h
   src/render/framebuffer.cpp
   src/render/framebuffer.h
+  src/render/video_mode.h
   src/render/palette.cpp
   src/render/palette.h
   src/resources/assets.h
@@ -164,6 +167,7 @@ add_library(corncob_core STATIC
   src/graphics/interface.h
   src/resources/geometry_bank.cpp
   src/resources/geometry_bank.h
+  src/resources/source_models.h
   src/resources/particle_animation.cpp
   src/resources/particle_animation.h
   src/resources/model_animation.cpp
@@ -274,6 +278,7 @@ if(BUILD_TESTING)
   corncob_check(career_review_checks native_career_review "${PROJECT_SOURCE_DIR}/tests/reference/career_review.bin")
   add_test(NAME native_other_worlds_career_review COMMAND career_review_checks "${PROJECT_SOURCE_DIR}/tests/reference/other_worlds_career_review.bin" other_worlds)
   corncob_check(campaign_checks persistent_campaign "${PROJECT_BINARY_DIR}/campaign-checks" "${PROJECT_SOURCE_DIR}/tests/reference")
+  corncob_check(slalom_checks source_slalom_and_graphics)
   corncob_check(training_checks native_training "${PROJECT_SOURCE_DIR}/tests/reference/training.bin")
   corncob_check(debris_checks native_debris "${PROJECT_SOURCE_DIR}/tests/reference/debris.bin")
   corncob_check(autopilot_checks native_autopilot "${PROJECT_SOURCE_DIR}/tests/reference/autopilot.bin")

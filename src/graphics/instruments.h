@@ -26,6 +26,8 @@ struct instrument_telemetry {
   unsigned int bombs{3};
   uint8_t rocket_colour{13};
   flight::damage_state const *damage{nullptr};
+  bool slalom{false};
+  unsigned int slalom_progress{0};
 };
 
 void draw_gunsight(indexed_framebuffer &target, random_source &random, clip_rectangle const &bounds, screen_point const &centre);

@@ -41,11 +41,12 @@ bool clip_wire_line(screen_point &start, screen_point &end, clip_rectangle const
   return true;
 }
 
-void raster::raw_pixel(int const x, int const y, colour_index const colour) noexcept {
+void raster::raw_pixel(int const x, int const y, colour_index colour, bool const patterned) noexcept {
+  if(target.monochrome) colour = render::hercules_colour(colour, x, patterned);
   /// Hardware disc masks can extend beyond their centre-tested view, but never beyond our framebuffer
-  if(x < 0 || y < 0 || x >= static_cast<int>(render::screen_layout::width) || y >= static_cast<int>(render::screen_layout::height)) return;
-  auto &pixel{target.pixels[static_cast<unsigned int>(y) * render::screen_layout::width + static_cast<unsigned int>(x)]};
-  pixel = operation == pixel_operation::high_plane ? static_cast<uint8_t>((pixel & 7u) | (colour & 8u)) : static_cast<uint8_t>(colour & 15u);
+  if(x < 0 || y < 0 || x >= static_cast<int>(target.width) || y >= static_cast<int>(target.height)) return;
+  auto &pixel{target.pixels[static_cast<unsigned int>(y) * target.width + static_cast<unsigned int>(x)]};
+  pixel = !target.monochrome && operation == pixel_operation::high_plane ? static_cast<uint8_t>((pixel & 7u) | (colour & 8u)) : static_cast<uint8_t>(colour & 15u);
 }
 void raster::span(int const y, int const left, int const right, colour_index const colour, uint8_t const mask) noexcept {
   /// Native horizontal spans include the left pixel and exclude the right pixel and bottom border
@@ -53,8 +54,8 @@ void raster::span(int const y, int const left, int const right, colour_index con
   if(y < bounds.top + (bounds.left / 8 != 0 ? 1 : 0) || y >= bounds.bottom) return;
   int const first{std::max(left, bounds.left)}, last{std::min(right, bounds.right)};
   if(first >= last) return;
-  auto *const pixels{target.pixels.data() + static_cast<unsigned int>(y) * render::screen_layout::width};
-  if(mask == 0xff && operation == pixel_operation::replace) {
+  auto *const pixels{target.pixels.data() + static_cast<unsigned int>(y) * target.width};
+  if(!target.monochrome && mask == 0xff && operation == pixel_operation::replace) {
     std::fill(pixels + first, pixels + last, colour & 15u);
     return;
   }
@@ -74,7 +75,7 @@ raster::raster(indexed_framebuffer &target, clip_rectangle const bounds, random_
 void raster::point(screen_point const &position, colour_index const colour) noexcept {
   /// Match the native point routine's exclusive right and bottom clip bounds
   if(position.x < bounds.left || position.x >= bounds.right || position.y < bounds.top || position.y >= bounds.bottom) return;
-  raw_pixel(position.x, position.y, colour);
+  raw_pixel(position.x, position.y, colour, false);
 }
 
 bool raster::clip_line(screen_point &start, screen_point &end) const noexcept {
@@ -136,6 +137,11 @@ void raster::line(screen_point start, screen_point end, colour_index const colou
 
 void raster::wire(screen_point start, screen_point end, colour_index const colour) noexcept {
   /// KLINE emits horizontal runs for long shallow wire segments; gauges retain EGALINE's single-pixel decision rule
+  if(target.monochrome) {
+    // The source selects HGCLINE rather than the colour renderer's KLINE path.
+    line(screen_point{start}, screen_point{end}, colour);
+    return;
+  }
   if(!clip_wire_line(start, end, bounds)) return;
   if(start.x > end.x) {
     screen_point const temporary{start};
@@ -146,7 +152,7 @@ void raster::wire(screen_point start, screen_point end, colour_index const colou
   int constexpr shallow_line_minimum_width{30};
   if(dy == 0) {
     // KLINE's horizontal span excludes its right endpoint; a zero-length horizontal segment emits nothing
-    for(int x{start.x}; x < end.x; ++x) raw_pixel(x, start.y, colour);
+    for(int x{start.x}; x < end.x; ++x) raw_pixel(x, start.y, colour, false);
     return;
   }
   if(dx < shallow_line_minimum_width || dy >= dx) {
@@ -167,7 +173,7 @@ void raster::wire(screen_point start, screen_point end, colour_index const colou
   for(int row{0}; row != dy; ++row) {
     bool const longer{decision >= 0};
     int const pixels{length + static_cast<int>(longer)};
-    for(int n{0}; n != pixels; ++n) raw_pixel(x + n, y, colour);
+    for(int n{0}; n != pixels; ++n) raw_pixel(x + n, y, colour, false);
     x += pixels;
     y += vertical_step;
     decision = maths::word(decision + fraction - (longer ? 32'768 : 0));

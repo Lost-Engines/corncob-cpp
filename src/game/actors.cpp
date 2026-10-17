@@ -496,6 +496,16 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
     if(object.type == world::object_type::aaa_site) ++aaa[object.quality()];
     if(object.type == world::object_type::kla) ++kla[object.quality()];
     using enum world::object_type;
+    if(theatre.slalom && (object.type == shell || object.type == saucer || object.type == objective_saucer || object.type == mortar || object.type == saucer_site)) {
+      // Slalom's farm/tree/radar-marker handlers omit combat spawning and shell transformations.
+      ++object.timer;
+      if(object.type == saucer_site) {
+        int16_t speed{150};
+        if((object.flags & 2u) != 0) speed = (object.flags & 4u) != 0 ? 0 : 37;
+        object.velocity = maths::transform(maths::make_inverse_rotation(object.attitude), maths::fixed_vector{speed, 0, 0});
+      }
+      continue;
+    }
     switch(object.type) {
     case kla_site:
     case vehicle_site:
@@ -554,7 +564,7 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
     default:
       break;
     }
-    if((definition.properties & std::to_underlying(world::object_property::forcefield)) != 0) {
+    if(!theatre.slalom && (definition.properties & std::to_underlying(world::object_property::forcefield)) != 0) {
       if(previous_counts[std::to_underlying(generator_orb)] == 0 && previous_counts[std::to_underlying(destroyed_generator_orb)] != 0) object.flags = 0;
       else if(object.type == forcefield_x || object.type == forcefield_y || object.type == forcefield_z || object.type == forcefield_z1) {
         // quality zero only reveals its far model for eight frames after contact; the nearby barrier always remains visible

@@ -68,9 +68,27 @@ theatre generate_training(resources::geometry_bank const &geometry, training_set
   add(object_type::forcefield_x, 32'766, 0, 16'383);
   add(object_type::forcefield_x, -32'766, 0, 16'383);
   add(object_type::forcefield_z, 0, 0, 32'766);
-  add(object_type::forcefield_y, 0, 131'072, 32'766);
-  add(object_type::generator_orb, 0, 0, 11'200, 1);
-  add(object_type::objective_saucer, 0, 0, 163'072, quality(setup.kla.quality));
+  if(setup.variant == training_variant::slalom) {
+    result.slalom = true;
+    result.briefing = "Slalom: pass six markers in order, alternating sides. Ground contact away from home resets the course. Player weapons are disabled.";
+    // STRTPERM copies all nine KBUF words over the template: Z's high word is two and the placed angles are zero.
+    for(auto const &position : {maths::world_position{-393'216, 98'304, 131'072}, maths::world_position{-383'216, 87'536, 131'072}, maths::world_position{-383'216, 107'536, 131'072}}) {
+      add(object_type::saucer_site, position.x, position.y, position.z);
+    }
+    add(object_type::crater, 196'608, 163'072, 0);
+    for(unsigned int n{0}; n != 50; ++n) {
+      int32_t const x{coordinate()}, y{coordinate()};
+      add(object_type::shell, x, y, 2000);
+    }
+    add(object_type::saucer, 0, -131'073, 1000);
+    for(unsigned int row{0}; row != 2; ++row) for(unsigned int marker{0}; marker != 6; ++marker) {
+      add(object_type::tet, static_cast<int32_t>(marker) * 131'072, 131'072, 16'384 + static_cast<int32_t>(row) * 32'768);
+    }
+  } else {
+    add(object_type::forcefield_y, 0, 131'072, 32'766);
+    add(object_type::generator_orb, 0, 0, 11'200, 1);
+    add(object_type::objective_saucer, 0, 0, 163'072, quality(setup.kla.quality));
+  }
   auto &plane{add(object_type::aircraft, -712'896, 8000, 720)};
   plane.attitude = {
     .heading{57'344},
@@ -88,6 +106,13 @@ theatre generate_training(resources::geometry_bank const &geometry, training_set
   add(object_type::survey_marker, 0, -2'097'152, 0);
   add(object_type::survey_marker, -2'097'152, 0, 0);
   return result;
+}
+
+theatre generate_slalom(resources::geometry_bank const &geometry, uint32_t const seed) {
+  /// Select the preserved KA.INC layout inside INITPERMS, retaining its common placements and random sequence.
+  return generate_training(geometry, {
+    .variant{training_variant::slalom},
+  }, seed);
 }
 
 } // namespace corncob::world

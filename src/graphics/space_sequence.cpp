@@ -59,7 +59,18 @@ std::span<space_star const> star_field::positions() const noexcept {
 space_sequence::space_sequence(indexed_framebuffer const &backdrop, std::array<render::rgba_pixel, 16> const &colours) :
   pages{backdrop, backdrop},
   palette{colours} {
-  /// SRATS inherits both EGA pages and the flight palette instead of loading a separate cockpit image
+  /// SRATS inherits the flight page but runs in its own preserved 640x350 mode.
+  if(backdrop.width != render::screen_layout::width || backdrop.height != render::screen_layout::height) {
+    for(auto &page : pages) {
+      page.width = render::screen_layout::width;
+      page.height = render::screen_layout::height;
+      page.monochrome = false;
+      page.pixels.resize(page.width * page.height);
+      for(unsigned int y{0}; y != page.height; ++y) for(unsigned int x{0}; x != page.width; ++x) {
+        page.pixels[y * page.width + x] = backdrop.pixels[(y * backdrop.height / page.height) * backdrop.width + x * backdrop.width / page.width];
+      }
+    }
+  }
   tick();
 }
 void space_sequence::tick() {

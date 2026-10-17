@@ -10,6 +10,11 @@ struct training_defence {
   unsigned int count;
   int quality{-1};
 };
+enum class training_variant {
+  combat,
+  slalom,
+};
+
 struct training_setup {
   training_defence kla{
     .count{5},
@@ -24,7 +29,10 @@ struct training_setup {
     .quality{-1},
   };
   bool invincible{true};
+  training_variant variant{training_variant::combat};
 };
+
+theatre generate_slalom(resources::geometry_bank const &geometry, uint32_t seed = 2'949'243u);
 
 theatre generate_training(resources::geometry_bank const &geometry, training_setup const &setup, uint32_t seed = 2'949'243u);
 

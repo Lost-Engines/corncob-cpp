@@ -48,6 +48,7 @@ class scene_renderer {
 private:
   resources::geometry_bank &geometry;
   resources::cockpit_mask const &cockpit;
+  render::video_mode video;
   indexed_framebuffer indexed{};
   std::array<render::rgba_pixel, 16> palette{};
   render_statistics statistics;
@@ -61,7 +62,7 @@ private:
                   maths::fixed_vector const &origin, unsigned int reduction, std::span<view_parameters const> views, random_source &random);
 
 public:
-  scene_renderer(resources::geometry_bank &geometry, resources::cockpit_mask const &cockpit);
+  scene_renderer(resources::geometry_bank &geometry, resources::cockpit_mask const &cockpit, render::video_mode video = render::video_mode::ega);
   void initialise(maths::world_position const &observer, random_source &random);
   indexed_framebuffer const &indexed_frame() const noexcept;
   std::array<render::rgba_pixel, 16> const &colours() const noexcept;

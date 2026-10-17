@@ -38,3 +38,11 @@ same original AdLib driver and the expansion's BNK835.BNK instrument bank.
 [music/other_worlds/provenance.json](music/other_worlds/provenance.json) records
 complete score boundaries and source/capture/master hashes. The original game
 and music copyrights remain applicable to these resources.
+
+The data-only source branches for slalom are bundled in
+`src/resources/source_models.h`: farm, tree/detail helpers, tall Tet and blue
+crater geometry, preserving all eight painter lists. The generated header is
+935 bytes of model data plus identifiers; it does not contain engine instructions.
+[source_models_provenance.json](source_models_provenance.json) records the
+preserved source hashes. Regenerate it with the research workspace's
+`tools/extract_source_models.py --cpp ../corncob-cpp`; it is not a build dependency.
