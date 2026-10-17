@@ -30,6 +30,17 @@ FetchContent_Declare(glfw
   URL_HASH SHA256=7e85e39ade1efdda00734d323a0230b5c938074e9fb2ddbe453bdbb281064d2c
 )
 FetchContent_MakeAvailable(glfw)
+if(APPLE)
+  # GLFW's C files also include Cocoa headers requiring Apple's blocks extension.
+  get_target_property(glfw_sources glfw SOURCES)
+  foreach(source IN LISTS glfw_sources)
+    if(source MATCHES "\\.c$")
+      get_filename_component(source_path "${source}" ABSOLUTE BASE_DIR "${glfw_SOURCE_DIR}/src")
+      set_source_files_properties("${source_path}" DIRECTORY "${glfw_SOURCE_DIR}/src" PROPERTIES LANGUAGE OBJC)
+    endif()
+  endforeach()
+endif()
+
 
 FetchContent_Declare(miniaudio
   URL https://codeload.github.com/mackron/miniaudio/tar.gz/f40cf03f80cdb7e741d43e53b7e706e8c1394bcf
@@ -70,6 +81,13 @@ function(configure_first_party target)
     $<$<AND:$<CONFIG:RelWithDebInfo>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-UNDEBUG>
     $<$<AND:$<CONFIG:RelWithDebInfo>,$<CXX_COMPILER_ID:MSVC>>:/UNDEBUG>
   )
+  if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+      AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16
+      AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 17)
+    # GCC PR125151: C++26 Debug emits strong stdexcept copy constructors on MinGW.
+    # Use the runtime exception definitions until that compiler bug is fixed.
+    target_compile_definitions(${target} PRIVATE $<$<CONFIG:Debug>:__cpp_lib_constexpr_exceptions=0>)
+  endif()
 endfunction()
 
 # Embed original resources with CMake alone; the application performs no asset file I/O
