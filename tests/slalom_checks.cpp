@@ -69,6 +69,34 @@ auto main()->int {
       "KBUF did not override the NPC template's position and angles");
   }
   require(original.objects.front().position == recovered.objects.front().position, "common airfield changed");
+  world::theatre damage_world;
+  damage_world.slalom = true;
+  for(auto const type : {world::object_type::saucer, world::object_type::shell, world::object_type::saucer_site}) {
+    damage_world.objects.push_back(*std::ranges::find(recovered.objects, type, &world::placed_object::type));
+  }
+  game::combat damage{geometry, damage_world};
+  world::placed_object const bullet{
+    .position{},
+    .attitude{},
+    .type{world::object_type::bullets},
+    .flags{std::to_underlying(world::object_flag::present)},
+  };
+  unsigned int const barn_hits{damage_world.objects[0].health};
+  damage.damage(0, bullet);
+  require(damage_world.objects[0].attitude.roll == 0 && damage_world.objects[0].health == barn_hits - 1,
+    "slalom barn inherited a saucer's reaction to damage");
+  for(unsigned int hit{1}; hit != barn_hits; ++hit) damage.damage(0, bullet);
+  require(damage_world.objects[0].type == world::object_type::destroyed_fuel_dump
+    && damage_world.objects[0].pose == world::model_pose::fuel_wreck && damage_world.objects[0].motion.spin == corncob::maths::fixed_vector{0, 0, 0},
+    "slalom barn did not use the source's fuel-dump destruction handler");
+  auto const tree_flags{damage_world.objects[1].flags};
+  damage.damage(1, bullet);
+  require(damage_world.objects[1].flags == tree_flags && damage_world.objects[1].health == 1,
+    "slalom tree ran the shell's hidden-enemy collision handler");
+  auto const plane_timer{damage_world.objects[2].timer};
+  damage.damage(2, bullet);
+  require(damage_world.objects[2].health == 1 && damage_world.objects[2].timer == plane_timer,
+    "slalom traffic aircraft ran the saucer launch-site damage handler");
   game::session flight{geometry, recovered};
   flight.set_invincible(true);
   flight.press(game::action::drop_bomb);

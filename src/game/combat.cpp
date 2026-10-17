@@ -361,6 +361,9 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
   }
   if(!object.has(world::object_flag::collision_callback)) return original_partner;
   using enum world::object_type;
+  // Slalom changes these collision handlers as well as their geometry: trees are inert; BMRTIM calls GMDEST for the farm.
+  if(theatre.slalom && (object.type == shell || object.type == mortar)) return original_partner;
+  world::object_type const damage_handler{theatre.slalom && object.type == saucer ? fuel_dump : object.type};
   if(object.type == radar_dish) object.attitude.heading = static_cast<maths::angle>(current_tick * 4u);
   if(object.type == bomb || object.type == missile || object.type == aa_shell) {
     detonate(index);
@@ -419,7 +422,7 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
   if(!aircraft_impact && remaining != 0 && (remaining & 0x80u) == 0) {
     object.health = remaining;
     if(object.type == kla_site) object.timer = resources::kla_site_qualities[object.quality()].launch_reset;
-    if(object.type == saucer_site) object.timer = resources::saucer_site_qualities[object.quality()].launch_reset;
+    if(object.type == saucer_site && !theatre.slalom) object.timer = resources::saucer_site_qualities[object.quality()].launch_reset;
     if(object.type == vehicle_site) object.timer = static_cast<uint16_t>(vehicle_site_rest * 3u);
     if(vehicle) react_vehicle();
     if(object.type == generator_orb && hits >= 6) shatter(object, 2, false);
@@ -427,7 +430,7 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
       // TETTIM leaves DI pointing at a harmless fragment; SLAM consequently skips the original projectile's callback
       return scatter(object, 2, fragment_pattern::outward, tick_step) != 0 ? fragment_partner : original_partner;
     }
-    if(object.type == saucer || object.type == objective_saucer) object.attitude.roll += static_cast<maths::angle>(hits * 400);
+    if(damage_handler == saucer || damage_handler == objective_saucer) object.attitude.roll += static_cast<maths::angle>(hits * 400);
     return original_partner;
   }
   uint8_t const old_health{object.health};
@@ -445,7 +448,7 @@ contact_continuation combat::damage(unsigned int const index, world::placed_obje
   case fuel_dump: case tet: case saucer: case objective_saucer: case alien: ++statistics.resource_kills; break;
   default: break;
   }
-  switch(object.type) {
+  switch(damage_handler) {
   case generator_orb:
     object.type = destroyed_generator_orb;
     object.flags = static_cast<uint16_t>((object.flags & 0xff00u) | 0x11u);

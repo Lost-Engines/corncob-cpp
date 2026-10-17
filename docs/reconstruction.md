@@ -589,6 +589,15 @@ not comparisons against a retained released slalom executable. The source's
 slalom object handlers and layouts are experimental, and no separate released
 slalom edition has been identified.
 
+The square and cross at the course origin are the shared 20-metre survey marker,
+not a replacement generator. The three airborne props reuse the saucer-site type
+with aircraft geometry and a straight-ahead movement handler; they neither fight
+nor launch enemies, and cannot be boarded as parked player aircraft. The farm
+uses GMDEST's fuel-dump wreck transition rather than saucer rolling/tumbling.
+Tree collision callbacks are inert, and damage to traffic aircraft does not reset
+a saucer launch timer. These source-only branches are covered separately from
+the retained normal-game handlers.
+
 `--graphics-mode` makes the `3DVID.INC` flight profiles selectable at runtime:
 `ega` uses 640x350 colour, `ega-low` uses 320x200 colour, and `hercules` uses
 720x348 monochrome. Scenery is projected and rasterized at the selected native
