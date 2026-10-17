@@ -77,8 +77,8 @@ jobs:
           brew install gcc@16 ccache ninja
           gcc_prefix="$(brew --prefix gcc@16)"
           gcc_cxx=("$gcc_prefix"/bin/g++-[0-9]*)
-          gcc_version="${gcc_cxx[0]##*g++-}"
-          echo "CC=$gcc_prefix/bin/gcc-$gcc_version" >> "$GITHUB_ENV"
+          # Apple SDK headers require Clang even in GLFW's ordinary C files.
+          echo "CC=$(xcrun --find clang)" >> "$GITHUB_ENV"
           echo "CXX=${gcc_cxx[0]}" >> "$GITHUB_ENV"
           # GLFW's Cocoa integration uses Apple's Objective-C compiler.
           echo "OBJC=$(xcrun --find clang)" >> "$GITHUB_ENV"
