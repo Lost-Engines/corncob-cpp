@@ -23,7 +23,7 @@ std::optional<screen_point> radar_position(maths::world_position const &target, 
 }
 void radar_dot(indexed_framebuffer &target, random_source &random, screen_point const &position, uint8_t const colour) {
   /// Small contacts share the authored three-pixel DRAWDisc mask and original radar clipping rectangle
-  raster{target, {496, 259, 615, 327}, random}.disc(position, 3, colour);
+  raster{target, radar_bounds, random}.disc(position, 3, colour);
 }
 
 } // namespace corncob::graphics

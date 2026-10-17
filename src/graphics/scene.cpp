@@ -341,6 +341,8 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
   std::ranges::fill(indexed.pixels, 0);
   if(observer.cockpit) {
     for(unsigned int i{0}; i != panel.pixels.size(); ++i) panel.pixels[i] = (cockpit[i / 8] & (0x80u >> (i & 7))) != 0 ? 7 : 0;
+    // The original scene overwrites the raw mask's diagonal construction line; adapt only the actual lower panel.
+    if(video != render::video_mode::ega) std::fill_n(panel.pixels.begin(), cockpit_view.bounds.bottom * panel.width, 0);
   }
   std::array<view_parameters, 2> view_storage{observer.cockpit ? cockpit_view : full_view, rear_view};
   if(video != render::video_mode::ega) {
@@ -379,15 +381,9 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     view_storage[0].focal_y += maths::multiply(maths::sine(static_cast<maths::angle>(frame << 12)), amount) - amount / 2;
   }
   std::span<view_parameters const> const views{view_storage.data(), observer.cockpit && observer.rear_view ? 2u : 1u};
-  if(observer.cockpit && video != render::video_mode::ega) {
-    for(unsigned int y{0}; y != indexed.height; ++y) for(unsigned int x{0}; x != indexed.width; ++x) {
-      auto const colour{panel.pixels[(y * panel.height / indexed.height) * panel.width + x * panel.width / indexed.width]};
-      indexed.pixels[y * indexed.width + x] = indexed.monochrome ? static_cast<uint8_t>(colour == 0 ? 0 : 15) : colour;
-    }
-  }
   // EPAGE writes byte-wide frame strips before the scenery overwrites each view
+  unsigned int constexpr bytes_per_row{render::screen_layout::mask_stride};
   auto strip{[this](unsigned int const first_byte, unsigned int const bytes, unsigned int const rows){
-    unsigned int constexpr bytes_per_row{render::screen_layout::width / 8};
     for(unsigned int row{0}; row != rows; ++row) {
       unsigned int const first{(first_byte + row * bytes_per_row) * 8};
       unsigned int const end{std::min(first + bytes * 8, static_cast<unsigned int>(indexed.pixels.size()))};
@@ -396,28 +392,19 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
   }};
   auto const &main_view{view_storage.front().bounds};
   if(video == render::video_mode::ega) {
-    unsigned int const first_row{static_cast<unsigned int>(main_view.top) * 80};
+    unsigned int const first_row{static_cast<unsigned int>(main_view.top) * bytes_per_row};
     unsigned int const main_height{static_cast<unsigned int>(main_view.bottom - main_view.top)};
     strip(first_row, 1, main_height);
-    strip(first_row + 78, 1, main_height);
-    strip(0, 80, 8);
-    strip(static_cast<unsigned int>(main_view.bottom) * 80, 80, 8);
+    // EPAGE selects the last byte of each row; the scenery overlaps only the inner edge of the frame.
+    strip(first_row + bytes_per_row - 1, 1, main_height);
+    strip(0, bytes_per_row, 8);
+    strip(static_cast<unsigned int>(main_view.bottom) * bytes_per_row, bytes_per_row, 8);
     if(observer.cockpit && observer.rear_view) {
       strip(19'940, 40, 5);
       strip(27'540, 40, 5);
       strip(20'340, 1, 91);
       strip(20'379, 1, 91);
     }
-  } else {
-    raster border{indexed, {0, 0, static_cast<int>(size.width), static_cast<int>(size.height)}, random};
-    auto fill{[&](int const left, int const top, int const right, int const bottom){
-      std::array<screen_point, 4> const points{screen_point{left, top}, screen_point{right, top}, screen_point{right, bottom}, screen_point{left, bottom}};
-      border.polygon(points, 7);
-    }};
-    fill(0, 0, static_cast<int>(size.width), 8);
-    fill(0, main_view.bottom, static_cast<int>(size.width), std::min(main_view.bottom + 8, static_cast<int>(size.height)));
-    fill(0, main_view.top, 8, main_view.bottom);
-    fill(main_view.right, main_view.top, static_cast<int>(size.width), main_view.bottom);
   }
   if(!observer.map_mode) homing_pointer(indexed, random, theatre.start, observer.position, telemetry ? telemetry->aircraft.attitude.heading : observer.attitude.heading, main_view.bottom);
   auto const rotation{maths::make_rotation(observer.attitude)};
@@ -538,6 +525,19 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
       auto const colour{panel.pixels[(y * panel.height / indexed.height) * panel.width + x * panel.width / indexed.width]};
       indexed.pixels[y * indexed.width + x] = indexed.monochrome ? static_cast<uint8_t>(colour == 0 ? 0 : 15) : colour;
     }
+  }
+  if(video != render::video_mode::ega) {
+    // Compose the frame outside the selected viewport, after the adapted panel so it cannot expose old mask pixels.
+    raster border{indexed, {0, 0, static_cast<int>(size.width), static_cast<int>(size.height)}, random};
+    auto fill{[&](int const left, int const top, int const right, int const bottom){
+      std::array<screen_point, 4> const points{screen_point{left, top}, screen_point{right, top}, screen_point{right, bottom}, screen_point{left, bottom}};
+      border.polygon(points, 7);
+    }};
+    int const lower_border_height{video == render::video_mode::ega_low ? 4 : 8};
+    fill(0, 0, static_cast<int>(size.width), main_view.top);
+    fill(0, main_view.bottom, static_cast<int>(size.width), std::min(main_view.bottom + lower_border_height, static_cast<int>(size.height)));
+    fill(0, main_view.top, main_view.left, main_view.bottom);
+    fill(main_view.right, main_view.top, static_cast<int>(size.width), main_view.bottom);
   }
   if(observer.palette_phase != vec3<uint16_t>{0, 0, 0}) {
     for(auto &colour : palette) for(unsigned int axis{0}; axis != 3; ++axis) {

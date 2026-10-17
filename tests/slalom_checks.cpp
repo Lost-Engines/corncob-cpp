@@ -113,6 +113,33 @@ auto main()->int {
       renderer.preview(flight.world(), observer, 0, 0, flight.random_stream(), output);
     }
   }
+  // Raw mask contents in the main window must never leak into the adapted frame or its corners.
+  auto marked_mask{cockpit};
+  std::fill_n(marked_mask.begin(), 199 * render::screen_layout::mask_stride, uint8_t{0xff});
+  world::theatre empty_world;
+  corncob::graphics::camera const observer{
+    .position{0, 0, 720},
+    .attitude{},
+    .cockpit{true},
+    .rear_view{false},
+    .ground_detail{false},
+  };
+  for(auto const video : {render::video_mode::ega_low, render::video_mode::hercules}) {
+    corncob::graphics::scene_renderer normal{geometry, cockpit, video}, marked{geometry, marked_mask, video};
+    render::framebuffer expected, actual;
+    normal.preview(empty_world, observer, 0, 0, flight.random_stream(), expected);
+    marked.preview(empty_world, observer, 0, 0, flight.random_stream(), actual);
+    require(std::ranges::equal(expected.pixels, actual.pixels, [](auto const &a, auto const &b){
+      return a.red == b.red && a.green == b.green && a.blue == b.blue;
+    }), "raw cockpit viewport marks leaked into the adapted display");
+  }
+  corncob::graphics::scene_renderer standard{geometry, cockpit};
+  render::framebuffer standard_frame;
+  auto random{flight.random_stream()};
+  standard.render(empty_world, observer, 0, 0, random, standard_frame);
+  auto const &indices{standard.indexed_frame()};
+  for(unsigned int y{4}; y != 199; ++y) for(unsigned int x{632}; x != 640; ++x)
+    require(indices.pixels[y * indices.width + x] == 7, "right-hand cockpit frame was overwritten or narrowed");
   auto const low_crt{render::fit_viewport(960, 720, 320, 200, render::display_aspect::crt)};
   require(low_crt.width == 960 && low_crt.height == 720, "low-resolution CRT scaling lost its requested integer factor");
   require(render::hercules_colour(2, 1) == 15 && render::hercules_colour(2, 0) == 0, "Hercules ground mask changed");

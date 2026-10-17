@@ -596,3 +596,12 @@ for those modes, and retains the established display modes of menus, text helper
 and the ending. These options recover the alternate scene-rendering intent;
 they do not claim an exact reproduction of an unknown shipped low-resolution or
 Hercules edition.
+
+Cockpit framing and the airflow ball retain the native clipping rules: EPAGE
+writes the right frame at pixels 632–639, and DRAWMDS passes the radar window
+(496,259)–(615,327) to DRAWDisc. In particular, the zero-speed ball projects
+outside that window and must remain hidden. The research tool
+`tools/verify_cockpit.py` executes both original routines without stubs. Warnings
+now overlay the retained flight surface without changing its dimensions; alternate
+modes adapt only the message and lower cockpit artwork, so warnings preserve the
+display scale and the raw mask's construction diagonal cannot leak into corners.

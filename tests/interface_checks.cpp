@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -6,6 +7,7 @@
 #include <stdexcept>
 #include "game/front_end.h"
 #include "resources/assets.h"
+#include "render/video_mode.h"
 
 namespace {
 
@@ -175,6 +177,41 @@ int main(int const argc, char const *const argv[]) {
     if(argc == 3) capture(frame, std::filesystem::path{argv[2]} / ("radio" + std::to_string(notice) + ".ppm"));
     front.command(game::interface_command::accept);
     if(!front.in_flight() || front.take_map() != (type == corncob::resources::radio_notice::map_instructions)) throw std::runtime_error{"radio acknowledgement lost flight/map continuation"};
+  }
+  // Warnings stay in the flight mode and leave every backdrop pixel outside their message box unchanged.
+  for(auto const video : {corncob::render::video_mode::ega, corncob::render::video_mode::ega_low, corncob::render::video_mode::hercules}) {
+    auto const size{corncob::render::dimensions(video)};
+    corncob::render::framebuffer backdrop;
+    backdrop.width = size.width;
+    backdrop.height = size.height;
+    backdrop.pixels.resize(size.width * size.height);
+    for(unsigned int y{0}; y != size.height; ++y) for(unsigned int x{0}; x != size.width; ++x) backdrop.pixels[y * size.width + x] = {
+      .red{static_cast<uint8_t>(x)},
+      .green{static_cast<uint8_t>(y)},
+      .blue{static_cast<uint8_t>(x + y)},
+    };
+    auto const viewport{corncob::render::fit_viewport(1280, 960, static_cast<int>(size.width), static_cast<int>(size.height))};
+    for(unsigned int notice{0}; notice != static_cast<unsigned int>(std::to_underlying(corncob::resources::radio_notice::count)); ++notice) {
+      auto const type{static_cast<corncob::resources::radio_notice>(notice)};
+      auto const box{corncob::resources::read_radio_message(type).border};
+      front.show_radio(type, backdrop);
+      front.render(frame);
+      if(frame.width != size.width || frame.height != size.height || frame.pixels.size() != backdrop.pixels.size())
+        throw std::runtime_error{"radio message changed the flight display dimensions"};
+      auto const displayed{corncob::render::fit_viewport(1280, 960, static_cast<int>(frame.width), static_cast<int>(frame.height))};
+      if(displayed.width != viewport.width || displayed.height != viewport.height) throw std::runtime_error{"radio message changed the displayed enlargement"};
+      unsigned int text_pixels{0};
+      for(unsigned int y{0}; y != size.height; ++y) for(unsigned int x{0}; x != size.width; ++x) {
+        int const message_x{static_cast<int>(x * 640 / size.width)}, message_y{static_cast<int>(y * 350 / size.height)};
+        auto const &actual{frame.pixels[y * size.width + x]}, &expected{backdrop.pixels[y * size.width + x]};
+        if(message_x >= box.left && message_x < box.left + box.width && message_y >= box.top && message_y < box.top + box.height) {
+          if(actual.red == 170 && actual.green == 170 && actual.blue == 170) ++text_pixels;
+        } else if(actual.red != expected.red || actual.green != expected.green || actual.blue != expected.blue)
+          throw std::runtime_error{"radio overlay moved or resampled the surrounding scene"};
+      }
+      if(text_pixels < 20) throw std::runtime_error{"adapted radio text disappeared"};
+      front.command(game::interface_command::accept);
+    }
   }
   front.ask_to_end_sortie();
   front.command(game::interface_command::cancel);

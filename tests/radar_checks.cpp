@@ -1,9 +1,11 @@
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <stdexcept>
 #include "graphics/radar.h"
+#include "graphics/instruments.h"
 #include "resources/binary_reader.h"
 
 int main(int const argc, char const *const argv[]) {
@@ -28,6 +30,22 @@ int main(int const argc, char const *const argv[]) {
   auto const turned{corncob::graphics::radar_position({0, -100'000, 0}, {0, 0, 0}, static_cast<uint16_t>(-16'384))};
   if(!front || front->y >= 295 || !right || right->x <= 561 || !turned || turned->y >= 295) throw std::runtime_error{"radar does not follow aircraft bearing"};
   if(corncob::graphics::radar_position({524'288, 0, 0}, {0, 0, 0}, 0)) throw std::runtime_error{"radar accepted an out-of-range contact"};
+  corncob::graphics::indexed_framebuffer panel;
+  corncob::maths::random_source random;
+  corncob::graphics::instrument_panel instruments;
+  corncob::flight::aircraft_state aircraft;
+  corncob::graphics::instrument_telemetry const telemetry{
+    .aircraft{aircraft},
+    .controls{},
+  };
+  aircraft.body_velocity = corncob::maths::fixed_vector{0, 0, 0};
+  std::ranges::fill(panel.pixels, 0);
+  instruments.draw(panel, random, telemetry, 0);
+  if(std::ranges::find(panel.pixels, 12) != panel.pixels.end()) throw std::runtime_error{"stationary airflow indicator escaped its instrument window"};
+  aircraft.body_velocity = corncob::maths::fixed_vector{1000, 0, 0};
+  std::ranges::fill(panel.pixels, 0);
+  instruments.draw(panel, random, telemetry, 0);
+  if(std::ranges::find(panel.pixels, 12) == panel.pixels.end()) throw std::runtime_error{"valid airflow indicator was hidden"};
   std::cout << "512 native radar positions and all 32768 compressed distance inputs match" << std::endl;
   return EXIT_SUCCESS;
 }

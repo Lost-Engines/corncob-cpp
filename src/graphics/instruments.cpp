@@ -3,6 +3,7 @@
 #include <array>
 #include <bit>
 #include <utility>
+#include "graphics/radar.h"
 
 namespace corncob::graphics {
 
@@ -181,7 +182,8 @@ void instrument_panel::draw(indexed_framebuffer &target, random_source &random, 
   high.line({365, 212 + (-telemetry.controls.pitch + 512) * 25 / 1024}, {371, 212 + (-telemetry.controls.pitch + 512) * 25 / 1024}, 8);
   int const flow_pitch{std::clamp(-static_cast<int>(std::bit_cast<int16_t>(maths::arctangent(aircraft.body_velocity.x, aircraft.body_velocity.z))) + 5400, 0, 10'799)};
   int const flow_yaw{std::clamp(static_cast<int>(std::bit_cast<int16_t>(maths::arctangent(aircraft.body_velocity.x, aircraft.body_velocity.y))) + 5400, 0, 10'799)};
-  solid.disc({559 + flow_yaw * 160 / 10'800 - 80, 298 + flow_pitch * 110 / 10'800 - 55}, 6,
+  // DRAWMDS shares the radar window; an airflow angle outside it must not draw over neighbouring instruments.
+  raster{target, radar_bounds, random}.disc({559 + flow_yaw * 160 / 10'800 - 80, 298 + flow_pitch * 110 / 10'800 - 55}, 6,
              aircraft.variant == flight::aircraft_variant::reserve ? 9 : 12);
   if(telemetry.damage != nullptr) {
     std::array<uint8_t, 13> constexpr colours{10, 10, 9, 9, 9, 9, 14, 14, 14, 14, 12, 12, 8};

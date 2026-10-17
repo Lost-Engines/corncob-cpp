@@ -631,7 +631,10 @@ auto main(int const argc, char const *const argv[])->int {
       if(result.has(corncob::game::sortie_status::earth_saved)) front.begin_ending(renderer->indexed_frame(), renderer->colours());
     }
     if(front.in_flight() && !inspect && game->take_tower()) front.show_intelligence(game->world(), corncob::world::nearest_airfield(game->world(), game->camera().position));
-    if(front.in_flight() && !inspect) if(auto const notice{game->take_radio()}) front.show_radio(*notice, frame);
+    if(front.in_flight() && !inspect) if(auto const notice{game->take_radio()}) {
+      if(!flight_frame_valid) draw_flight(true);
+      front.show_radio(*notice, flight_frame);
+    }
     if(!front.in_flight() && !inspect) {
       if(clock_was_flying) game->suspend_clock();
       clock_was_flying = false;

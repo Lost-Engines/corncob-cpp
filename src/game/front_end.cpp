@@ -543,15 +543,6 @@ void front_end::show_radio(resources::radio_notice const notice, render::framebu
   /// BLACKBOX overlays the retained flight screen and pauses flight until the pilot acknowledges its original text
   radio = resources::read_radio_message(notice);
   radio_backdrop = backdrop;
-  // Helper text retains its original font/layout even when the optional flight mode uses a smaller framebuffer.
-  if(backdrop.width != render::screen_layout::width || backdrop.height != render::screen_layout::height) {
-    radio_backdrop.width = render::screen_layout::width;
-    radio_backdrop.height = render::screen_layout::height;
-    radio_backdrop.pixels.resize(render::screen_layout::pixel_count);
-    for(unsigned int y{0}; y != radio_backdrop.height; ++y) for(unsigned int x{0}; x != radio_backdrop.width; ++x) {
-      radio_backdrop.pixels[y * radio_backdrop.width + x] = backdrop.pixels[(y * backdrop.height / radio_backdrop.height) * backdrop.width + x * backdrop.width / radio_backdrop.width];
-    }
-  }
   map_after_radio = enter_map;
   page = interface_page::radio;
 }
@@ -631,11 +622,27 @@ void front_end::render(render::framebuffer &target) const {
   /// Menus and helper-program artwork share the native window but retain their original video-mode pixel sizes
   if(page == interface_page::radio) {
     target = radio_backdrop;
-    graphics::interface_canvas canvas{target, assets.file("font14.bin"), 14};
-    auto fill{[&](resources::message_box const &box, render::rgba_pixel const colour){canvas.rectangle(box.left, box.top, box.left + box.width, box.top + box.height, colour);}};
-    fill(radio->border, {170, 0, 0});
-    fill(radio->background, {0, 0, 0});
-    for(auto const &line : radio->lines) canvas.text(line.column * 8, line.row * 14, line.text, grey);
+    auto draw_message{[&](render::framebuffer &image){
+      graphics::interface_canvas canvas{image, assets.file("font14.bin"), 14};
+      auto fill{[&](resources::message_box const &box, render::rgba_pixel const colour){canvas.rectangle(box.left, box.top, box.left + box.width, box.top + box.height, colour);}};
+      fill(radio->border, {170, 0, 0});
+      fill(radio->background, {0, 0, 0});
+      for(auto const &line : radio->lines) canvas.text(line.column * 8, line.row * 14, line.text, grey);
+    }};
+    if(target.width == render::screen_layout::width && target.height == render::screen_layout::height) {
+      draw_message(target);
+    } else {
+      // Adapt the message alone; changing the backdrop's dimensions would change its displayed integer scale.
+      render::framebuffer message;
+      draw_message(message);
+      auto const &box{radio->border};
+      for(unsigned int y{0}; y != target.height; ++y) for(unsigned int x{0}; x != target.width; ++x) {
+        int const source_x{static_cast<int>(x * message.width / target.width)};
+        int const source_y{static_cast<int>(y * message.height / target.height)};
+        if(source_x < box.left || source_x >= box.left + box.width || source_y < box.top || source_y >= box.top + box.height) continue;
+        target.pixels[y * target.width + x] = message.pixels[static_cast<unsigned int>(source_y) * message.width + static_cast<unsigned int>(source_x)];
+      }
+    }
     return;
   }
   if(page == interface_page::ending) { ending->render(target); return; }
