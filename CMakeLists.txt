@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.30)
 project(corncob VERSION 0.1.0 LANGUAGES C CXX)
+if(APPLE)
+  enable_language(OBJC)
+endif()
 
 option(BUILD_TESTING "Build automated tests" OFF)
 include(CTest)
@@ -42,6 +45,10 @@ FetchContent_MakeAvailable(miniaudio nuked_opl3)
 add_library(nuked_opl3 STATIC "${nuked_opl3_SOURCE_DIR}/opl3.c")
 target_include_directories(nuked_opl3 SYSTEM PUBLIC "${nuked_opl3_SOURCE_DIR}")
 target_compile_options(nuked_opl3 PRIVATE $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-O2>)
+if(APPLE)
+  # CoreAudio headers use Apple's blocks extension; compile this implementation with Clang.
+  set_source_files_properties(src/platform/miniaudio_implementation.c PROPERTIES LANGUAGE OBJC)
+endif()
 add_library(corncob_pcm STATIC src/platform/miniaudio_implementation.c)
 target_include_directories(corncob_pcm SYSTEM PUBLIC "${miniaudio_SOURCE_DIR}")
 target_compile_definitions(corncob_pcm PRIVATE MA_NO_DECODING MA_NO_ENCODING MA_NO_RESOURCE_MANAGER MA_NO_NODE_GRAPH MA_NO_ENGINE)
@@ -240,7 +247,7 @@ target_link_libraries(corncob
 )
 configure_first_party(corncob)
 
-install(TARGETS corncob RUNTIME DESTINATION .)
+install(TARGETS corncob RUNTIME DESTINATION . COMPONENT Runtime)
 
 if(BUILD_TESTING)
   function(corncob_check target test_name)

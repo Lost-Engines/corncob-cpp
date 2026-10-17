@@ -16,8 +16,12 @@ reverse-engineered games.
 
 ## Build and run
 
-Requires CMake 3.30+, a C++26 compiler, Boost 1.85+ with Program_options, and
-OpenGL and window-system development headers.
+[Download the latest builds](https://github.com/Lost-Engines/corncob-cpp/releases/latest)
+for Linux x86-64, Windows x86-64 and macOS Apple Silicon. Extract the archive and
+run `corncob` (`corncob.exe` on Windows).
+
+Requires CMake 3.30+, a C++26 compiler (such as GCC 16), Boost 1.85+ with
+Program_options, and OpenGL and window-system development headers.
 
 ```sh
 cmake -B build
@@ -75,6 +79,11 @@ See the [reconstruction notes](docs/reconstruction.md) for fidelity details and
 known gaps, and [Other Worlds](docs/other_worlds.md) for campaign and builder details.
 
 ## Development
+
+CI builds and tests Debug and Release on Linux, Windows and macOS. Every push to
+`master` publishes the three Release packages once all six builds pass, replacing
+older published releases while retaining their Git tags. Pull requests run the
+same checks; the workflow can also be run manually.
 
 Automated tests are disabled by default. Enable them explicitly when needed:
 
