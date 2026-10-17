@@ -131,8 +131,11 @@ normal arrival, stepping out and avoiding immediate automatic re-entry.
 Digital joysticks supply two calibrated axes and two buttons through GLFW. The
 original squared response and clipping are retained, without analogue-port timing
 or calibration prompts. Arrows override both stick axes; head-view keys leave the
-physical stick available for flight. Buttons select guns/missiles; Space requests
-missiles in joystick mode. `--joystick auto|none|N` selects a device, and
+physical stick available for flight. Buttons select guns/missiles. Keyboard
+weapon bindings remain Space for guns, Shift for cannon mode and C for missiles,
+even with a joystick connected. This deliberately avoids DOS's joystick-mode
+remapping of Space to missiles, so automatic discovery cannot change keyboard
+weapon controls. `--joystick auto|none|N` selects a device, and
 `--list-joysticks` reports indices/names. Polling is restricted to focused flight.
 Device discovery detects the development host's T.16000M; physical control motion
 has not been exercised during automated checks.

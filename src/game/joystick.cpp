@@ -19,9 +19,9 @@ void apply_joystick(input_state &input, joystick_sample const &sample, bool cons
     input.stick.pitch = joystick_axis(sample.axes.y);
     input.joystick_controlled = true;
   }
-  // in joystick mode the original Space key requests a missile, alongside button two
-  input.weapons.missile = input.weapons.missile || input.weapons.gun || sample.missile;
-  input.weapons.gun = sample.gun;
+  // Keep keyboard weapon bindings stable when a joystick is connected; its buttons add independent requests.
+  input.weapons.gun = input.weapons.gun || sample.gun;
+  input.weapons.missile = input.weapons.missile || sample.missile;
 }
 
 } // namespace corncob::game

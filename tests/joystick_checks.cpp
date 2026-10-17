@@ -30,13 +30,25 @@ int main(int const argc, char const *const argv[]) {
   game::apply_joystick(keyboard, joystick, true);
   if(keyboard.stick.roll != 512 || keyboard.stick.pitch != -512 || !keyboard.joystick_controlled)
     throw std::runtime_error{"head-view keys suppressed physical flight control"};
-  game::input_state space{
-    .weapons{
-      .gun{true},
-    },
-  };
-  game::apply_joystick(space, {}, false);
-  if(space.weapons.gun || !space.weapons.missile) throw std::runtime_error{"original Space missile request was lost in joystick mode"};
-  std::cout << count << " native joystick responses, keyboard priority, head views and button rules match" << std::endl;
+  // Cover Space, Shift and C individually and together, with every combination of joystick fire buttons.
+  for(unsigned int keys{0}; keys != 8; ++keys) for(unsigned int buttons{0}; buttons != 4; ++buttons) {
+    game::input_state input{
+      .weapons{
+        .gun{(keys & 1u) != 0},
+        .cannon{(keys & 2u) != 0},
+        .missile{(keys & 4u) != 0},
+      },
+    };
+    game::joystick_sample const sample{
+      .gun{(buttons & 1u) != 0},
+      .missile{(buttons & 2u) != 0},
+    };
+    game::apply_joystick(input, sample, false);
+    if(input.weapons.gun != ((keys & 1u) != 0 || sample.gun)
+      || input.weapons.cannon != ((keys & 2u) != 0)
+      || input.weapons.missile != ((keys & 4u) != 0 || sample.missile))
+      throw std::runtime_error{"joystick buttons changed a keyboard weapon binding"};
+  }
+  std::cout << count << " native joystick responses match; keyboard priority, head views and 32 combined weapon inputs passed" << std::endl;
   return EXIT_SUCCESS;
 }
