@@ -568,10 +568,15 @@ match without stubs; the connected rescue scenario still passes.
 `--slalom` restores the `KA.INC` slalom/guns=0/saucey=0 training branch as an
 optional standalone run. The common training placements and PRNG sequence are
 retained, followed by the source's three NPC aircraft, fifty trees, farm building,
-blue crater and two rows of six tall Tet markers. The checkpoint logic checks
+a large blue crater polygon (apparently a pond) and two rows of six tall Tet markers.
+The standalone source defaults `naas`, `nvest` and `ndbst` to zero, so this run
+contains no AAA, vehicle or KLA sites; the three common forcefield barriers remain.
+The checkpoint logic checks
 ordered X-sector crossings, alternating sides of the original Y centreline, and
 resets on a mistake or ground contact away from home. Completing all six awards
-one local objective. Source progress rectangles replace the bomb indicators;
+one local objective and queues the original generic mission-objective congratulations
+message. Its normal F2/airstrip advice is retained even though this experiment does
+not use the combat campaign. Source progress rectangles replace the bomb indicators;
 player guns, missiles, dropped bombs and planted charges are disabled. Training
 invulnerability is enabled. Exiting this experiment does not update pilot careers.
 

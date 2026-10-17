@@ -54,6 +54,10 @@ auto main()->int {
   require(recovered.slalom && recovered.training && count(world::object_type::tet) == 12 && count(world::object_type::shell) == 50
     && count(world::object_type::saucer) == 1 && count(world::object_type::saucer_site) == 3, "source layout omitted objects");
   require(count(world::object_type::objective_saucer) == 0 && count(world::object_type::generator_orb) == 0, "combat-only generator branch leaked into source layout");
+  require(count(world::object_type::kla_site) == 0 && count(world::object_type::vehicle_site) == 0 && count(world::object_type::aaa_site) == 0,
+    "standalone slalom inherited the combat training defence counts");
+  require(count(world::object_type::forcefield_x) == 2 && count(world::object_type::forcefield_z) == 1,
+    "source slalom barriers were removed with the combat training sites");
   unsigned int npc{0};
   std::array<corncob::maths::world_position, 3> const source_planes{
     corncob::maths::world_position{-393'216, 98'304, 131'072},
@@ -86,6 +90,7 @@ auto main()->int {
     flight.advance({});
   }
   require(flight.slalom_progress() == 6 && flight.statistics().objectives_completed == 1, "session failed to award the completed course");
+  require(flight.take_radio() == resources::radio_notice::objective_complete, "slalom completion lost its original mission-objective message");
   auto const cockpit{resources::decode_cockpit_mask(resources::cockpit_asset())};
   for(auto const video : {render::video_mode::ega, render::video_mode::ega_low, render::video_mode::hercules}) {
     corncob::graphics::scene_renderer renderer{geometry, cockpit, video};

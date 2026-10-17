@@ -111,6 +111,17 @@ theatre generate_training(resources::geometry_bank const &geometry, training_set
 theatre generate_slalom(resources::geometry_bank const &geometry, uint32_t const seed) {
   /// Select the preserved KA.INC layout inside INITPERMS, retaining its common placements and random sequence.
   return generate_training(geometry, {
+    // The standalone source starts naas/nvest/ndbst at zero; combat defaults are supplied by MOAG instead.
+    .kla{
+      .count{0},
+    },
+    .vehicles{
+      .count{0},
+      .quality{-1},
+    },
+    .aaa{
+      .count{0},
+    },
     .variant{training_variant::slalom},
   }, seed);
 }
