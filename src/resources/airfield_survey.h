@@ -19,9 +19,9 @@ struct airfield_status {
   unsigned int objectives{0};
 };
 
-airfield_status survey_airfield(world::theatre const &theatre);
+airfield_status survey_airfield(world::theatre const &theatre, unsigned int airfield = 4);
 void group_survey_entries(std::span<survey_entry> entries);
 std::string describe_survey_entry(survey_entry const &entry, maths::world_position const &origin);
-std::vector<std::string> airfield_survey(world::theatre const &theatre);
+std::vector<std::string> airfield_survey(world::theatre const &theatre, unsigned int airfield = 4);
 
 } // namespace corncob::resources

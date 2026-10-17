@@ -62,7 +62,8 @@ struct effects::implementation {
   int kla_frequency{0};
   bool wind{false}, wind_trigger{false};
 
-  explicit implementation(resources::collection const &resources) {
+  void load_patches(resources::collection const &resources) {
+    for(auto &patch : patches) patch.clear();
     /// Original ADL text contains twelve terminated lists of hexadecimal register/value pairs
     std::istringstream input{std::string{resources.text("3.adl")}};
     std::string line;
@@ -83,6 +84,9 @@ struct effects::implementation {
       });
     }
     if(patch != patches.size()) throw std::invalid_argument{"incomplete embedded ADL effect bank"};
+  }
+  explicit implementation(resources::collection const &resources) {
+    load_patches(resources);
     queued.reserve(1024);
     consumed.reserve(1024);
     scheduled.reserve(1024);
@@ -148,6 +152,11 @@ effects::effects(resources::collection const &resources) : state{std::make_uniqu
   reset();
 }
 effects::~effects() = default;
+void effects::reset(resources::collection const &resources) {
+  /// Patch definitions belong to the simulation thread; the PCM thread consumes only queued register writes.
+  state->load_patches(resources);
+  reset();
+}
 void effects::reset() {
   /// A new sortie starts fresh effect bookkeeping while releasing any old chip envelopes
   std::lock_guard lock{state->queue_lock};

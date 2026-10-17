@@ -8,6 +8,7 @@
 #include "resources/actor_tables.h"
 #include "game/frame_clock.h"
 #include "game/scenery.h"
+#include "world/airfields.h"
 
 namespace corncob::game {
 
@@ -70,6 +71,16 @@ session::session(resources::geometry_bank const &geometry, world::theatre theatr
 
 void session::press(action const command) {
   /// Handle discrete game commands independently of window callbacks for scripted and native checks
+  if(command == action::toggle_invulnerability) {
+    set_invincible(theatre.expansion ? !invincible : true);
+    if(invincible) {
+      damage = {};
+      damage.invincible = true;
+      angular.wing_damage = angular.rudder_damage = angular.stability_damage = 0;
+      damage.maximum_throttle = 200;
+    }
+    return;
+  }
   if(command == action::toggle_messages) {
     messages = !messages;
     if(!messages) radio.reset();
@@ -384,6 +395,7 @@ void session::leave_aircraft() {
 void session::update_aircraft(input_state const &input, flight::time_step const step) {
   /// Preserve the original ordering: old axes feed control/forces, then landing precedes position integration
   if(!controlled_aircraft || airframe_destroyed) return;
+  if(recording && mode == player_mode::in_aircraft) return;
   unsigned int const pressure_target{static_cast<unsigned int>(aircraft.throttle) * 32'768 / 200 * aircraft.power_factor >> 16};
   aircraft.oil_pressure = static_cast<uint16_t>(aircraft.oil_pressure + (static_cast<int>(pressure_target) - aircraft.oil_pressure) / 40);
   if(landing.stopped) return;
@@ -435,6 +447,7 @@ void session::update_aircraft(input_state const &input, flight::time_step const 
 
 void session::update_scenery() {
   /// Apply nearby permanent handlers while the session owns tower handoffs and one-time objective credit
+  if(theatre.expansion && at_home()) world::select_airfield(theatre, world::nearest_airfield(theatre, camera().position));
   for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
     auto &object{theatre.objects[i]};
     auto const observer{camera().position};
@@ -522,7 +535,40 @@ void session::update_person(input_state const &input, flight::time_step const st
   }
 }
 
-void session::advance(input_state const &input, std::optional<std::function_ref<void()>> const draw_frame) {
+void session::advance(input_state const &requested, std::optional<std::function_ref<void()>> const draw_frame) {
+  input_state input{requested};
+  if(recording && !paused && !visiting_tower) {
+    auto const frames{recording->frames()};
+    if(recorded_index >= frames.size()) { recording_complete = true; return; }
+    auto const &record{frames[recorded_index]};
+    input = {};
+    input.weapons.gun = (record.buttons & 1u) == 0;
+    input.weapons.missile = (record.buttons & 2u) == 0;
+    aircraft.flaps = (record.buttons & 16u) != 0;
+    if(recorded_ticks == 0) {
+      if((record.buttons & 4u) != 0) press(action::drop_bomb);
+      if((record.buttons & 32u) != 0 && mode == player_mode::in_aircraft) press(action::eject);
+    }
+    if(mode == player_mode::in_aircraft && (record.buttons & 32u) == 0) {
+      aircraft.position = maths::world_position{record.position};
+      aircraft.attitude = record.attitude;
+      aircraft.world_to_body = maths::make_rotation(record.attitude);
+      aircraft.body_to_world = maths::make_inverse_rotation(record.attitude);
+      for(unsigned int axis{0}; axis != 3; ++axis) aircraft.velocity[axis] = maths::word(static_cast<int32_t>(maths::word(record.velocity[axis])) / 2 * 16);
+      aircraft.body_velocity = maths::transform(aircraft.world_to_body, aircraft.velocity);
+      for(unsigned int axis{0}; axis != 3; ++axis) aircraft.scaled_body_velocity[axis] = static_cast<int16_t>(aircraft.body_velocity[axis] / 16);
+      aircraft.throttle = 199;
+    }
+    // Original playback uses ten-unit frames; native flight advances in five-unit steps.
+    if(++recorded_ticks == 2) { recorded_ticks = 0; ++recorded_index; }
+  }
+  if(builder) {
+    frame = advance_frame(frame);
+    builder->advance(input.stick, input.map, input.walk_forward, input.walk_backward);
+    notice = builder->status();
+    if(draw_frame) (*draw_frame)();
+    return;
+  }
   /// One original five-unit frame is forty fast PIT ticks; T advances physical time without replacing frame timers
   if(map) {
     fast_ticks += 40;
@@ -595,10 +641,10 @@ void session::advance(input_state const &input, std::optional<std::function_ref<
     enemies.refresh_census(aircraft.position);
     retain_aircraft();
   }
-  if(controlled_aircraft && experimental_clearance && aircraft.variant == flight::aircraft_variant::experimental
-    && (aircraft.position.z >> 8) >= atmosphere.height * 3 / 5) {
+  if(controlled_aircraft && (theatre.expansion || (experimental_clearance && aircraft.variant == flight::aircraft_variant::experimental))
+    && (aircraft.position.z >> 8) >= (theatre.expansion ? atmosphere.height / 2 : atmosphere.height * 3 / 5)) {
     mode = player_mode::earth_saved;
-    notice = "You have saved Earth from alien attack!";
+    notice = theatre.expansion ? "You have gone into orbit!" : "You have saved Earth from alien attack!";
   }
   find_surfaces();
   check_aircraft_collisions(step);
@@ -677,6 +723,7 @@ maths::random_source &session::random_stream() noexcept {
 }
 
 graphics::camera session::camera() const {
+  if(builder) return builder->camera();
   /// Walking, cockpit and remote flight share one renderer but retain separate player and aircraft viewpoints
   if(map) {
     auto observer{map->camera()};
@@ -742,6 +789,34 @@ bool session::messages_enabled() const noexcept {
 std::optional<resources::radio_notice> session::take_radio() {
   /// Presentation consumes one original queued message while the core keeps no window or font state
   return std::exchange(radio, std::nullopt);
+}
+bool session::in_recording() const noexcept {
+  return recording.has_value();
+}
+bool session::in_builder() const noexcept {
+  return builder.has_value();
+}
+void session::begin_recording(std::span<uint8_t const> const data) {
+  recording.emplace(data);
+  recorded_index = recorded_ticks = 0;
+  recording_complete = false;
+  messages = false;
+  if(!controlled_aircraft) {
+    auto const found{std::ranges::find_if(theatre.objects, [](auto const &object){return object.type == world::object_type::aircraft && object.has(world::object_flag::present);})};
+    if(found != theatre.objects.end()) enter_aircraft(static_cast<unsigned int>(found - theatre.objects.begin()));
+    else if(auto const index{weapons.spawn(world::object_type::aircraft, theatre.start)}) enter_aircraft(*index);
+  }
+}
+void session::begin_builder() {
+  /// A builder copy remains frozen until saved; its original embedded definition is never modified.
+  builder.emplace(theatre, geometry);
+  invincible = true;
+}
+void session::edit(builder_command const command) {
+  if(builder) builder->command(command);
+}
+void session::builder_speed(unsigned int const setting) {
+  if(builder) builder->speed_setting(setting);
 }
 bool session::in_map() const noexcept {
   /// Map inspection freezes the sortie but continues the original independent input and blink clock
@@ -828,6 +903,7 @@ world::theatre session::snapshot() const {
   world::theatre result;
   result.tiles = theatre.tiles;
   result.start = maths::world_position{theatre.start};
+  if(theatre.expansion && at_home()) world::select_airfield(result, world::nearest_airfield(theatre, camera().position));
   result.sky = theatre.sky;
   result.environment = theatre.environment;
   result.briefing = theatre.briefing;
@@ -849,6 +925,7 @@ world::theatre session::snapshot() const {
   return result;
 }
 bool session::finished() const noexcept {
+  if(recording_complete) return true;
   /// Terminal sortie states leave flight input and simulation to the result/front-end flow
   return mode != player_mode::on_foot && mode != player_mode::in_aircraft;
 }

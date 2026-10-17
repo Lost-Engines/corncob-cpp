@@ -1,0 +1,73 @@
+{
+  "reference": "Other Worlds Campaign 3.42",
+  "player_sha256": "6d8c922d59a873073796b367a2a40993fcaa5e763ed2ca907a945981f0c5bc32",
+  "driver_sha256": "22d485fca01f9dfa3d86ebf290edd75e8454520b0bc1259ede6421066f6c9084",
+  "composer": "James L. Collymore",
+  "copyright": "Music copyright 1986-1991 James L. Collymore; original terms remain applicable",
+  "capture_method": "Unchanged normal 3.42 MOAG.EXE with the byte-identical shared Ad Lib driver; original edition bank and ROL scores in private DOSBox copies; single-song playlist repeated twice; virtual-time turbo preserves PIT playback timing",
+  "timing_resolution_ms": 1,
+  "masters": "48 kHz, mono, signed 16-bit FLAC -8; no gain changes or normalisation",
+  "encoding": "Ogg Vorbis quality 6, Xiph libVorbis 1.3.7 / oggenc 1.4.3",
+  "renderer_source_sha256": "c65fb3f7c0e7faec2b7628bc52f29a6d8793dd16993e321c479a48dfac30ce6c",
+  "nuked_opl3_commit": "765ec962e473aeb767e4cba74ffdc8f588ffbfe8",
+  "menu_playlist": [
+    "heavens",
+    "daybreak"
+  ],
+  "recordings": [
+    {
+      "song": "voyage3",
+      "sequence_sha256": "800907e4e08dfc37f9cb07ff2d4c697e8079050ca7f01e0a417c837b4c790ea4",
+      "bank_sha256": "992bcf125b42bde154ed6f010ecd7e6919669755e4363227db714ecb09d64a18",
+      "capture": "audio/native-driver/other_worlds/voyage3.dro",
+      "capture_sha256": "02394cad0804091cf3a9ab0ca9bab2cda542211b518eaaed645a205b9186dc24",
+      "score_reset_ms": 233414,
+      "repeat_boundary_ms": 233746,
+      "verified_note_ons_per_pass": 1331,
+      "flac": "audio/voyage3-992bcf12.flac",
+      "flac_sha256": "5502a05406a697ab0330c413108a6e59c75a32a99186acf850ca5e6b8ad46344",
+      "embedded": "music/other_worlds/voyage3.ogg",
+      "embedded_bytes": 2552729,
+      "embedded_sha256": "612b671cc21a4be385a0d9fe7bc88aa4efd1d7b06abbabe4c87ed5d1ed89aa64",
+      "frames": 11219808,
+      "sample_rate": 48000,
+      "channels": 1
+    },
+    {
+      "song": "heavens",
+      "sequence_sha256": "74a078c7d1310ca39c7bf70c38ce2a05b26e7af0915d1dfb8f210e0e4aa3a5e2",
+      "bank_sha256": "992bcf125b42bde154ed6f010ecd7e6919669755e4363227db714ecb09d64a18",
+      "capture": "audio/native-driver/other_worlds/heavens.dro",
+      "capture_sha256": "81024c25113d5247196f5980880671868674b564a7f6e78587d2ce4d006f8f92",
+      "score_reset_ms": 229627,
+      "repeat_boundary_ms": 229798,
+      "verified_note_ons_per_pass": 2529,
+      "flac": "audio/heavens-992bcf12.flac",
+      "flac_sha256": "80fa7b8a1303aeb283465ef3a2c89185cae94542a811da42274eb3becd66fcda",
+      "embedded": "music/other_worlds/heavens.ogg",
+      "embedded_bytes": 2671430,
+      "embedded_sha256": "6f773992c85f3d860096053febe151ea7fd2b64a88e20d10019cfa2dcfa8bff5",
+      "frames": 11030304,
+      "sample_rate": 48000,
+      "channels": 1
+    },
+    {
+      "song": "daybreak",
+      "sequence_sha256": "dc79cde4d76a1f9d56aaebf809c9a6620fc086eb17380a6c49a146e70d9e1497",
+      "bank_sha256": "992bcf125b42bde154ed6f010ecd7e6919669755e4363227db714ecb09d64a18",
+      "capture": "audio/native-driver/other_worlds/daybreak.dro",
+      "capture_sha256": "9a182b03e4b73738b3689120af88ba413e120f96d9e92ea7e33895f174737302",
+      "score_reset_ms": 152799,
+      "repeat_boundary_ms": 152967,
+      "verified_note_ons_per_pass": 830,
+      "flac": "audio/daybreak-992bcf12.flac",
+      "flac_sha256": "ec24eea4ba39fb9545a1748084d56c6e0a944610459a714e6b3f86a74ba2b9ed",
+      "embedded": "music/other_worlds/daybreak.ogg",
+      "embedded_bytes": 1903232,
+      "embedded_sha256": "9b20ef9c668641ee082e533ee4607b0653b34a58b1529a246f18c8895f15a72c",
+      "frames": 7342416,
+      "sample_rate": 48000,
+      "channels": 1
+    }
+  ]
+}

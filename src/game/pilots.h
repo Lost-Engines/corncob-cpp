@@ -8,6 +8,7 @@
 #include <vector>
 #include "game/statistics.h"
 #include "world/training.h"
+#include "world/theatre_catalog.h"
 
 namespace corncob::game {
 
@@ -164,7 +165,7 @@ public:
   std::span<uint8_t const> native_data() const noexcept;
   void finish_sortie(sortie_statistics const &result, score_context context = score_context::campaign);
   void award(medal kind);
-  void review_career(std::span<theatre_progress> theatres, uint16_t theatre_aircraft_lost, int32_t now);
+  void review_career(std::span<theatre_progress> theatres, uint16_t theatre_aircraft_lost, int32_t now, world::campaign_id campaign = world::campaign_id::earth);
 };
 
 class pilot_roster {

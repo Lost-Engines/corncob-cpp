@@ -53,6 +53,7 @@ public:
   effects(effects const&) = delete;
   effects &operator=(effects const&) = delete;
   void reset();
+  void reset(resources::collection const &resources);
   void update(frame_state const &frame);
   void render(std::span<float> samples) noexcept;
   std::vector<register_write> pending_registers() const;

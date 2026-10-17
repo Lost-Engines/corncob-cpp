@@ -1,0 +1,157 @@
+{
+  "executables_sha256": [
+    "c411dde7d18e1dc19d718327b70d1e69321448520344d3baa4a0c8e68a71e81e",
+    "284c2ab1990479e8dc374cced6d7ffb9aa0c1047e0840e0ac6d7015a09616d3d"
+  ],
+  "matching_templates": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60
+  ],
+  "matching_quality_tables": [
+    {
+      "name": "kla",
+      "earth_ds": 60525,
+      "other_worlds_ds": 61087,
+      "bytes": 192
+    },
+    {
+      "name": "kla_site",
+      "earth_ds": 60719,
+      "other_worlds_ds": 61281,
+      "bytes": 48
+    },
+    {
+      "name": "aaa",
+      "earth_ds": 60769,
+      "other_worlds_ds": 61331,
+      "bytes": 96
+    },
+    {
+      "name": "alien",
+      "earth_ds": 60867,
+      "other_worlds_ds": 61429,
+      "bytes": 64
+    },
+    {
+      "name": "forcefield",
+      "earth_ds": 60951,
+      "other_worlds_ds": 61513,
+      "bytes": 16
+    },
+    {
+      "name": "portal",
+      "earth_ds": 60969,
+      "other_worlds_ds": 61531,
+      "bytes": 64
+    },
+    {
+      "name": "vehicle_site",
+      "earth_ds": 61035,
+      "other_worlds_ds": 61597,
+      "bytes": 32
+    },
+    {
+      "name": "vehicle",
+      "earth_ds": 61069,
+      "other_worlds_ds": 61631,
+      "bytes": 144
+    },
+    {
+      "name": "balloon",
+      "earth_ds": 61215,
+      "other_worlds_ds": 61777,
+      "bytes": 64
+    },
+    {
+      "name": "saucer_site",
+      "earth_ds": 61281,
+      "other_worlds_ds": 61843,
+      "bytes": 48
+    },
+    {
+      "name": "shell_contents",
+      "earth_ds": 61365,
+      "other_worlds_ds": 61927,
+      "bytes": 48
+    },
+    {
+      "name": "saucer",
+      "earth_ds": 61415,
+      "other_worlds_ds": 61977,
+      "bytes": 224
+    }
+  ],
+  "matching_runtime_colour_rules": 21,
+  "extra_model": {
+    "other_worlds_ds": "5c86",
+    "use": "Mission-builder six-sphere axis cursor"
+  },
+  "shared_geometry_scope": "All 61 template defaults and all eight ordered model drawing lists at every detail level, including initial resolved colours; relocated storage addresses excluded.",
+  "behaviour_differences": [
+    "Registered Other Worlds build enables map mission builder and recorded-flight replay.",
+    "Other Worlds enters SRATS in any aircraft at half atmosphere height; Earth needs cleared experimental aircraft at three fifths.",
+    "Other Worlds Alt-I toggles invulnerability both ways; Earth only enables it.",
+    "Other Worlds MOAG unconditionally appends f at file 0x13cd7..0x13ce5 (mov ax,1); Earth checks Combat Master at 0x112f2..0x11307.",
+    "World, airfield, required-theatre and career rules are selected by edition."
+  ],
+  "scope": "This checks shared runtime data, not a claim that the entire executable instruction streams are identical."
+}

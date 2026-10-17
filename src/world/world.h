@@ -67,6 +67,7 @@ enum class model_pose {
   experimental_aircraft,
   revealed_forcefield,
   distant_hidden,
+  editor_cursor,
 };
 
 struct motion_profile {
@@ -130,6 +131,7 @@ struct mission_start {
 };
 
 struct theatre {
+  bool expansion{false};
   static unsigned int constexpr columns{8};
   static unsigned int constexpr rows{8};
   static int32_t constexpr tile_size{32 * 65'536};

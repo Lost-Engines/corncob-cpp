@@ -7,7 +7,7 @@
 # Preserve original embedded briefing bytes, including DOS CRLF
 assets/*.twr binary
 
-assets/music/*.ogg binary
+*.ogg binary
 
 # Native TOWERS.INF reference retains its DOS line endings
 tests/reference/*.inf binary

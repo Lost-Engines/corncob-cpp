@@ -11,6 +11,7 @@
 #include "resources/airfield_survey.h"
 #include "resources/assets.h"
 #include "world/theatre_catalog.h"
+#include "world/airfields.h"
 #include "world/world.h"
 
 namespace corncob::game {
@@ -23,6 +24,7 @@ render::rgba_pixel constexpr white{255, 255, 255}, grey{170, 170, 170}, yellow{2
 
 front_end::front_end(resources::collection const &assets, campaign_store &campaign, bool const skip_intro, bool const start_in_flight, std::optional<control_setup> const controls, std::optional<bool> const music_enabled) :
   assets{assets},
+  expansion_assets{resources::other_worlds_asset(), &assets},
   campaign{campaign},
   menu_font{assets.menu_font()},
   training{campaign.training_settings()},
@@ -31,15 +33,26 @@ front_end::front_end(resources::collection const &assets, campaign_store &campai
     .beginner_flight{!campaign.active_pilot() || campaign.active_pilot()->beginner_flight()},
   })},
   stories{assets.story()},
-  outcomes{assets.outcomes()},
+  outcomes{campaign_assets().outcomes()},
   music_on{music_enabled.value_or(campaign.music_enabled())} {
   /// One state machine replaces the original title, menu, help and outcome helper processes
   page = start_in_flight ? interface_page::flight : skip_intro ? interface_page::menu : interface_page::story;
+  group = campaign.current_campaign() == world::campaign_id::earth ? world::theatre_group::earth : world::theatre_group::other_worlds;
   saved_theatres = campaign.theatres();
   combat_invulnerable = campaign.combat_invincible();
   comments_enabled = campaign.inflight_comments();
   for(auto const name : {"img/3d2.img", "img/3d3.img", "img/3d4.img", "img/3d5.img", "img/3d6.img",
     "img/3d7.img", "img/3d8.img", "img/3d9.img", "img/3d10.img", "img/3d13.img"}) help_screens.push_back(resources::decode_cockpit_mask(assets.file(name)));
+}
+resources::collection const &front_end::campaign_assets() const noexcept {
+  return campaign.current_campaign() == world::campaign_id::earth ? assets : expansion_assets;
+}
+void front_end::choose_group(world::theatre_group const selected) {
+  group = selected;
+  campaign.select_campaign(group == world::theatre_group::earth ? world::campaign_id::earth : world::campaign_id::other_worlds);
+  sync_pilot();
+  outcomes = campaign_assets().outcomes();
+  remembered_selection[interface_page::new_theatre] = 0;
 }
 void front_end::navigate(interface_page const destination) {
   /// Each original menu remembers its highlighted entry when a child screen closes
@@ -77,7 +90,7 @@ void front_end::information(unsigned int const section) {
   /// Menu information is separate from F4's original in-flight artwork
   information_return = page;
   information_section = section;
-  document(assets.text("moag.inf"), section);
+  document(campaign_assets().text("moag.inf"), section);
   if(!document_lines.empty()) document_lines.erase(document_lines.begin());
   navigate(interface_page::menu_information);
 }
@@ -93,15 +106,22 @@ void front_end::launch_combat() {
   auto const active{campaign.active_theatre()};
   if(!active || *active >= worlds.size()) { notice("Sorry, there is no active theater-of-operation.\nOpen or activate a theater before choosing Fly mission."); return; }
   prepared_world = campaign.load_world(worlds[*active].definition);
+  starting_airfield = prepared_world ? world::nearest_airfield(*prepared_world, prepared_world->start) : world::central_airfield;
   prepared_launch = launch_request{
     .theatre{worlds[*active].definition},
     .invincible{combat_invulnerable},
     .comments{comments_enabled},
+    .airfield{starting_airfield},
   };
-  navigate(prepared_world && resources::survey_airfield(*prepared_world).objectives == 0
+  navigate(prepared_world && resources::survey_airfield(*prepared_world, world::airfield_count).objectives == 0
     ? interface_page::no_objectives : interface_page::starting_airfield);
+  if(page == interface_page::starting_airfield) selection = starting_airfield;
 }
 void front_end::finish_reports() {
+  if(std::exchange(pending_campaign_victory, false)) {
+    navigate(interface_page::campaign_victory);
+    return;
+  }
   /// MOAG returns an unavailable named pilot to the roster and resumes with the disposable trainee
   if(!campaign.can_fly()) campaign.deactivate();
   sync_pilot();
@@ -126,18 +146,49 @@ void front_end::accept() {
       case 1: navigate(interface_page::theatres); break;
       case 2: navigate(interface_page::training); break;
       case 3: navigate(interface_page::high_score_menu); break;
-      case 4:
-        document(assets.text("moag.inf"), 9);
-        if(!document_lines.empty()) document_lines.erase(document_lines.begin());
-        navigate(interface_page::registration); break;
+      case 4: navigate(interface_page::campaigns); break;
       case 5: navigate(interface_page::control_setup); break;
       case 6: music_on = !music_on; campaign.music_enabled(music_on); break;
-      case 7: document_chapter = 0; numeric_input.clear(); document(assets.text("corncob.doc"), 0); navigate(interface_page::documentation); break;
+      case 7: document_chapter = 0; numeric_input.clear(); document(campaign_assets().text("corncob.doc"), 0); navigate(interface_page::documentation); break;
       case 8:
-        platform::write_binary(campaign.save_directory() / "CORNCOB.DOC", assets.file("corncob.doc"));
+        platform::write_binary(campaign.save_directory() / "CORNCOB.DOC", campaign_assets().file("corncob.doc"));
         notice("The original documentation has been saved for printing.\nCORNCOB.DOC is in your save directory."); break;
       case 9: information(1); break;
       case 10: quit_requested = true; break;
+      }
+      break;
+    case interface_page::campaigns:
+      if(selection < 3) {
+        choose_group(static_cast<world::theatre_group>(selection));
+        navigate(interface_page::new_theatre);
+      } else if(selection == 3) navigate(interface_page::demonstrations);
+      else if(selection == 4) {
+        choose_group(world::theatre_group::practice);
+        navigate(interface_page::new_theatre);
+        selection = 0;
+        character('b');
+      } else if(selection < 7) {
+        auto text{std::string{expansion_assets.text(selection == 5 ? "mbuilder.doc" : "hints.txt")}};
+        std::ranges::replace(text, '\f', '\n');
+        document(text, 0);
+        information_return = interface_page::campaigns;
+        navigate(interface_page::registration);
+      } else if(selection == 7) {
+        choose_group(world::theatre_group::other_worlds);
+        title.emplace(expansion_assets, true);
+        page = interface_page::title;
+      } else navigate(interface_page::menu);
+      break;
+    case interface_page::demonstrations:
+      if(selection == 3) navigate(interface_page::campaigns);
+      else {
+        choose_group(world::theatre_group::practice);
+        std::array<std::string_view, 3> constexpr recordings{"demo1", "demo5", "demo6"};
+        pending_launch = launch_request{
+          .theatre{"other_worlds/demo1"},
+          .comments{false},
+          .recording{recordings[selection]},
+        };
       }
       break;
     case interface_page::roster:
@@ -196,6 +247,7 @@ void front_end::accept() {
       if(announcements.empty()) navigate(interface_page::post_mission_report);
       else navigate(interface_page::career_announcement);
       break;
+    case interface_page::campaign_victory:
     case interface_page::post_mission_report: finish_reports(); break;
     case interface_page::career_announcement:
       if(++announcement_index == announcements.size()) navigate(interface_page::post_mission_report);
@@ -262,8 +314,8 @@ void front_end::accept() {
       break;
     case interface_page::new_theatre:
       {
-        std::array<std::span<uint8_t const>, 4> const data{resources::morning_asset(), resources::dusk_asset(), resources::wasteland_asset(), resources::white_sands_asset()};
-        campaign.open_theatre(world::theatre_catalog[selection].name, world::decode_theatre(data[selection]));
+        auto const &definition{world::theatres(group)[selection]};
+        campaign.open_theatre(definition.name, world::load_theatre(definition.name));
         saved_theatres = campaign.theatres();
         navigate(interface_page::theatres);
       }
@@ -280,7 +332,12 @@ void front_end::accept() {
       else detailed_records = true;
       break;
     case interface_page::starting_airfield:
-      if(prepared_world && resources::survey_airfield(*prepared_world).planes == 0) { navigate(interface_page::no_aircraft); break; }
+      if(prepared_world && world::multiple_airfields(*prepared_world)) {
+        starting_airfield = selection;
+        prepared_launch->airfield = starting_airfield;
+        world::select_airfield(*prepared_world, starting_airfield);
+      }
+      if(prepared_world && resources::survey_airfield(*prepared_world, starting_airfield).planes == 0) { navigate(interface_page::no_aircraft); break; }
       [[fallthrough]];
     case interface_page::no_aircraft:
     case interface_page::mission_briefing:
@@ -308,11 +365,11 @@ void front_end::accept() {
     case interface_page::documentation:
       if(document_chapter == 0 && !numeric_input.empty()) {
         unsigned int const chapter{static_cast<unsigned int>(std::stoi(numeric_input))};
-        if(chapter < 1 || chapter > 17) break;
+        if(chapter < 1 || chapter > (campaign.current_campaign() == world::campaign_id::earth ? 17u : 22u)) break;
         document_chapter = chapter;
-      } else if(++document_chapter > 17) document_chapter = 0;
-      numeric_input.clear(); document(assets.text("corncob.doc"), document_chapter); break;
-    case interface_page::registration: navigate(interface_page::menu); break;
+      } else if(++document_chapter > (campaign.current_campaign() == world::campaign_id::earth ? 17u : 22u)) document_chapter = 0;
+      numeric_input.clear(); document(campaign_assets().text("corncob.doc"), document_chapter); break;
+    case interface_page::registration: navigate(information_return); break;
     case interface_page::notice: feedback.clear(); navigate(information_return); break;
     case interface_page::help: if(++help_index == help_screens.size()) navigate(return_page); break;
     case interface_page::quit_confirmation:
@@ -387,15 +444,19 @@ void front_end::command(interface_command const command) {
     if(page == interface_page::records || page == interface_page::medals) detailed_records = !detailed_records;
     break;
   case interface_command::previous:
+    if(page == interface_page::new_theatre) { choose_group(static_cast<world::theatre_group>((std::to_underlying(group) + 2) % 3)); selection = 0; }
     if(page == interface_page::help && help_index != 0) --help_index;
     break;
   case interface_command::next:
+    if(page == interface_page::new_theatre) { choose_group(static_cast<world::theatre_group>((std::to_underlying(group) + 1) % 3)); selection = 0; }
     if(page == interface_page::help || page == interface_page::story || page == interface_page::title) accept();
     break;
   case interface_command::cancel:
     switch(page) {
     case interface_page::radio: accept(); break;
     case interface_page::ending: ending.reset(); show_outcome(14); break;
+    case interface_page::demonstrations: navigate(interface_page::campaigns); break;
+    case interface_page::campaigns: navigate(interface_page::menu); break;
     case interface_page::flight: ask_to_end_sortie(); break;
     case interface_page::help: navigate(return_page); break;
     case interface_page::menu: if(session_running) page = interface_page::flight; else quit_requested = true; break;
@@ -416,11 +477,11 @@ void front_end::command(interface_command const command) {
     case interface_page::score_delete_confirmation: navigate(interface_page::score_delete); break;
     case interface_page::menu_information: navigate(information_return); break;
     case interface_page::documentation:
-      if(document_chapter != 0) { document_chapter = 0; document(assets.text("corncob.doc"), 0); }
+      if(document_chapter != 0) { document_chapter = 0; document(campaign_assets().text("corncob.doc"), 0); }
       else navigate(interface_page::menu);
       break;
     case interface_page::unavailable_pilot: case interface_page::resurrect_activate: navigate(interface_page::roster); break;
-    case interface_page::post_mission_report: case interface_page::career_announcement: case interface_page::sortie_summary: accept(); break;
+    case interface_page::campaign_victory: case interface_page::post_mission_report: case interface_page::career_announcement: case interface_page::sortie_summary: accept(); break;
     case interface_page::notice: accept(); break;
     case interface_page::title: case interface_page::story: title.reset(); navigate(interface_page::menu); break;
     case interface_page::boss: page = boss_return; break;
@@ -481,6 +542,11 @@ void front_end::show_menu() {
   /// The native helper flow can return to a retained flight without recreating its world
   page = interface_page::menu;
   selection = 0;
+}
+void front_end::finish_editing() {
+  session_running = false;
+  sync_pilot();
+  navigate(interface_page::theatres);
 }
 void front_end::begin_flight() {
   /// A newly created native session owns the selected theatre until its sortie ends
@@ -565,7 +631,7 @@ void front_end::render(render::framebuffer &target) const {
     return;
   }
   if(page == interface_page::outcome) {
-    graphics::draw_presentation(target, assets, outcomes.at(outcome_index));
+    graphics::draw_presentation(target, campaign_assets(), outcomes.at(outcome_index));
     return;
   }
   if(page == interface_page::help) {
@@ -588,7 +654,10 @@ unsigned int front_end::choice_count() const {
   case interface_page::theatres: return 10;
   case interface_page::training: case interface_page::control_setup: return 7;
   case interface_page::training_counts: case interface_page::training_wickedness: return 4;
-  case interface_page::new_theatre: return 4;
+  case interface_page::campaigns: return 9;
+  case interface_page::demonstrations: return 4;
+  case interface_page::starting_airfield: return prepared_world && world::multiple_airfields(*prepared_world) ? 9 : 1;
+  case interface_page::new_theatre: return static_cast<unsigned int>(world::theatres(group).size());
   case interface_page::open_theatre: case interface_page::theatre_delete: case interface_page::theatre_records:
     return std::max(1u, static_cast<unsigned int>(saved_theatres.size()));
   case interface_page::high_score_menu: return 6;
@@ -602,6 +671,7 @@ audio::music_cue front_end::music() const noexcept {
   /// The DOS launcher plays music; flight, its helper pages and the original outcome/ending sequences do not
   if(!music_on || session_running || page == interface_page::ending || page == interface_page::outcome || page == interface_page::story)
     return audio::music_cue::silent;
+  if(campaign.current_campaign() == world::campaign_id::other_worlds) return page == interface_page::title ? audio::music_cue::other_title : audio::music_cue::other_menus;
   return page == interface_page::title ? audio::music_cue::title : audio::music_cue::menus;
 }
 control_setup const &front_end::flight_controls() const noexcept {
@@ -634,6 +704,25 @@ std::optional<world::mission_start> front_end::take_relocation() {
   return std::exchange(pending_relocation, std::nullopt);
 }
 void front_end::character(uint32_t const codepoint) {
+  if(page == interface_page::menu && !session_running && (codepoint == 'r' || codepoint == 'R')) {
+    document(assets.text("moag.inf"), 9);
+    if(!document_lines.empty()) document_lines.erase(document_lines.begin());
+    information_return = interface_page::menu;
+    navigate(interface_page::registration);
+    return;
+  }
+  if(page == interface_page::new_theatre && (codepoint == 'b' || codepoint == 'B')) {
+    auto const &definition{world::theatres(group)[selection]};
+    campaign.open_theatre(definition.name, world::load_theatre(definition.name));
+    saved_theatres = campaign.theatres();
+    pending_launch = launch_request{
+      .theatre{std::string{definition.name}},
+      .invincible{true},
+      .comments{false},
+      .editing{true},
+    };
+    return;
+  }
   /// Text prompts own characters; elsewhere the yellow original shortcut executes its menu entry immediately
   if(page == interface_page::briefing) {
     if(tower.lines().empty()) { page = interface_page::flight; return; }
@@ -676,7 +765,7 @@ void front_end::character(uint32_t const codepoint) {
     else navigate(interface_page::theatres);
     return;
   }
-  if(page == interface_page::post_mission_report || page == interface_page::no_objectives || page == interface_page::career_announcement) { accept(); return; }
+  if(page == interface_page::campaign_victory || page == interface_page::post_mission_report || page == interface_page::no_objectives || page == interface_page::career_announcement) { accept(); return; }
   if(page == interface_page::no_aircraft) {
     auto const active{campaign.active_theatre()};
     if((codepoint == 'p' || codepoint == 'P') && active && saved_theatres[*active].stored_aircraft != 0) {
@@ -686,7 +775,7 @@ void front_end::character(uint32_t const codepoint) {
     return;
   }
   if(page == interface_page::starting_airfield && (codepoint == 'i' || codepoint == 'I')) {
-    document_lines = prepared_world ? resources::airfield_survey(*prepared_world) : std::vector<std::string>{};
+    document_lines = prepared_world ? resources::airfield_survey(*prepared_world, world::multiple_airfields(*prepared_world) ? selection : starting_airfield) : std::vector<std::string>{};
     scroll = 0;
     navigate(interface_page::airfield_information);
     return;
@@ -699,7 +788,9 @@ void front_end::character(uint32_t const codepoint) {
   if(page == interface_page::high_scores || page == interface_page::notice || page == interface_page::current_score || page == interface_page::sortie_summary) { accept(); return; }
   std::string_view shortcuts;
   switch(page) {
-  case interface_page::menu: if(!session_running) shortcuts = "dcthrjmvpix"; break;
+  case interface_page::menu: if(!session_running) shortcuts = "dcthsjmvpix"; break;
+  case interface_page::campaigns: shortcuts = "eopdbihtr"; break;
+  case interface_page::demonstrations: shortcuts = "123r"; break;
   case interface_page::roster: shortcuts = "cadlenvir"; break;
   case interface_page::theatres: shortcuts = "foadvpmcir"; break;
   case interface_page::training: shortcuts = "fwndpir"; break;
@@ -725,6 +816,9 @@ bool front_end::take_finish() {
 void front_end::finish_sortie(sortie_statistics const &result, pilot_record const *const previous, pilot_record const *const previous_theatre) {
   /// Match native result priority before showing the sortie statistics in the same executable
   latest_result = result;
+  auto const *current{campaign.active_pilot()};
+  pending_campaign_victory = campaign.current_campaign() == world::campaign_id::other_worlds && previous && current
+    && previous->rank() != pilot_rank::general && current->rank() == pilot_rank::general && !result.has(sortie_status::killed);
   mission_prior = previous_theatre ? *previous_theatre : previous ? *previous : pilot_record{};
   returned_pilot = campaign.active_pilot() ? std::optional{*campaign.active_pilot()} : std::nullopt;
   mission_report_title = "MISSION REPORT";

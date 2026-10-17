@@ -119,7 +119,8 @@ title_frame title_motion::advance() {
   return result;
 }
 
-title_sequence::title_sequence(resources::collection const &assets) :
+title_sequence::title_sequence(resources::collection const &assets, bool const expansion) :
+  expansion{expansion},
   sprites{
     assets.image("vga/skla1.vga"), assets.image("vga/skla2.vga"), assets.image("vga/skla3.vga"), assets.image("vga/skla4.vga"),
     assets.image("vga/ssflak1.vga"), assets.image("vga/ssflak2.vga"), assets.image("vga/ssflak3.vga"),
@@ -127,8 +128,8 @@ title_sequence::title_sequence(resources::collection const &assets) :
   },
   terrain{assets.image("vga/tnambc.vga")},
   clouds{assets.image("vga/tcloud5s.vga")},
-  top_logo{assets.image("vga/tlogogr.vga")},
-  bottom_logo{assets.image("vga/blogogr.vga")},
+  top_logo{assets.image(expansion ? "vga/cologo.vga" : "vga/tlogogr.vga")},
+  bottom_logo{expansion ? resources::indexed_image{} : assets.image("vga/blogogr.vga")},
   credits(width * credit_height, 0),
   palette{sprites[0].palette} {
   /// Decode original artwork once; retain two indexed pages and the original masked cloud-fill effect
@@ -213,8 +214,11 @@ void title_sequence::draw_frame(title_frame const &frame) {
         }
       }
     }};
-    logo(top_logo, 8, 10);
-    logo(bottom_logo, 72, 64);
+    if(expansion) logo(top_logo, 40, 10);
+    else {
+      logo(top_logo, 8, 10);
+      logo(bottom_logo, 72, 64);
+    }
     for(unsigned int row{0}; row != 55; ++row)
       std::copy_n(credits.begin() + ((static_cast<unsigned int>(frame.credits_row) + row) % credit_height) * width, width, pixels.begin() + (row + 144) * width);
     auto const intensity{expand(static_cast<uint8_t>(frame.credit_intensity))};

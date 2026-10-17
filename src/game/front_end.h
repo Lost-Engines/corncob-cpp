@@ -37,6 +37,9 @@ enum class interface_page {
   ending,
   story,
   menu,
+  campaigns,
+  demonstrations,
+  campaign_victory,
   theatres,
   new_theatre,
   open_theatre,
@@ -89,6 +92,9 @@ struct launch_request {
   bool invincible{false};
   bool comments{true};
   bool reserve_aircraft{false};
+  unsigned int airfield{4};
+  bool editing{false};
+  std::string recording{};
 };
 
 struct control_setup {
@@ -99,6 +105,9 @@ struct control_setup {
 class front_end {
 private:
   resources::collection const &assets;
+  resources::collection expansion_assets;
+  world::theatre_group group{world::theatre_group::earth};
+  unsigned int starting_airfield{4};
   campaign_store &campaign;
   std::array<uint8_t, 4096> menu_font;
   enum class roster_action { activate, records, rename, resurrect, remove };
@@ -116,6 +125,7 @@ private:
   std::string feedback;
   bool renaming{false};
   bool pending_finish{false};
+  bool pending_campaign_victory{false};
   bool training_report{false};
   pilot_record mission_prior;
   std::optional<pilot_record> returned_pilot;
@@ -167,6 +177,8 @@ private:
   bool session_running{false};
   bool music_on{true};
 
+  resources::collection const &campaign_assets() const noexcept;
+  void choose_group(world::theatre_group selected);
   void accept();
   void navigate(interface_page destination);
   void sync_pilot();
@@ -196,6 +208,7 @@ public:
   void finish_sortie(sortie_statistics const &result, pilot_record const *previous = nullptr, pilot_record const *previous_theatre = nullptr);
   void command(interface_command command);
   void begin_flight();
+  void finish_editing();
   void show_menu();
   void show_intelligence(world::theatre const &world, unsigned int airfield = tower_briefing::central_airfield);
   void show_current_score(sortie_statistics const &result, bool training = false);

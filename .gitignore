@@ -1,3 +1,5 @@
 /build*/
 /CMakeUserPresets.json
 *.ppm
+
+__pycache__/

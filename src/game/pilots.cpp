@@ -262,7 +262,7 @@ void pilot_record::finish_sortie(sortie_statistics const &result, score_context 
   if(result.has(sortie_status::killed)) word(flags_offset, static_cast<uint16_t>(word(flags_offset) | 2u));
   if(result.has(sortie_status::captured)) word(flags_offset, static_cast<uint16_t>(word(flags_offset) | 8u));
 }
-void pilot_record::review_career(std::span<theatre_progress> const theatres, uint16_t const theatre_aircraft_lost, int32_t const now) {
+void pilot_record::review_career(std::span<theatre_progress> const theatres, uint16_t const theatre_aircraft_lost, int32_t const now, world::campaign_id const campaign) {
   /// MOAG scans the pilot's saved theatres after recording the sortie, except when friendly losses suspend a living pilot
   auto const result{last_sortie()};
   if(!unavailable() && result.friendly_destroyed != 0) {
@@ -271,29 +271,45 @@ void pilot_record::review_career(std::span<theatre_progress> const theatres, uin
     return;
   }
   bool all_completed{true}, newly_completed{false};
-  static std::array<std::string_view, 4> constexpr definitions{"morning", "dusk", "wasteland", "white_sands"};
-  for(auto const definition : definitions) {
+  auto const definitions{world::campaign_theatres(campaign)};
+  unsigned int required{0}, accomplished{0};
+  for(auto const &definition : definitions) {
     bool completed{false};
+    int16_t highest_completed{-1};
+    if(definition.required) ++required;
     for(auto &theatre : theatres) {
-      if(theatre.definition != definition || theatre.objectives_remaining != 0 || theatre.objectives_completed <= 0) continue;
-      completed = true;
-      if(theatre.current && !theatre.completion_recorded) {
-        newly_completed = theatre.completion_recorded = true;
+      if(theatre.definition != definition.name) continue;
+      highest_completed = std::max(highest_completed, theatre.objectives_completed);
+      if(theatre.objectives_remaining == 0 && theatre.objectives_completed > 0) {
+        completed = true;
+        if(theatre.current && !theatre.completion_recorded) newly_completed = theatre.completion_recorded = true;
       }
     }
-    if(definition != "white_sands" && !completed) all_completed = false;
+    if(highest_completed >= 20) ++accomplished;
+    if(definition.required && !completed) all_completed = false;
   }
   auto const totals{career()};
   auto new_rank{rank()};
   if(maths::word(totals.objectives_completed) >= 1) new_rank = std::max(new_rank, pilot_rank::first_lieutenant);
   if(maths::word(totals.objectives_completed) >= 7) new_rank = std::max(new_rank, pilot_rank::captain);
-  if(result.has(sortie_status::earth_saved)) new_rank = std::max(new_rank, pilot_rank::major);
+  if(campaign == world::campaign_id::earth) {
+    if(result.has(sortie_status::earth_saved)) new_rank = std::max(new_rank, pilot_rank::major);
+  } else {
+    if(maths::word(totals.objectives_completed) >= 20) new_rank = std::max(new_rank, pilot_rank::major);
+    if(accomplished >= 2) new_rank = std::max(new_rank, pilot_rank::lieutenant_colonel);
+    if(accomplished >= 3) new_rank = std::max(new_rank, pilot_rank::colonel);
+    all_completed = all_completed && required >= 3;
+    if(all_completed) new_rank = pilot_rank::general;
+  }
   data[rank_offset] = std::to_underlying(new_rank);
   if(newly_completed) {
     award(medal::theatre_combat);
     if(theatre_aircraft_lost == 0) award(medal::distinguished_flying_cross);
   }
-  if(all_completed && awards(medal::combat_master) == 0 && (word(flags_offset) & 2u) == 0) award(medal::combat_master);
+  if(all_completed && (word(flags_offset) & 2u) == 0) {
+    if(campaign == world::campaign_id::other_worlds) data[std::to_underlying(medal::combat_master)] = 1;
+    else if(awards(medal::combat_master) == 0) award(medal::combat_master);
+  }
   int32_t const score{last_sortie_score()};
   if(maths::word(result.maximum_damage) >= 27 && result.has(sortie_status::home) && result.aircraft_lost == 0 && !result.has(sortie_status::crashed_away)) award(medal::purple_heart);
   if(score > 100'000) award(medal::stellar_cluster);

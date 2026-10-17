@@ -11,6 +11,8 @@ struct map_input {
   bool home{false};
   bool rotate{false};
   bool slow{false};
+  bool move_object{false};
+  bool rotate_object{false};
 };
 
 class map_view {

@@ -25,19 +25,14 @@ void store_word(std::span<uint8_t> const bytes, unsigned int const offset, uint1
   bytes[offset + 1] = static_cast<uint8_t>(value >> 8);
 }
 std::string definition_name(std::string_view const theatre) {
-  /// Native THT headers store a definition stem, without its CCT extension
-  for(auto const &entry : world::theatre_catalog) if(entry.name == theatre) return std::string{entry.dos_name};
-  throw std::invalid_argument{"unknown saved theatre"};
+  /// The namespace belongs to the native port; DOS headers retain their original short definition stems.
+  return std::string{world::find_theatre(theatre).dos_name};
 }
 std::string_view theatre_title(std::string_view const theatre) {
-  /// Retain the original theatre titles in DOS-compatible saved headers
-  for(auto const &entry : world::theatre_catalog) if(entry.name == theatre) return entry.title;
-  throw std::invalid_argument{"unknown saved theatre"};
+  return world::find_theatre(theatre).title;
 }
 unsigned int initial_stored_aircraft(std::string_view const theatre) {
-  /// The definition table initializes the separate reserve count in THT header word 38
-  for(auto const &entry : world::theatre_catalog) if(entry.name == theatre) return entry.reserve_aircraft;
-  throw std::invalid_argument{"unknown saved theatre"};
+  return world::find_theatre(theatre).reserve_aircraft;
 }
 
 std::string stored_text(std::span<uint8_t const> const field) {
@@ -92,25 +87,65 @@ unsigned int remaining_objectives(world::theatre const &theatre) {
 
 } // anonymous namespace
 
-campaign_store::campaign_store(std::filesystem::path directory) :
-  directory{std::move(directory)} {
+campaign_store::campaign_profile &campaign_store::state() noexcept {
+  return profiles[std::to_underlying(edition)];
+}
+campaign_store::campaign_profile const &campaign_store::state() const noexcept {
+  return profiles[std::to_underlying(edition)];
+}
+campaign_store::campaign_store(std::filesystem::path directory) {
+  /// Earth retains its existing DOS-compatible directory; expansion records have their own native containers.
+  profiles[0].directory = std::move(directory);
+  profiles[1].directory = profiles[0].directory / "other_worlds";
+  load_profile();
+  edition = world::campaign_id::other_worlds;
+  load_profile();
+  edition = world::campaign_id::earth;
+  synchronise_identities();
+}
+void campaign_store::load_profile() {
   /// Load only user save state; original scenery remains embedded in the executable
-  auto const path{this->directory / "PILOT.SCR"};
-  if(std::filesystem::exists(path)) roster = pilot_roster::decode(platform::read_binary(path));
-  for(unsigned int i{0}; i != roster.pilots.size(); ++i) {
-    if(roster.pilots[i].selected() && !roster.pilots[i].unavailable()) {
-      selected = i;
+  auto const path{state().directory / "PILOT.SCR"};
+  if(std::filesystem::exists(path)) state().roster = pilot_roster::decode(platform::read_binary(path));
+  for(unsigned int i{0}; i != state().roster.pilots.size(); ++i) {
+    if(state().roster.pilots[i].selected() && !state().roster.pilots[i].unavailable()) {
+      state().selected = i;
       break;
     }
   }
-  auto const high_scores{this->directory / "PILOT.HSC"};
-  if(std::filesystem::exists(high_scores)) scores = score_tables::decode(platform::read_binary(high_scores));
+  auto const high_scores{state().directory / "PILOT.HSC"};
+  if(std::filesystem::exists(high_scores)) state().scores = score_tables::decode(platform::read_binary(high_scores));
+}
+void campaign_store::synchronise_identities() {
+  /// A common roster of names links independent careers; no medals, deaths or progress leak across editions.
+  for(auto &source : profiles) for(auto const &pilot : source.roster.pilots) {
+    for(auto &target : profiles) {
+      if(std::ranges::none_of(target.roster.pilots, [&](auto const &entry){return entry.name() == pilot.name();}))
+        target.roster.pilots.emplace_back(pilot.name());
+    }
+  }
+}
+world::campaign_id campaign_store::current_campaign() const noexcept {
+  return edition;
+}
+void campaign_store::select_campaign(world::campaign_id const campaign) {
+  /// Campaign choice changes the active record, while retaining the identity selected at the shared front end.
+  if(edition == campaign) return;
+  auto const name{active_pilot() ? active_pilot()->name() : std::string{}};
+  synchronise_identities();
+  edition = campaign;
+  state().selected.reset();
+  for(unsigned int i{0}; i != state().roster.pilots.size(); ++i) {
+    bool const selected{!name.empty() && state().roster.pilots[i].name() == name};
+    state().roster.pilots[i].select(selected);
+    if(selected) state().selected = i;
+  }
 }
 std::filesystem::path campaign_store::theatre_path(std::string_view const theatre) const {
   /// Recover the original ownership arrangement and allocate a free numbered path only for a new theatre
-  if(!selected) throw std::logic_error{"training pilot has no persistent theatre"};
-  auto const owned{owned_theatres(directory, roster.pilots[*selected])};
-  auto const active{roster.pilots[*selected].active_theatre()};
+  if(!state().selected) throw std::logic_error{"training pilot has no persistent theatre"};
+  auto const owned{owned_theatres(state().directory, state().roster.pilots[*state().selected])};
+  auto const active{state().roster.pilots[*state().selected].active_theatre()};
   if(active && *active < owned.size()) {
     auto const bytes{platform::read_binary(owned[*active])};
     if(stored_definition(bytes) == definition_name(theatre)) return owned[*active];
@@ -120,22 +155,22 @@ std::filesystem::path campaign_store::theatre_path(std::string_view const theatr
     if(stored_definition(bytes) == definition_name(theatre)) return path;
   }
   for(unsigned int index{1}; index <= 255; ++index) {
-    auto const path{directory / "THT" / (std::to_string(index) + ".THT")};
+    auto const path{state().directory / "THT" / (std::to_string(index) + ".THT")};
     if(!std::filesystem::exists(path)) return path;
   }
   throw std::runtime_error{"no available saved-theatre filename"};
 }
 void campaign_store::save_roster() const {
   /// Write the original masked roster representation after a deliberate roster or sortie change
-  platform::write_binary(directory / "PILOT.SCR", roster.encode());
+  for(auto const &profile : profiles) platform::write_binary(profile.directory / "PILOT.SCR", profile.roster.encode());
 }
 std::span<pilot_record const> campaign_store::pilots() const noexcept {
   /// The interface can inspect the roster without altering opaque original record fields
-  return roster.pilots;
+  return state().roster.pilots;
 }
 pilot_record const *campaign_store::active_pilot() const noexcept {
   /// No named active pilot means the original disposable trainee role
-  return selected ? &roster.pilots[*selected] : nullptr;
+  return state().selected ? &state().roster.pilots[*state().selected] : nullptr;
 }
 bool campaign_store::can_fly() const {
   /// A selected career cannot launch while killed, captured or serving its original court-martial sentence
@@ -144,105 +179,115 @@ bool campaign_store::can_fly() const {
 }
 unsigned int campaign_store::create_pilot(std::string_view const name, bool const activate_created) {
   /// Pilot creation validates the bounded native name before changing saved state
-  if(std::ranges::any_of(roster.pilots, [name](pilot_record const &pilot){return pilot.name() == name;}))
+  if(std::ranges::any_of(state().roster.pilots, [name](pilot_record const &pilot){return pilot.name() == name;}))
     throw std::invalid_argument{"a pilot with that name already exists"};
-  roster.pilots.emplace_back(name);
-  unsigned int const index{static_cast<unsigned int>(roster.pilots.size() - 1)};
+  state().roster.pilots.emplace_back(name);
+  synchronise_identities();
+  unsigned int const index{static_cast<unsigned int>(state().roster.pilots.size() - 1)};
   if(activate_created) activate(index);
   else save_roster();
   return index;
 }
 void campaign_store::activate(unsigned int const index) {
   /// Activating one living pilot clears the selection marker from all other records
-  if(index >= roster.pilots.size()) throw std::invalid_argument{"pilot selection is outside the roster"};
-  if(roster.pilots[index].unavailable()) throw std::invalid_argument{"that pilot is killed or captured; resurrect the pilot first"};
-  if(roster.pilots[index].suspended_until() > wall_clock()) throw std::invalid_argument{"that pilot is suspended after friendly losses; select another pilot"};
-  for(unsigned int i{0}; i != roster.pilots.size(); ++i) roster.pilots[i].select(i == index);
-  selected = index;
+  if(index >= state().roster.pilots.size()) throw std::invalid_argument{"pilot selection is outside the roster"};
+  if(state().roster.pilots[index].unavailable()) throw std::invalid_argument{"that pilot is killed or captured; resurrect the pilot first"};
+  if(state().roster.pilots[index].suspended_until() > wall_clock()) throw std::invalid_argument{"that pilot is suspended after friendly losses; select another pilot"};
+  for(unsigned int i{0}; i != state().roster.pilots.size(); ++i) state().roster.pilots[i].select(i == index);
+  state().selected = index;
   save_roster();
 }
 void campaign_store::deactivate() {
   /// Deactivating returns to the disposable trainee without deleting saved careers
-  for(auto &pilot : roster.pilots) pilot.select(false);
-  selected.reset();
+  for(auto &pilot : state().roster.pilots) pilot.select(false);
+  state().selected.reset();
   save_roster();
 }
 void campaign_store::rename_pilot(unsigned int const index, std::string_view const name) {
-  /// Rename all owned theatre headers and live high-score entries before replacing the roster name
-  if(index >= roster.pilots.size()) throw std::invalid_argument{"pilot selection is outside the roster"};
-  pilot_record renamed{roster.pilots[index]};
-  renamed.rename(name);
-  for(unsigned int i{0}; i != roster.pilots.size(); ++i)
-    if(i != index && roster.pilots[i].name() == name) throw std::invalid_argument{"a pilot with that name already exists"};
-  auto const previous{roster.pilots[index].name()};
-  for(auto const &path : owned_theatres(directory, roster.pilots[index])) {
-    auto bytes{platform::read_binary(path)};
-    std::ranges::copy(renamed.native_data().first(22), bytes.begin() + embedded_pilot_offset);
-    platform::write_binary(path, bytes);
+  if(index >= state().roster.pilots.size()) throw std::invalid_argument{"pilot selection is outside the roster"};
+  auto const previous{state().roster.pilots[index].name()};
+  pilot_record validated{state().roster.pilots[index]};
+  validated.rename(name);
+  for(auto const &profile : profiles) for(auto const &pilot : profile.roster.pilots) {
+    if(pilot.name() != previous && pilot.name() == name) throw std::invalid_argument{"a pilot with that name already exists"};
   }
-  scores.rename(previous, name);
-  platform::write_binary(directory / "PILOT.HSC", scores.encode());
-  roster.pilots[index] = renamed;
+  for(auto &profile : profiles) for(auto &pilot : profile.roster.pilots) {
+    if(pilot.name() != previous) continue;
+    auto const paths{owned_theatres(profile.directory, pilot)};
+    pilot.rename(name);
+    for(auto const &path : paths) {
+      auto bytes{platform::read_binary(path)};
+      std::ranges::copy(pilot.native_data().first(22), bytes.begin() + embedded_pilot_offset);
+      platform::write_binary(path, bytes);
+    }
+    profile.scores.rename(previous, name);
+    platform::write_binary(profile.directory / "PILOT.HSC", profile.scores.encode());
+  }
   save_roster();
 }
 void campaign_store::resurrect(unsigned int const index) {
   /// Preserve the original resurrection counter while making the selected career available again
-  if(index >= roster.pilots.size()) throw std::invalid_argument{"pilot selection is outside the roster"};
-  if(!roster.pilots[index].unavailable()) throw std::invalid_argument{"that pilot is alive and free; resurrection is not needed"};
-  roster.pilots[index].resurrect();
+  if(index >= state().roster.pilots.size()) throw std::invalid_argument{"pilot selection is outside the roster"};
+  if(!state().roster.pilots[index].unavailable()) throw std::invalid_argument{"that pilot is alive and free; resurrection is not needed"};
+  state().roster.pilots[index].resurrect();
   save_roster();
 }
 void campaign_store::delete_pilot(unsigned int const index) {
-  /// Deleting a career removes its owned worlds and retires its achievements; other pilots retain their file identities
-  if(index >= roster.pilots.size()) throw std::invalid_argument{"pilot selection is outside the roster"};
-  auto const name{roster.pilots[index].name()};
-  for(auto const &path : owned_theatres(directory, roster.pilots[index])) std::filesystem::remove(path);
-  scores.retire(name);
-  platform::write_binary(directory / "PILOT.HSC", scores.encode());
-  roster.pilots.erase(roster.pilots.begin() + index);
-  if(selected && *selected == index) selected.reset();
-  else if(selected && *selected > index) --*selected;
+  /// Deleting the shared identity retires both careers and removes only their explicitly owned worlds.
+  if(index >= state().roster.pilots.size()) throw std::invalid_argument{"pilot selection is outside the roster"};
+  auto const name{state().roster.pilots[index].name()};
+  for(auto &profile : profiles) {
+    auto const found{std::ranges::find_if(profile.roster.pilots, [&](auto const &pilot){return pilot.name() == name;})};
+    if(found == profile.roster.pilots.end()) continue;
+    unsigned int const removed{static_cast<unsigned int>(found - profile.roster.pilots.begin())};
+    for(auto const &path : owned_theatres(profile.directory, *found)) std::filesystem::remove(path);
+    profile.scores.retire(name);
+    platform::write_binary(profile.directory / "PILOT.HSC", profile.scores.encode());
+    profile.roster.pilots.erase(found);
+    if(profile.selected && *profile.selected == removed) profile.selected.reset();
+    else if(profile.selected && *profile.selected > removed) --*profile.selected;
+  }
   save_roster();
 }
 bool campaign_store::music_enabled() const noexcept {
   /// Keep original global music preferences independent of the active pilot
-  return roster.music_enabled();
+  return profiles[0].roster.music_enabled();
 }
 void campaign_store::music_enabled(bool const value) {
   /// Persist the same music flag used by the original launcher
-  roster.music_enabled(value);
+  for(auto &profile : profiles) profile.roster.music_enabled(value);
   save_roster();
 }
 bool campaign_store::keyboard_control() const noexcept {
   /// The original global control choice is independent of the active career
-  return roster.keyboard_control();
+  return profiles[0].roster.keyboard_control();
 }
 void campaign_store::keyboard_control(bool const value) {
   /// Persist the digital control choice in its native header byte
-  roster.keyboard_control(value);
+  for(auto &profile : profiles) profile.roster.keyboard_control(value);
   save_roster();
 }
 void campaign_store::beginner_flight(bool const value) {
   /// A named career retains its original aerodynamic-model bit; the disposable trainee has no saved pilot record
-  if(!selected) return;
-  roster.pilots[*selected].beginner_flight(value);
+  if(!state().selected) return;
+  state().roster.pilots[*state().selected].beginner_flight(value);
   save_roster();
 }
 world::training_setup campaign_store::training_settings() const {
   /// Named pilots retain separate training preferences in their original setup bytes
-  return selected ? roster.pilots[*selected].training_settings() : world::training_setup{};
+  return state().selected ? state().roster.pilots[*state().selected].training_settings() : world::training_setup{};
 }
 void campaign_store::training_settings(world::training_setup const &settings) {
   /// The disposable trainee keeps menu-local choices; a named pilot saves them with its career
-  if(!selected) return;
-  roster.pilots[*selected].training_settings(settings);
+  if(!state().selected) return;
+  state().roster.pilots[*state().selected].training_settings(settings);
   save_roster();
 }
 std::vector<saved_theatre> campaign_store::theatres() const {
   /// Menus inspect the same numbered THT files that flight resumes; opening a menu never changes a world
   std::vector<saved_theatre> result;
-  if(!selected) {
-    for(auto const &entry : trainee_theatres) result.push_back({
+  if(!state().selected) {
+    for(auto const &entry : state().trainee_theatres) result.push_back({
       .number{0},
       .definition{entry.definition},
       .title{theatre_title(entry.definition)},
@@ -252,15 +297,18 @@ std::vector<saved_theatre> campaign_store::theatres() const {
     });
     return result;
   }
-  for(auto const &path : owned_theatres(directory, roster.pilots[*selected])) {
+  for(auto const &path : owned_theatres(state().directory, state().roster.pilots[*state().selected])) {
     auto const bytes{platform::read_binary(path)};
     if(bytes.size() < theatre_header_bytes) throw std::invalid_argument{"saved theatre header is truncated: " + path.string()};
     auto definition{stored_definition(bytes)};
-    if(definition == "wastelnd") definition = "wasteland";
-    if(definition == "whtsands") definition = "white_sands";
+    if(edition == world::campaign_id::other_worlds) definition = "other_worlds/" + definition;
+    else {
+      if(definition == "wastelnd") definition = "wasteland";
+      if(definition == "whtsands") definition = "white_sands";
+    }
     unsigned int const reserve{resources::binary_reader{bytes}.word(stored_aircraft_offset)};
     result.push_back({
-      .number{path.parent_path() == directory / "THT" ? static_cast<uint8_t>(std::stoul(path.stem().string())) : uint8_t{0}},
+      .number{path.parent_path() == state().directory / "THT" ? static_cast<uint8_t>(std::stoul(path.stem().string())) : uint8_t{0}},
       .definition{std::move(definition)},
       .title{stored_text(std::span{bytes}.first(28))},
       .objectives_remaining{resources::binary_reader{bytes}.signed_word(remaining_objectives_offset)},
@@ -272,24 +320,25 @@ std::vector<saved_theatre> campaign_store::theatres() const {
 }
 std::optional<unsigned int> campaign_store::active_theatre() const {
   /// The active index is local to this pilot's list, not a globally numbered filename
-  return selected ? roster.pilots[*selected].active_theatre() : trainee_active_theatre;
+  return state().selected ? state().roster.pilots[*state().selected].active_theatre() : state().trainee_active_theatre;
 }
 void campaign_store::open_theatre(std::string_view const theatre, world::theatre const &world) {
   /// Opening creates the native empty theatre record immediately, before the first sortie
-  if(!selected) {
-    if(trainee_theatres.size() >= 20) throw std::invalid_argument{"The trainee already has twenty open theaters"};
-    trainee_theatres.push_back({
+  select_campaign(world::find_theatre(theatre).campaign);
+  if(!state().selected) {
+    if(state().trainee_theatres.size() >= 20) throw std::invalid_argument{"The trainee already has twenty open theaters"};
+    state().trainee_theatres.push_back({
       .definition{theatre},
       .state{world},
       .reserve_aircraft{initial_stored_aircraft(theatre)},
     });
-    trainee_active_theatre = static_cast<unsigned int>(trainee_theatres.size() - 1);
+    state().trainee_active_theatre = static_cast<unsigned int>(state().trainee_theatres.size() - 1);
     return;
   }
-  auto &pilot{roster.pilots[*selected]};
+  auto &pilot{state().roster.pilots[*state().selected]};
   if(pilot.theatres().size() >= 20) throw std::invalid_argument{"This pilot already has twenty open theaters"};
   unsigned int number{1};
-  while(number <= 255 && std::filesystem::exists(directory / "THT" / (std::to_string(number) + ".THT"))) ++number;
+  while(number <= 255 && std::filesystem::exists(state().directory / "THT" / (std::to_string(number) + ".THT"))) ++number;
   if(number > 255) throw std::runtime_error{"no available saved-theatre filename"};
   std::vector<uint8_t> bytes(theatre_header_bytes);
   auto const title{theatre_title(theatre)};
@@ -305,7 +354,7 @@ void campaign_store::open_theatre(std::string_view const theatre, world::theatre
   std::ranges::copy(empty.native_data(), bytes.begin() + embedded_pilot_offset);
   auto const objects{world::encode_theatre(world)};
   bytes.insert(bytes.end(), objects.begin(), objects.end());
-  platform::write_binary(directory / "THT" / (std::to_string(number) + ".THT"), bytes);
+  platform::write_binary(state().directory / "THT" / (std::to_string(number) + ".THT"), bytes);
   pilot.add_theatre(static_cast<uint8_t>(number));
   save_roster();
 }
@@ -313,26 +362,26 @@ void campaign_store::activate_theatre(unsigned int const index) {
   /// Reuse the original numbered reference rather than copying or resetting its scenery
   auto const worlds{theatres()};
   if(index >= worlds.size()) throw std::invalid_argument{"No saved theater selected"};
-  if(!selected) { trainee_active_theatre = index; return; }
+  if(!state().selected) { state().trainee_active_theatre = index; return; }
   if(worlds[index].number == 0) throw std::invalid_argument{"Resume this older saved theater once before activating it here"};
-  roster.pilots[*selected].add_theatre(worlds[index].number);
+  state().roster.pilots[*state().selected].add_theatre(worlds[index].number);
   save_roster();
 }
 void campaign_store::delete_theatre(unsigned int const index) {
   /// Only the explicitly selected pilot's world is removed; career statistics and other worlds remain
   auto const worlds{theatres()};
   if(index >= worlds.size()) throw std::invalid_argument{"No saved theater selected"};
-  if(!selected) {
-    trainee_theatres.erase(trainee_theatres.begin() + index);
-    if(trainee_active_theatre) {
-      if(*trainee_active_theatre == index) trainee_active_theatre.reset();
-      else if(*trainee_active_theatre > index) --*trainee_active_theatre;
+  if(!state().selected) {
+    state().trainee_theatres.erase(state().trainee_theatres.begin() + index);
+    if(state().trainee_active_theatre) {
+      if(*state().trainee_active_theatre == index) state().trainee_active_theatre.reset();
+      else if(*state().trainee_active_theatre > index) --*state().trainee_active_theatre;
     }
     return;
   }
-  auto const path{owned_theatres(directory, roster.pilots[*selected])[index]};
+  auto const path{owned_theatres(state().directory, state().roster.pilots[*state().selected])[index]};
   std::filesystem::remove(path);
-  roster.pilots[*selected].remove_theatre(worlds[index].number);
+  state().roster.pilots[*state().selected].remove_theatre(worlds[index].number);
   save_roster();
 }
 bool campaign_store::combat_invincible() const {
@@ -341,7 +390,7 @@ bool campaign_store::combat_invincible() const {
 }
 void campaign_store::combat_invincible(bool const value) {
   /// Persist the original combat invulnerability option independently of training
-  if(selected) { roster.pilots[*selected].combat_invincible(value); save_roster(); }
+  if(state().selected) { state().roster.pilots[*state().selected].combat_invincible(value); save_roster(); }
 }
 bool campaign_store::inflight_comments() const {
   /// Comments default to enabled for the disposable trainee
@@ -349,17 +398,18 @@ bool campaign_store::inflight_comments() const {
 }
 void campaign_store::inflight_comments(bool const value) {
   /// Store the menu choice in the pilot's original setup byte
-  if(selected) { roster.pilots[*selected].inflight_comments(value); save_roster(); }
+  if(state().selected) { state().roster.pilots[*state().selected].inflight_comments(value); save_roster(); }
 }
 void campaign_store::clear_scores(unsigned int const list) {
   /// Clearing one original score table preserves the other two
-  scores.clear(list);
-  platform::write_binary(directory / "PILOT.HSC", scores.encode());
+  state().scores.clear(list);
+  platform::write_binary(state().directory / "PILOT.HSC", state().scores.encode());
 }
 std::optional<world::theatre> campaign_store::load_world(std::string_view const theatre) const {
   /// THT keeps the original 671-byte header and compact live world rather than resetting destroyed scenery each sortie
-  if(!selected) {
-    if(trainee_active_theatre && trainee_theatres[*trainee_active_theatre].definition == theatre) return world::theatre{trainee_theatres[*trainee_active_theatre].state};
+  if(world::find_theatre(theatre).campaign != edition) throw std::invalid_argument{"select the world's campaign before loading its saved theatre"};
+  if(!state().selected) {
+    if(state().trainee_active_theatre && state().trainee_theatres[*state().trainee_active_theatre].definition == theatre) return world::theatre{state().trainee_theatres[*state().trainee_active_theatre].state};
     return std::nullopt;
   }
   auto const path{theatre_path(theatre)};
@@ -368,20 +418,27 @@ std::optional<world::theatre> campaign_store::load_world(std::string_view const 
   if(data.size() < theatre_header_bytes) throw std::invalid_argument{"saved theatre header is truncated: " + path.string()};
   std::string const expected{definition_name(theatre)};
   if(stored_definition(data) != expected) throw std::invalid_argument{"saved theatre refers to a different definition: " + path.string()};
-  return world::decode_theatre(std::span{data}.subspan(theatre_header_bytes));
+  auto result{world::decode_theatre(std::span{data}.subspan(theatre_header_bytes))};
+  auto original{world::load_theatre(theatre)};
+  result.expansion = original.expansion;
+  result.sky = original.sky;
+  result.environment = original.environment;
+  result.briefing = std::move(original.briefing);
+  result.missions = std::move(original.missions);
+  return result;
 }
 void campaign_store::finish_sortie(std::string_view const theatre, world::theatre const &world, sortie_statistics const &result, bool const reserve_aircraft) {
   /// Accumulate distinct global and per-theatre records, then run MOAG's original completion and award scan
-  if(!selected) {
-    if(theatre != "training" && trainee_active_theatre && trainee_theatres[*trainee_active_theatre].definition == theatre) {
-      auto &saved{trainee_theatres[*trainee_active_theatre]};
+  if(!state().selected) {
+    if(theatre != "training" && state().trainee_active_theatre && state().trainee_theatres[*state().trainee_active_theatre].definition == theatre) {
+      auto &saved{state().trainee_theatres[*state().trainee_active_theatre]};
       saved.state = world;
       if(reserve_aircraft && result.counts_for_career() && saved.reserve_aircraft != 0) --saved.reserve_aircraft;
     }
     save_scores(theatre, result);
     return;
   }
-  auto &pilot{roster.pilots[*selected]};
+  auto &pilot{state().roster.pilots[*state().selected]};
   pilot.finish_sortie(result);
   bool const training{theatre == "training"};
   std::filesystem::path path;
@@ -389,7 +446,7 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
   uint16_t theatre_aircraft_lost{0};
   if(!training) {
     path = theatre_path(theatre);
-    if(path.parent_path() == directory / "THT") pilot.add_theatre(static_cast<uint8_t>(std::stoul(path.stem().string())));
+    if(path.parent_path() == state().directory / "THT") pilot.add_theatre(static_cast<uint8_t>(std::stoul(path.stem().string())));
     if(std::filesystem::exists(path)) {
       saved = platform::read_binary(path);
       if(saved.size() < theatre_header_bytes) throw std::invalid_argument{"saved theatre header is truncated: " + path.string()};
@@ -424,8 +481,11 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
     auto survey{[&](std::span<uint8_t const> const bytes, bool const current){
       resources::binary_reader const input{bytes};
       auto name{stored_definition(bytes)};
-      if(name == "wastelnd") name = "wasteland";
-      if(name == "whtsands") name = "white_sands";
+      if(edition == world::campaign_id::other_worlds) name = "other_worlds/" + name;
+      else {
+        if(name == "wastelnd") name = "wasteland";
+        if(name == "whtsands") name = "white_sands";
+      }
       pilot_record const theatre_pilot{bytes.subspan(embedded_pilot_offset, 623)};
       progress.push_back({
         .definition{std::move(name)},
@@ -435,14 +495,14 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
         .current{current},
       });
     }};
-    for(auto const &other : owned_theatres(directory, pilot)) {
+    for(auto const &other : owned_theatres(state().directory, pilot)) {
       if(other == path) continue;
       auto const bytes{platform::read_binary(other)};
       if(bytes.size() < theatre_header_bytes) throw std::invalid_argument{"saved theatre header is truncated: " + other.string()};
       survey(bytes, false);
     }
     if(!training) survey(saved, true);
-    pilot.review_career(progress, theatre_aircraft_lost, wall_clock());
+    pilot.review_career(progress, theatre_aircraft_lost, wall_clock(), edition);
     if(!training) store_word(saved, completion_recorded_offset, progress.back().completion_recorded);
   }
   if(!training) {
@@ -455,16 +515,16 @@ void campaign_store::finish_sortie(std::string_view const theatre, world::theatr
 }
 void campaign_store::save_scores(std::string_view const theatre, sortie_statistics const &result) {
   /// Persist all three native score lists independently of the selected pilot or live world
-  scores.record(theatre == "training" ? "Training Mission" : theatre_title(theatre), result, active_pilot());
-  platform::write_binary(directory / "PILOT.HSC", scores.encode());
+  state().scores.record(theatre == "training" ? "Training Mission" : theatre_title(theatre), result, active_pilot());
+  platform::write_binary(state().directory / "PILOT.HSC", state().scores.encode());
 }
 score_tables const &campaign_store::high_scores() const noexcept {
   /// Reports read immutable ranked tables from the same save store as the roster
-  return scores;
+  return state().scores;
 }
 std::filesystem::path const &campaign_store::save_directory() const noexcept {
   /// Report the canonical user save location for help and diagnostics
-  return directory;
+  return state().directory;
 }
 
 } // namespace corncob::game

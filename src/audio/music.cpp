@@ -23,14 +23,15 @@ struct music::implementation {
     }
   };
   using decoder = std::unique_ptr<stb_vorbis, close_decoder>;
-  std::array<decoder, 3> tracks;
+  std::array<decoder, 6> tracks;
   std::atomic<music_cue> requested{music_cue::silent};
   music_cue playing{music_cue::silent};
   unsigned int track{0};
 
   implementation() {
     /// Open embedded recordings before the audio callback starts; playback performs no filesystem I/O
-    std::array const files{resources::title_music_asset(), resources::riding_music_asset(), resources::dreams_music_asset()};
+    std::array const files{resources::title_music_asset(), resources::riding_music_asset(), resources::dreams_music_asset(),
+      resources::voyage_music_asset(), resources::heavens_music_asset(), resources::daybreak_music_asset()};
     for(unsigned int i{0}; i != tracks.size(); ++i) {
       int error{0};
       if(files[i].size() > static_cast<unsigned int>(std::numeric_limits<int>::max())) throw std::invalid_argument{"embedded music exceeds decoder limits"};
@@ -56,7 +57,7 @@ void music::mix(std::span<float> const samples) noexcept {
   auto const requested{state->requested.load(std::memory_order_relaxed)};
   if(requested != state->playing) {
     state->playing = requested;
-    state->track = requested == music_cue::menus ? 1u : 0u;
+    state->track = requested == music_cue::other_title ? 3u : requested == music_cue::other_menus ? 4u : requested == music_cue::menus ? 1u : 0u;
     if(requested != music_cue::silent && !stb_vorbis_seek_start(state->tracks[state->track].get())) state->playing = music_cue::silent;
   }
   if(state->playing == music_cue::silent) return;
@@ -67,8 +68,9 @@ void music::mix(std::span<float> const samples) noexcept {
     unsigned int const capacity{static_cast<unsigned int>(std::min(decoded.size(), (samples.size() - offset) & ~size_t{1}))};
     int const frames{stb_vorbis_get_samples_float_interleaved(state->tracks[state->track].get(), 2, decoded.data(), static_cast<int>(capacity))};
     if(frames == 0) {
-      // The title repeats its score; the menu cycles RIDINGT then DREAMSO2, matching ROLFILES.TXT
-      state->track = state->playing == music_cue::title ? 0u : state->track == 1 ? 2u : 1u;
+      // Each edition repeats its title or advances its own two-song original ROLFILES.TXT playlist.
+      state->track = state->playing == music_cue::title ? 0u : state->playing == music_cue::other_title ? 3u
+        : state->playing == music_cue::other_menus ? (state->track == 4 ? 5u : 4u) : state->track == 1 ? 2u : 1u;
       if(++empty_tracks == state->tracks.size() || !stb_vorbis_seek_start(state->tracks[state->track].get())) return;
       continue;
     }

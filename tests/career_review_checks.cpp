@@ -9,10 +9,11 @@
 
 int main(int const argc, char const *const argv[]) {
   /// Exercise the full original campaign scan, including duplicate definitions, medal restrictions and signed boundaries
-  if(argc != 2) throw std::invalid_argument{"career review fixture required"};
+  if(argc < 2 || argc > 3) throw std::invalid_argument{"career review fixture required"};
   corncob::tests::reference_reader input{argv[1], "CORNREV1"};
   unsigned int const cases{input.dword()};
-  static std::array<std::string_view, 4> constexpr definitions{"morning", "dusk", "wasteland", "white_sands"};
+  auto const edition{argc == 3 ? corncob::world::campaign_id::other_worlds : corncob::world::campaign_id::earth};
+  auto const definitions{corncob::world::campaign_theatres(edition)};
   for(unsigned int i{0}; i != cases; ++i) {
     std::array<uint8_t, 623> before, expected;
     for(auto &byte : before) byte = input.byte();
@@ -25,7 +26,7 @@ int main(int const argc, char const *const argv[]) {
       auto const remaining{input.signed_word()}, completed{input.signed_word()};
       bool const credited{input.byte() != 0};
       theatres.push_back({
-        .definition{std::string{definitions.at(definition)}},
+        .definition{std::string{definitions[definition].name}},
         .objectives_remaining{remaining},
         .objectives_completed{completed},
         .completion_recorded{credited},
@@ -34,7 +35,7 @@ int main(int const argc, char const *const argv[]) {
     }
     for(auto &byte : expected) byte = input.byte();
     corncob::game::pilot_record actual{before};
-    actual.review_career(theatres, losses, now);
+    actual.review_career(theatres, losses, now, edition);
     for(unsigned int field{0}; field != expected.size(); ++field)
       if(actual.native_data()[field] != expected[field]) throw std::runtime_error{"native review case " + std::to_string(i) + " byte " + std::to_string(field)};
     for(auto const &theatre : theatres)

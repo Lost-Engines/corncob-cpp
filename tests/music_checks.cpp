@@ -20,8 +20,9 @@ int main() {
   /// Verify delivered recordings, arbitrary callback boundaries, complete score transitions and silence alongside live effects
   namespace audio = corncob::audio;
   namespace resources = corncob::resources;
-  std::array const assets{resources::title_music_asset(), resources::riding_music_asset(), resources::dreams_music_asset()};
-  std::array<unsigned int, 3> constexpr native_boundary_ms{84'834, 204'155, 178'795};
+  std::array const assets{resources::title_music_asset(), resources::riding_music_asset(), resources::dreams_music_asset(),
+    resources::voyage_music_asset(), resources::heavens_music_asset(), resources::daybreak_music_asset()};
+  std::array<unsigned int, 6> constexpr native_boundary_ms{84'834, 204'155, 178'795, 233'746, 229'798, 152'967};
   using decoder = std::unique_ptr<stb_vorbis, decltype(&stb_vorbis_close)>;
   std::vector<decoder> direct;
   for(unsigned int i{0}; i != assets.size(); ++i) {
@@ -75,6 +76,8 @@ int main() {
   }};
   verify(audio::music_cue::title, {0});
   verify(audio::music_cue::menus, {1, 2});
+  verify(audio::music_cue::other_title, {3});
+  verify(audio::music_cue::other_menus, {4, 5});
   verify(audio::music_cue::title, {0});
   std::cout << "Three native-driver recordings, full title/menu repeats and 1..512-frame audio callbacks match without gaps or external files" << std::endl;
   return EXIT_SUCCESS;

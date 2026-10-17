@@ -64,22 +64,28 @@ def main():
     parser.add_argument('--research', type=Path, default=ROOT.parent / 'corncob-reverse')
     parser.add_argument('--captures', type=Path, required=True, help='directory containing destiny3.dro, ridingt.dro and dreamso2.dro')
     parser.add_argument('--renderer', type=Path, required=True, help='compiled tools/render_music_capture.cpp')
+    parser.add_argument('--edition', choices=('earth', 'other_worlds'), default='earth')
     args = parser.parse_args()
-    install = args.research / 'installs/deluxe_dnk'
+    other_worlds = args.edition == 'other_worlds'
+    songs = ('voyage3', 'heavens', 'daybreak') if other_worlds else SONGS
+    install = args.research / ('installs/other_worlds_download' if other_worlds else 'installs/deluxe_dnk')
+    bank = 'BNK835.BNK' if other_worlds else 'CCMUSIC.BNK'
     output = args.research / 'analysis/resources/audio'
     archive = output / 'native-driver'
+    if other_worlds:
+        archive = archive / 'other_worlds'
     archive.mkdir(parents=True, exist_ok=True)
-    embedded = ROOT / 'assets/music'
-    embedded.mkdir(exist_ok=True)
+    embedded = ROOT / ('assets/music/other_worlds' if other_worlds else 'assets/music')
+    embedded.mkdir(parents=True, exist_ok=True)
     previous = json.loads((output / 'music.json').read_text())
     records = []
-    for index, song in enumerate(SONGS):
+    for index, song in enumerate(songs):
         capture = args.captures / (song + '.dro')
         end_ms, reset_ms, notes = score_boundary(decode_capture(capture))
         saved_capture = archive / capture.name
         if capture.resolve() != saved_capture.resolve():
             shutil.copyfile(capture, saved_capture)
-        flac = output / (song + '-c95a84ee.flac')
+        flac = output / (song + ('-992bcf12.flac' if other_worlds else '-c95a84ee.flac'))
         with subprocess.Popen([str(args.renderer.resolve()), str(capture), str(end_ms)], stdout=subprocess.PIPE) as render:
             result = subprocess.run(['flac', '-8', '--silent', '--force', '--force-raw-format', '--endian=little',
                                      '--sign=signed', '--channels=1', '--bps=16', '--sample-rate=48000',
@@ -94,11 +100,11 @@ def main():
         subprocess.run(['oggenc', '-Q', '-q', '6', '-s', str(0x434f524e + index), '-o', str(ogg), str(flac)], check=True)
         source = install / (song.upper() + '.ROL')
         record = {
-            'song': song, 'sequence_sha256': sha(source), 'bank_sha256': sha(install / 'CCMUSIC.BNK'),
-            'capture': 'audio/native-driver/' + song + '.dro', 'capture_sha256': sha(saved_capture),
+            'song': song, 'sequence_sha256': sha(source), 'bank_sha256': sha(install / bank),
+            'capture': str(saved_capture.relative_to(output.parent)), 'capture_sha256': sha(saved_capture),
             'score_reset_ms': reset_ms, 'repeat_boundary_ms': end_ms, 'verified_note_ons_per_pass': notes,
             'flac': 'audio/' + flac.name, 'flac_sha256': sha(flac),
-            'embedded': 'music/' + ogg.name, 'embedded_bytes': ogg.stat().st_size, 'embedded_sha256': sha(ogg),
+            'embedded': str(ogg.relative_to(ROOT / 'assets')), 'embedded_bytes': ogg.stat().st_size, 'embedded_sha256': sha(ogg),
             'frames': end_ms * 48, 'sample_rate': 48000, 'channels': 1,
         }
         records.append(record)
@@ -110,16 +116,16 @@ def main():
                              native_capture=record['capture'], gain='Original mono emulator DAC output; no normalisation')
         print(song.upper(), f'{end_ms / 1000:.3f}s', ogg.stat().st_size, 'embedded bytes', flush=True)
     metadata = {
-        'reference': 'normal Corncob 3D 3.42',
-        'player_sha256': sha(install / 'MOAG.EXE'),
+        'reference': 'Other Worlds Campaign 3.42' if other_worlds else 'normal Corncob 3D 3.42',
+        'player_sha256': sha((args.research / 'installs/deluxe_dnk' if other_worlds else install) / 'MOAG.EXE'),
         'driver_sha256': hashlib.sha256(bytes(v ^ 0xa5 for v in (install / 'MOAGDATA').read_bytes())).hexdigest(),
         'composer': 'James L. Collymore', 'copyright': 'Music copyright 1986-1991 James L. Collymore; original terms remain applicable',
-        'capture_method': 'Unchanged MOAG.EXE and bundled Ad Lib driver in private DOSBox 0.74-3 copies; single-song playlist repeated twice; virtual-time turbo preserves PIT playback timing',
+        'capture_method': 'Unchanged normal 3.42 MOAG.EXE with the byte-identical shared Ad Lib driver; original edition bank and ROL scores in private DOSBox copies; single-song playlist repeated twice; virtual-time turbo preserves PIT playback timing',
         'timing_resolution_ms': 1, 'masters': '48 kHz, mono, signed 16-bit FLAC -8; no gain changes or normalisation',
         'encoding': 'Ogg Vorbis quality 6, Xiph libVorbis 1.3.7 / oggenc 1.4.3',
         'renderer_source_sha256': sha(ROOT / 'tools/render_music_capture.cpp'),
         'nuked_opl3_commit': '765ec962e473aeb767e4cba74ffdc8f588ffbfe8',
-        'menu_playlist': ['ridingt', 'dreamso2'], 'recordings': records,
+        'menu_playlist': ['heavens', 'daybreak'] if other_worlds else ['ridingt', 'dreamso2'], 'recordings': records,
     }
     (archive / 'recordings.json').write_text(json.dumps(metadata, indent=2) + '\n')
     (embedded / 'provenance.json').write_text(json.dumps(metadata, indent=2) + '\n')

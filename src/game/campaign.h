@@ -5,6 +5,7 @@
 #include "game/pilots.h"
 #include "game/high_scores.h"
 #include "world/world.h"
+#include "world/theatre_catalog.h"
 
 namespace corncob::game {
 
@@ -19,24 +20,34 @@ struct saved_theatre {
 
 class campaign_store {
 private:
-  std::filesystem::path directory;
-  pilot_roster roster;
-  score_tables scores;
-  std::optional<unsigned int> selected;
   struct trainee_theatre {
     std::string definition;
     world::theatre state;
     unsigned int reserve_aircraft;
   };
-  std::vector<trainee_theatre> trainee_theatres;
-  std::optional<unsigned int> trainee_active_theatre;
+  struct campaign_profile {
+    std::filesystem::path directory;
+    pilot_roster roster;
+    score_tables scores;
+    std::optional<unsigned int> selected;
+    std::vector<trainee_theatre> trainee_theatres;
+    std::optional<unsigned int> trainee_active_theatre;
+  };
+  std::array<campaign_profile, 2> profiles;
+  world::campaign_id edition{world::campaign_id::earth};
 
+  campaign_profile &state() noexcept;
+  campaign_profile const &state() const noexcept;
+  void load_profile();
+  void synchronise_identities();
   std::filesystem::path theatre_path(std::string_view theatre) const;
   void save_roster() const;
   void save_scores(std::string_view theatre, sortie_statistics const &result);
 
 public:
   explicit campaign_store(std::filesystem::path directory);
+  world::campaign_id current_campaign() const noexcept;
+  void select_campaign(world::campaign_id campaign);
   std::span<pilot_record const> pilots() const noexcept;
   pilot_record const *active_pilot() const noexcept;
   bool can_fly() const;

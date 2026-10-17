@@ -26,3 +26,15 @@ streamed from memory at runtime; the flight effects are still synthesized live.
 Music is by James L. Collymore, copyright 1986–1991, and retains its original terms.
 [music/provenance.json](music/provenance.json) records the source hashes, native
 score boundaries and encoding settings.
+
+`other_worlds.dat` contains the standalone expansion's original definitions,
+briefings, demonstration recordings, documentation, artwork, palette files and
+sound patches. Common fonts and unchanged resources fall back to the base pack.
+[other_worlds_provenance.json](other_worlds_provenance.json) lists every included
+file and its SHA-256. `tools/import_other_worlds.py` refreshes the pack.
+
+`music/other_worlds/*.ogg` supplies VOYAGE3, HEAVENS and DAYBREAK, recorded with the
+same original AdLib driver and the expansion's BNK835.BNK instrument bank.
+[music/other_worlds/provenance.json](music/other_worlds/provenance.json) records
+complete score boundaries and source/capture/master hashes. The original game
+and music copyrights remain applicable to these resources.

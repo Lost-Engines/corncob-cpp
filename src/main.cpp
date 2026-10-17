@@ -22,6 +22,8 @@
 #include "platform/storage.h"
 #include "render/framebuffer.h"
 #include "resources/assets.h"
+#include "world/theatre_catalog.h"
+#include "world/airfields.h"
 #include "resources/cockpit_mask.h"
 #include "resources/geometry_bank.h"
 #include "world/world.h"
@@ -33,29 +35,8 @@ struct window_state {
   corncob::game::front_end &front;
   bool &sound_enabled;
   corncob::render::framebuffer &frame;
-  std::bitset<GLFW_KEY_LAST + 1> tower_key_releases{};
+  std::bitset<GLFW_KEY_LAST + 1> consumed_key_releases{};
 };
-
-corncob::world::theatre load_theatre(std::string const &name) {
-  /// Re-entering the native front end selects embedded original scenery and its matching intelligence
-  std::span<uint8_t const> world, briefing;
-  if(name == "morning") {
-    world = corncob::resources::morning_asset();
-    briefing = corncob::resources::morning_briefing_asset();
-  } else if(name == "dusk") {
-    world = corncob::resources::dusk_asset();
-    briefing = corncob::resources::dusk_briefing_asset();
-  } else if(name == "wasteland") {
-    world = corncob::resources::wasteland_asset();
-    briefing = corncob::resources::wasteland_briefing_asset();
-  } else if(name == "white_sands") {
-    world = corncob::resources::white_sands_asset();
-    briefing = corncob::resources::white_sands_briefing_asset();
-  } else throw std::invalid_argument{"--theatre must be white_sands, morning, dusk or wasteland"};
-  auto result{corncob::world::decode_theatre(world)};
-  corncob::world::apply_briefing(result, briefing);
-  return result;
-}
 
 int startup_failure(std::string const &message) {
   /// Report actionable startup errors while leaving unexpected engine failures uncaught
@@ -77,7 +58,8 @@ auto main(int const argc, char const *const argv[])->int {
     ("no-music", "start with title and menu music disabled")
     ("no-sound", "start with sound effects disabled; S toggles effects during flight")
     ("skip-intro", "open the main menu without the title and story")
-    ("theatre", boost::program_options::value<std::string>()->default_value("white_sands"), "original theatre: white_sands, morning, dusk or wasteland")
+    ("theatre", boost::program_options::value<std::string>()->default_value("white_sands"), "world identifier; --list-theatres lists Earth, Other Worlds and practice scenarios")
+    ("list-theatres", "list all embedded worlds and exit")
     ("save-dir", boost::program_options::value<std::string>()->default_value(corncob::platform::default_save_directory().string()), "directory for pilot careers and persistent theatres")
     ("scale", boost::program_options::value<int>(), "initial window scale: positive multiple of 640 x 480 (default: fit available screen)");
 #ifndef NDEBUG
@@ -97,6 +79,13 @@ auto main(int const argc, char const *const argv[])->int {
   }
   if(arguments.contains("help")) {
     std::cout << options << std::endl;
+    return EXIT_SUCCESS;
+  }
+  if(arguments.contains("list-theatres")) {
+    for(auto const group : {corncob::world::theatre_group::earth, corncob::world::theatre_group::other_worlds, corncob::world::theatre_group::practice}) {
+      std::cout << (group == corncob::world::theatre_group::earth ? "Earth" : group == corncob::world::theatre_group::other_worlds ? "Other Worlds" : "Practice / Examples") << ":\n";
+      for(auto const &entry : corncob::world::theatres(group)) std::cout << "  " << entry.name << "  " << entry.title << '\n';
+    }
     return EXIT_SUCCESS;
   }
   if(arguments.contains("version")) {
@@ -124,13 +113,16 @@ auto main(int const argc, char const *const argv[])->int {
 #endif // NDEBUG
   auto theatre_name{arguments["theatre"].as<std::string>()};
   bool reserve_aircraft{false};
+  bool editing_session{false};
+  bool demonstration_session{false};
   std::unique_ptr<corncob::game::campaign_store> campaign;
   try {
     campaign = std::make_unique<corncob::game::campaign_store>(arguments["save-dir"].as<std::string>());
   } catch(std::exception const &error) { return startup_failure(error.what()); }
   corncob::world::theatre theatre;
   try {
-    theatre = load_theatre(theatre_name);
+    campaign->select_campaign(corncob::world::find_theatre(theatre_name).campaign);
+    theatre = corncob::world::load_theatre(theatre_name);
     if(auto saved{campaign->load_world(theatre_name)}) {
       saved->sky = theatre.sky;
       saved->environment = theatre.environment;
@@ -152,7 +144,7 @@ auto main(int const argc, char const *const argv[])->int {
     .joystick_device{arguments["joystick"].defaulted() ? (campaign->keyboard_control() ? -2 : -1) : joystick_device},
     .beginner_flight{arguments["flight-model"].defaulted() ? (!campaign->active_pilot() || campaign->active_pilot()->beginner_flight()) : flight_model == "beginner"},
   }, arguments.contains("no-music") ? std::optional{false} : std::nullopt};
-  if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
+  game->set_experimental_clearance(game->world().expansion || (campaign->active_pilot() && campaign->active_pilot()->awards(corncob::game::medal::combat_master) != 0));
   game->set_beginner_flight(front.flight_controls().beginner_flight);
   auto observer{game->camera()};
 #ifndef NDEBUG
@@ -242,15 +234,15 @@ auto main(int const argc, char const *const argv[])->int {
     auto &state{*static_cast<window_state*>(glfwGetWindowUserPointer(window))};
     auto &game{state.game};
     auto &front{state.front};
-    if(key >= 0 && action == GLFW_RELEASE && state.tower_key_releases.test(static_cast<unsigned int>(key))) {
-      state.tower_key_releases.reset(static_cast<unsigned int>(key));
+    if(key >= 0 && action == GLFW_RELEASE && state.consumed_key_releases.test(static_cast<unsigned int>(key))) {
+      state.consumed_key_releases.reset(static_cast<unsigned int>(key));
       return;
     }
     if(front.current_page() == corncob::game::interface_page::briefing && action != GLFW_RELEASE) {
       /// DOS consumes presses and repeats; a closing reader must not pass the matching release into flight
       using enum corncob::game::interface_command;
       if(key < 0 || (key >= GLFW_KEY_LEFT_SHIFT && key <= GLFW_KEY_RIGHT_SUPER)) return;
-      state.tower_key_releases.set(static_cast<unsigned int>(key));
+      state.consumed_key_releases.set(static_cast<unsigned int>(key));
       if((modifiers & GLFW_MOD_CONTROL) != 0 && key >= GLFW_KEY_A && key <= GLFW_KEY_Z) {
         front.character(static_cast<uint32_t>(key - GLFW_KEY_A + 1));
         return;
@@ -311,6 +303,30 @@ auto main(int const argc, char const *const argv[])->int {
       }
       return;
     }
+    if(game->in_recording() && key == GLFW_KEY_ESCAPE) { front.leave_sortie(); return; }
+    if(game->in_builder()) {
+      using enum corncob::game::builder_command;
+      if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8) game->builder_speed(static_cast<unsigned int>(key - GLFW_KEY_0));
+      switch(key) {
+      case GLFW_KEY_LEFT_SHIFT: game->edit(cursor); break;
+      case GLFW_KEY_LEFT_CONTROL: game->edit(hide_cursor); break;
+      case GLFW_KEY_C: game->edit(create); break;
+      case GLFW_KEY_SPACE: game->edit(select); break;
+      case GLFW_KEY_D: game->edit(erase); break;
+      case GLFW_KEY_EQUAL: game->edit(next_type); break;
+      case GLFW_KEY_MINUS: game->edit(previous_type); break;
+      case GLFW_KEY_RIGHT_BRACKET: game->edit(next_quality); break;
+      case GLFW_KEY_LEFT_BRACKET: game->edit(previous_quality); break;
+      case GLFW_KEY_F9: game->edit(special); break;
+      case GLFW_KEY_F10: game->edit(complete); break;
+      case GLFW_KEY_CAPS_LOCK: game->edit(level); break;
+      case GLFW_KEY_H: game->edit((modifiers & GLFW_MOD_ALT) != 0 ? remember_height : lock_height); break;
+      case GLFW_KEY_B: case GLFW_KEY_M: case GLFW_KEY_ESCAPE: game->edit(map); break;
+      case GLFW_KEY_F5: front.leave_sortie(); break;
+      default: break;
+      }
+      return;
+    }
     if(game->in_map()) {
       if(key == GLFW_KEY_ESCAPE || key == GLFW_KEY_M || key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER || key == GLFW_KEY_SPACE) game->press(corncob::game::action::toggle_map);
       return;
@@ -328,7 +344,7 @@ auto main(int const argc, char const *const argv[])->int {
       else if(game->request_exit()) front.leave_sortie();
       break;
     case GLFW_KEY_F1: front.show_boss(); break;
-    case GLFW_KEY_F2: front.show_intelligence(game->world()); break;
+    case GLFW_KEY_F2: front.show_intelligence(game->world(), corncob::world::nearest_airfield(game->world(), game->camera().position)); break;
     case GLFW_KEY_F3: front.show_current_score(game->results(), game->world().training); break;
     case GLFW_KEY_F4: front.show_flight_help(); break;
     case GLFW_KEY_S: state.sound_enabled = !state.sound_enabled; break;
@@ -338,7 +354,7 @@ auto main(int const argc, char const *const argv[])->int {
     case GLFW_KEY_NUM_LOCK: game->press(corncob::game::action::toggle_look); break;
     case GLFW_KEY_G: game->press(corncob::game::action::toggle_ground); break;
     case GLFW_KEY_F: game->press(corncob::game::action::toggle_flaps); break;
-    case GLFW_KEY_I: game->press(corncob::game::action::rocket); break;
+    case GLFW_KEY_I: game->press((modifiers & GLFW_MOD_ALT) != 0 ? corncob::game::action::toggle_invulnerability : corncob::game::action::rocket); break;
     case GLFW_KEY_E: game->press(corncob::game::action::eject); break;
     case GLFW_KEY_SPACE:
       if(game->is_paused()) front.show_flight_help();
@@ -362,7 +378,8 @@ auto main(int const argc, char const *const argv[])->int {
     }
     state.front.character(codepoint);
   });
-  corncob::audio::effects sound{interface_assets};
+  corncob::resources::collection expansion_assets{corncob::resources::other_worlds_asset(), &interface_assets};
+  corncob::audio::effects sound{campaign->current_campaign() == corncob::world::campaign_id::earth ? interface_assets : expansion_assets};
   corncob::audio::music music;
   struct audio_mix {
     corncob::audio::effects &effects;
@@ -396,25 +413,35 @@ auto main(int const argc, char const *const argv[])->int {
       }
     }
     if(auto const launch{front.take_launch()}) {
-      sound.reset();
+      sound.reset(campaign->current_campaign() == corncob::world::campaign_id::earth ? interface_assets : expansion_assets);
       theatre_name = launch->theatre;
       reserve_aircraft = launch->reserve_aircraft;
-      auto world{launch->training ? corncob::world::generate_training(geometry, *launch->training) : load_theatre(theatre_name)};
-      if(auto saved{launch->training ? std::nullopt : campaign->load_world(theatre_name)}) {
+      editing_session = launch->editing;
+      demonstration_session = !launch->recording.empty();
+      auto world{launch->training ? corncob::world::generate_training(geometry, *launch->training) : corncob::world::load_theatre(theatre_name)};
+      if(auto saved{launch->training || demonstration_session || editing_session ? std::nullopt : campaign->load_world(theatre_name)}) {
         saved->sky = world.sky;
         saved->environment = world.environment;
         saved->briefing = std::move(world.briefing);
         saved->missions = std::move(world.missions);
         world = std::move(*saved);
       }
+      world.expansion = campaign->current_campaign() == corncob::world::campaign_id::other_worlds;
+      corncob::world::select_airfield(world, launch->airfield);
       game = std::make_unique<corncob::game::session>(geometry, std::move(world), reserve_aircraft);
-      if(auto const *pilot{campaign->active_pilot()}) game->set_experimental_clearance(pilot->awards(corncob::game::medal::combat_master) != 0);
+      game->set_experimental_clearance(game->world().expansion || (campaign->active_pilot() && campaign->active_pilot()->awards(corncob::game::medal::combat_master) != 0));
       renderer = std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit);
       renderer->initialise(game->camera().position, game->random_stream());
       game->set_invincible(launch->invincible);
+      if(launch->editing) game->begin_builder();
+      if(demonstration_session) game->begin_recording(expansion_assets.file("dmo/" + launch->recording + ".dmo"));
       if(!launch->comments) game->press(corncob::game::action::toggle_messages);
       game->set_beginner_flight(front.flight_controls().beginner_flight);
       front.begin_flight();
+      // A menu shortcut can launch on its press; its later release belongs to that menu, not the new flight/editor.
+      for(int key{GLFW_KEY_SPACE}; key <= GLFW_KEY_LAST; ++key) {
+        if(glfwGetKey(window.get(), key) == GLFW_PRESS) state.consumed_key_releases.set(static_cast<unsigned int>(key));
+      }
       observer = game->camera();
       flight_frame_valid = false;
       clock_was_flying = true;
@@ -479,13 +506,21 @@ auto main(int const argc, char const *const argv[])->int {
       auto const *const panel{!game->in_map() && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
       if(preview) renderer->preview(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), game->random_stream(), flight_frame, panel);
       else renderer->render(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), game->random_stream(), flight_frame, panel);
+      if(game->in_builder()) {
+        corncob::graphics::interface_canvas overlay{flight_frame, interface_assets.file("font8.bin"), 8};
+        overlay.rectangle(0, 0, 640, 34, {0, 0, 0});
+        overlay.text(4, 2, "MISSION BUILDER  Shift: cursor/commit  Ctrl: hide  C: create  Space: select", {255, 255, 85});
+        overlay.text(4, 10, "Alt+arrows/PgUp/PgDn: move  A+arrows: rotate  +/-: type  []: quality  D: delete", {255, 255, 85});
+        overlay.text(4, 18, "F9: special  F10: complete  H/Alt+H: height  B: map  F5: save and return", {255, 255, 85});
+        overlay.text(4, 26, game->message(), {255, 255, 255});
+      }
       flight_frame_valid = true;
       frame = flight_frame;
     }};
     auto update_audio{[&]{
       music.select(audio_unavailable || inspect ? corncob::audio::music_cue::silent : front.music());
       auto audio_frame{corncob::audio::observe(*game)};
-      audio_frame.active = sound_enabled && front.in_flight() && !game->is_paused() && !game->in_map() && !inspect;
+      audio_frame.active = sound_enabled && !game->in_builder() && front.in_flight() && !game->is_paused() && !game->in_map() && !inspect;
       audio_frame.dead = audio_frame.dead && sound_enabled
         && (front.in_flight() || front.current_page() == corncob::game::interface_page::outcome);
       sound.update(audio_frame);
@@ -526,6 +561,8 @@ auto main(int const argc, char const *const argv[])->int {
             .home{held(GLFW_KEY_HOME) || held(GLFW_KEY_KP_7)},
             .rotate{held(GLFW_KEY_LEFT_SHIFT)},
             .slow{held(GLFW_KEY_S)},
+            .move_object{held(GLFW_KEY_LEFT_ALT)},
+            .rotate_object{held(GLFW_KEY_A)},
           },
         };
         if(auto const joystick{corncob::platform::poll_joystick(front.flight_controls().joystick_device)})
@@ -554,11 +591,25 @@ auto main(int const argc, char const *const argv[])->int {
       auto const active_theatre{campaign->active_theatre()};
       auto const theatres{campaign->theatres()};
       auto const previous_theatre{theatre_name != "training" && active_theatre && *active_theatre < theatres.size() ? std::optional{theatres[*active_theatre].pilot} : std::nullopt};
-      campaign->finish_sortie(theatre_name, game->snapshot(), result, reserve_aircraft);
-      front.finish_sortie(result, previous ? &*previous : nullptr, previous_theatre ? &*previous_theatre : nullptr);
+      if(!demonstration_session) campaign->finish_sortie(theatre_name, game->snapshot(), result, reserve_aircraft);
+      if(demonstration_session) {
+        front.finish_editing();
+        demonstration_session = false;
+      } else if(editing_session) {
+        auto const path{campaign->save_directory() / "custom_worlds" / (std::string{corncob::world::find_theatre(theatre_name).dos_name}
+          + "_" + std::to_string(active_theatre && *active_theatre < theatres.size() ? theatres[*active_theatre].number : 0) + ".def")};
+        auto exported{game->snapshot()};
+        exported.expansion = true;
+        corncob::platform::write_binary(path, corncob::world::encode_theatre(exported));
+        auto briefing_path{path};
+        briefing_path.replace_extension(".twr");
+        corncob::platform::write_binary(briefing_path, corncob::world::theatre_briefing(theatre_name));
+        front.finish_editing();
+        editing_session = false;
+      } else front.finish_sortie(result, previous ? &*previous : nullptr, previous_theatre ? &*previous_theatre : nullptr);
       if(result.has(corncob::game::sortie_status::earth_saved)) front.begin_ending(renderer->indexed_frame(), renderer->colours());
     }
-    if(front.in_flight() && !inspect && game->take_tower()) front.show_intelligence(game->world());
+    if(front.in_flight() && !inspect && game->take_tower()) front.show_intelligence(game->world(), corncob::world::nearest_airfield(game->world(), game->camera().position));
     if(front.in_flight() && !inspect) if(auto const notice{game->take_radio()}) front.show_radio(*notice, frame);
     if(!front.in_flight() && !inspect) {
       if(clock_was_flying) game->suspend_clock();

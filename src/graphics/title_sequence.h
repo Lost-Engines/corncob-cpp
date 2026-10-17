@@ -50,6 +50,7 @@ struct title_motion {
 class title_sequence {
 private:
   title_motion motion;
+  bool expansion;
   title_frame latest;
   double elapsed{0.0};
   unsigned int draw_page{0};
@@ -69,7 +70,7 @@ private:
   void draw_frame(title_frame const &frame);
 
 public:
-  explicit title_sequence(resources::collection const &assets);
+  explicit title_sequence(resources::collection const &assets, bool expansion = false);
   void advance(double seconds);
   void render(render::framebuffer &target) const;
 };

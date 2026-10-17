@@ -8,13 +8,14 @@
 #include "resources/assets.h"
 #include "resources/airfield_survey.h"
 #include "world/theatre_catalog.h"
+#include "world/airfields.h"
 
 namespace corncob::game {
 
 namespace {
 
 std::array<std::string_view, 11> constexpr main_choices{
-  "\\Duty roster", "\\Combat missions", "\\Training missions", "display \\High score list", "\\Read This!!!",
+  "\\Duty roster", "\\Combat missions", "\\Training missions", "display \\High score list", "\\Select campaign / world group",
   "keyboard/\\Joystick setup", "\\Music toggle", "\\View  the Corncob 3D documentation",
   "\\Print the Corncob 3D documentation", "get \\Information about this menu", "e\\Xit to dos",
 };
@@ -53,15 +54,6 @@ std::string pilot_label(pilot_record const *const pilot, bool const abbreviated 
   /// Main menus spell ranks out; the narrower roster panels use MOAG's abbreviated rank names
   return pilot ? std::string{abbreviated ? rank_abbreviation(pilot->rank()) : rank_name(pilot->rank())} + " " + pilot->name()
     : std::string{abbreviated ? "2nd Lt. trainee" : "2nd Lieutenant trainee"};
-}
-std::span<uint8_t const> description(unsigned int const index) {
-  /// Each TWR begins with a launch record followed by the theater description shown in MOAG
-  switch(index) {
-  case 0: return resources::morning_briefing_asset();
-  case 1: return resources::dusk_briefing_asset();
-  case 2: return resources::wasteland_briefing_asset();
-  default: return resources::white_sands_briefing_asset();
-  }
 }
 void report(graphics::menu_canvas &screen, pilot_record const *const pilot, bool const detailed, std::string_view const title,
             std::optional<sortie_statistics> const sortie = std::nullopt, pilot_record const *const previous = nullptr) {
@@ -252,7 +244,49 @@ void front_end::render_menus(render::framebuffer &target) const {
     screen.text(47, 5, "\xc2", 6); screen.text(47, 23, "\xc1", 6);
     if(!roster) screen.text(47, 14, std::string{"\xc3"} + std::string(30, '\xc4') + '\xb4', 6);
   }
-  if(roster) {
+  if(view == interface_page::campaigns) {
+    screen.colours(1, 3, 6);
+    screen.heading("Campaigns and Worlds");
+    screen.panel(8, 6, 71, 21);
+    std::array<std::string_view, 9> constexpr choices{
+      "\\Earth campaign", "\\Other Worlds campaign", "\\Practice and example worlds",
+      "recorded \\Demonstration flights", "mission \\Builder",
+      "mission builder \\Instructions", "Other Worlds gameplay \\Hints", "Other Worlds \\Title animation", "\\Return to main menu",
+    };
+    options(14, 8, choices, selection);
+    screen.text(12, 18, "One pilot roster; independent careers in each campaign.", 14);
+    screen.text(12, 20, "World selection: Left/Right switches groups.");
+  } else if(view == interface_page::campaign_victory) {
+    screen.colours(14, 4, 2);
+    screen.heading("!!! CONGRATULATIONS AND EXCLAMATIONS !!!");
+    screen.panel(2, 5, 77, 22);
+    screen.text(8, 6, "General " + (pilot ? pilot->name() : std::string{"trainee"}), 15);
+    if(pilot && pilot->resurrections() != 0) screen.text(8, 7, std::format("(With {} resurrection{},)", pilot->resurrections(), pilot->resurrections() == 1 ? "" : "s"));
+    screen.text(8, 9, "having successfully completed all the relevant");
+    screen.text(8, 10, "Theaters-of-Operation,");
+    screen.text(8, 11, "and thereby OBLITERATING the alien threat,");
+    screen.text(8, 12, "is hereby declared...");
+    screen.text(16, 14, "MASTER of Corncob Other Worlds", 15);
+    if(pilot && pilot->resurrections() != 0) {
+      screen.text(8, 17, "Now, don't you want to try to do it without");
+      screen.text(8, 18, "resurrections?");
+    } else {
+      screen.text(8, 17, "There is no greater accomplishment in Corncob 3D.");
+      screen.text(8, 18, "You have thus earned the utmost respect from");
+      screen.text(8, 19, "all who risked their lives in defense of Humankind.");
+    }
+    screen.text(20, 21, "Type almost any key to continue...", 15);
+  } else if(view == interface_page::demonstrations) {
+    screen.colours(1, 3, 6);
+    screen.heading("Recorded Demonstration Flights");
+    screen.panel(8, 6, 71, 21);
+    std::array<std::string_view, 4> constexpr choices{
+      "\\1 Basic Mission", "\\2 Junky Corridor", "\\3 Vertical Mission", "\\Return to campaigns",
+    };
+    options(15, 9, choices, selection);
+    screen.text(12, 16, "Original recorded aircraft motion and weapon events.", 14);
+    screen.text(12, 18, "Escape stops playback; demonstrations do not affect careers.");
+  } else if(roster) {
     screen.text(59, 6, "Pilots:");
     screen.text(47, 7, std::string{"\xc3"} + std::string(30, '\xc4') + '\xb4', 6);
     screen.text(4, 7, "Use arrow keys or type highlighted letter");
@@ -323,10 +357,14 @@ void front_end::render_menus(render::framebuffer &target) const {
     screen.text(33, 19, controls.beginner_flight ? "(Beginner)" : "(Advanced)");
     screen.text(36, 20, comments_enabled ? "(On) " : "(Off)");
     screen.text(49, 6, "Theaters-of-Operation:", 14);
-    for(unsigned int i{0}; i != world::theatre_catalog.size(); ++i) {
-      screen.text(49, 7 + static_cast<int>(i), i < 3 ? "\xfe" : " ", 14);
-      screen.text(50, 7 + static_cast<int>(i), world::theatre_catalog[i].title, view == interface_page::new_theatre && i == selection ? 15 : 1);
+    auto const catalog{world::theatres(group)};
+    unsigned int const first_world{view == interface_page::new_theatre && selection >= 6 ? selection - 5 : 0};
+    for(unsigned int i{first_world}; i < catalog.size() && i < first_world + 6; ++i) {
+      int const row{7 + static_cast<int>(i - first_world)};
+      screen.text(49, row, catalog[i].required ? "\xfe" : " ", 14);
+      screen.text(50, row, catalog[i].title.substr(0, 27), view == interface_page::new_theatre && i == selection ? 15 : 1);
     }
+    if(catalog.size() > 6) screen.text(50, 13, std::format("{}-{} of {}  \x18\x19 scroll", first_world + 1, std::min(first_world + 6, static_cast<unsigned int>(catalog.size())), catalog.size()), 14);
     screen.text(47, 14, std::string{"\xc3"} + std::string(30, '\xc4') + '\xb4', 6);
     screen.text(49, 15, "Your Open Theaters:", 14);
     unsigned int const first{selection > 5 && view != interface_page::theatres && view != interface_page::new_theatre ? selection - 5 : 0};
@@ -344,11 +382,13 @@ void front_end::render_menus(render::framebuffer &target) const {
       screen.text(4, 8, "\x18\x19.  Select theater of operations with", 4);
       screen.text(4, 9, "<CR> or abort with <BS> or <ESC>.", 4);
       screen.text(2, 10, std::string{"\xc3"} + std::string(42, '\xc4') + '\xb4', 4);
-      screen.text(24 - static_cast<int>(world::theatre_catalog[selection].title.size()) / 2, 11, world::theatre_catalog[selection].title, 14);
-      auto const bytes{description(selection)};
+      screen.text(24 - static_cast<int>(catalog[selection].title.size()) / 2, 11, catalog[selection].title, 14);
+      auto const bytes{world::theatre_briefing(catalog[selection].name)};
       std::istringstream text{std::string{reinterpret_cast<char const*>(bytes.data()), bytes.size()}};
       std::string line;
       std::getline(text, line);
+      if(line.starts_with("X ")) std::getline(text, line);
+      screen.text(4, 12, "Left/Right groups; B: edit a fresh copy", 4);
       for(int row{13}; row <= 20 && std::getline(text, line) && line.find('\f') == std::string::npos; ++row) {
         if(!line.empty() && line.back() == '\r') line.pop_back();
         screen.rich_text(4, row, line, 1, 40);
@@ -443,12 +483,22 @@ void front_end::render_menus(render::framebuffer &target) const {
       screen.text(3, 19, "Note:  Training missions are much harder than the combat missions.");
       screen.text(21, 21, "Type <CR> to continue, <ESC> to abort", 14);
     } else if(view == interface_page::starting_airfield) {
-      /// The four retained base-game worlds all use the single RDU control tower; nine-airfield expansion worlds are out of scope
-      screen.text(11, 6, "There is only one airfield in this Theater-of-Operation.", 14);
-      screen.text(6, 7, "Type <CR> to fly, `i' for detailed info, or <ESC> to abort mission.", 14);
-      screen.text(34, 13, "RDU ^international", 15); screen.text(39, 14, "Airport", 15);
-      auto const status{prepared_world ? resources::survey_airfield(*prepared_world) : resources::airfield_status{}};
-      screen.text(35, 15, std::format("({} planes  {} MO)", status.planes, status.objectives), 15);
+      bool const multiple{prepared_world && world::multiple_airfields(*prepared_world)};
+      screen.text(multiple ? 6 : 11, 6, multiple ? "Choose an airfield with arrows; Enter flies, I shows details." : "There is only one airfield in this Theater-of-Operation.", 14);
+      if(multiple) {
+        for(unsigned int field{0}; field != world::airfield_count; ++field) {
+          int const row{8 + static_cast<int>(field)};
+          auto const status{resources::survey_airfield(*prepared_world, field)};
+          screen.option(5, row, world::airfield_names[field], field == selection);
+          screen.text(47, row, std::format("{} planes  {} MO", status.planes, status.objectives), 15);
+        }
+        screen.text(6, 19, "Escape returns without starting a flight.", 14);
+      } else {
+        screen.text(6, 7, "Type <CR> to fly, `i' for detailed info, or <ESC> to abort mission.", 14);
+        screen.text(34, 13, "RDU ^international", 15); screen.text(39, 14, "Airport", 15);
+        auto const status{prepared_world ? resources::survey_airfield(*prepared_world) : resources::airfield_status{}};
+        screen.text(35, 15, std::format("({} planes  {} MO)", status.planes, status.objectives), 15);
+      }
       screen.text(25, 21, "MO = Mission Objectives remaining", 1);
     } else {
       screen.colours(7, 6, 7, 15);

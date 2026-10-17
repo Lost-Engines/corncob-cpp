@@ -1,0 +1,413 @@
+{
+  "reference": "Other Worlds Campaign 3.42",
+  "source": "installs/other_worlds_download",
+  "flight_sha256": "284c2ab1990479e8dc374cced6d7ffb9aa0c1047e0840e0ac6d7015a09616d3d",
+  "menu_sha256": "7dc6b71c77532e79ab5f05a48aa1b42bb57f0b975136102d42b133742b7b11be",
+  "files": [
+    {
+      "name": "def/default.def",
+      "bytes": 6234,
+      "sha256": "769452aefb4867abb81e8d90a7e4f75632c9ff168e6aef35c13eb99b112e9bf3"
+    },
+    {
+      "name": "def/deftower.twr",
+      "bytes": 46,
+      "sha256": "733112549da0e5a4bb5b153784b42d77167a1d97f16aab34d3d4b4e8f31f9e80"
+    },
+    {
+      "name": "def/demo1.def",
+      "bytes": 6464,
+      "sha256": "a7e5aafd986fb6be03634aba8f6f46eba90c105907f7c18934f558b26b40f594"
+    },
+    {
+      "name": "def/dusk.def",
+      "bytes": 4923,
+      "sha256": "e0168794b3f50b0c2042465dce4e3b7b347dcc6153a7e9a66ba8971cbbaf258b"
+    },
+    {
+      "name": "def/dusk.twr",
+      "bytes": 5048,
+      "sha256": "ff1c573f83fb714bbfbc1d70d31a4ec7018f3a17a02503ac8c8f5616453e4f63"
+    },
+    {
+      "name": "def/exp.def",
+      "bytes": 4578,
+      "sha256": "7ea763d984680cda72af5811a8ed77061ee446fd3f9be63ab150875236ab3188"
+    },
+    {
+      "name": "def/exp.twr",
+      "bytes": 3259,
+      "sha256": "0b28f91a918e45f497c978135a242f9c2b58d876993567573e004e459769009c"
+    },
+    {
+      "name": "def/flatland.def",
+      "bytes": 22311,
+      "sha256": "538be3a4bd567719bc3bb896a2d90d72a04ee704ef0b9609c660383e078a2009"
+    },
+    {
+      "name": "def/flatland.twr",
+      "bytes": 16782,
+      "sha256": "95c31e5494acd94b0cd75b0a39ab8ff7720cb36ca671a0fcadef6c3cffb17884"
+    },
+    {
+      "name": "def/iceworld.def",
+      "bytes": 19597,
+      "sha256": "adbd40f12b26e4aa11b0472ca2a7b5ede37e5f3f7b10e05fe1a08d263d0e6d67"
+    },
+    {
+      "name": "def/iceworld.twr",
+      "bytes": 13164,
+      "sha256": "39f910dc03d416955da66c68079e3f2294f6e10d91b2e019f4e2bcf210bb52be"
+    },
+    {
+      "name": "def/midnight.def",
+      "bytes": 4233,
+      "sha256": "287fb7d015428787f7dcd1ba9969c267220101e853efdd6c81925229cad2680a"
+    },
+    {
+      "name": "def/midnight.twr",
+      "bytes": 850,
+      "sha256": "21bb9266a4332ac196c05a8b4909a3bfb01a34b866ab8001dce6b90b1edf922d"
+    },
+    {
+      "name": "def/milkrun.def",
+      "bytes": 14836,
+      "sha256": "ac8f4801e565cbd617d2a98d70722dcf72a158c8f1c7f35af6692fab13f0192a"
+    },
+    {
+      "name": "def/milkrun.twr",
+      "bytes": 26980,
+      "sha256": "6972f5e7a86afb916ca78d29c37a1390f0bb18dea05f1ade6fc620d69f9c7274"
+    },
+    {
+      "name": "def/morning.def",
+      "bytes": 6119,
+      "sha256": "b6e584565418bc0c0c1af84a200c20080a30354a9866b5ff2f6b5e2f898fcb95"
+    },
+    {
+      "name": "def/morning.twr",
+      "bytes": 4716,
+      "sha256": "9229c0e8c4a53776751aee3d8a9f31c049b5d34528546446b6ceeb0ee57bee19"
+    },
+    {
+      "name": "def/mtuniv.def",
+      "bytes": 1611,
+      "sha256": "f200b62275294ab45678a01aac51ee8bfb1a1b20b17dfd031a73411e95c91e7b"
+    },
+    {
+      "name": "def/mtuniv.twr",
+      "bytes": 846,
+      "sha256": "078bc047487ec2f02a49762764806afd6bcca67729f37147b7646e523ad57e6b"
+    },
+    {
+      "name": "def/newatkin.def",
+      "bytes": 6050,
+      "sha256": "c6ddc8d070d5da47860716ae0c808198b837780064a5c0bad26d943511b1f16c"
+    },
+    {
+      "name": "def/newatkin.twr",
+      "bytes": 4785,
+      "sha256": "dcda18f23d82f008a4aea444d268023491655a1e766841efe36a4049333982da"
+    },
+    {
+      "name": "def/quari.def",
+      "bytes": 20356,
+      "sha256": "8f29db7dad454bae561a8a8e154d6ab78accf7ff6820094088d36b5642e42b46"
+    },
+    {
+      "name": "def/quari.twr",
+      "bytes": 14484,
+      "sha256": "b49c991732816fffbb55fd89166d580972bf8ae4e4a21d70075380bcf21c19bd"
+    },
+    {
+      "name": "def/thin.def",
+      "bytes": 3037,
+      "sha256": "7aa3718dba33759dca9b863685b4eff8991c29a6d3a5299b25a35a67305b86dd"
+    },
+    {
+      "name": "def/thin.twr",
+      "bytes": 2487,
+      "sha256": "a02b34b6557f31d266c7d5467f45461239feffdcb68e76a019809d788bedccd9"
+    },
+    {
+      "name": "def/tundra.def",
+      "bytes": 5406,
+      "sha256": "c9b4ea51b23f6c990f05a99db4cab4b0243a65a893d7a8830f01cec6ab04ff86"
+    },
+    {
+      "name": "def/tundra.twr",
+      "bytes": 6297,
+      "sha256": "1b51b6a48b55341744cf96096ac726bb8c4a599fef5ced5db2be859b8f99fc59"
+    },
+    {
+      "name": "def/wastelnd.def",
+      "bytes": 5291,
+      "sha256": "2c3ca2aaf711042c8dc95130675de03e687090ca0f71bafc1678ca7d1c97c8ad"
+    },
+    {
+      "name": "def/wastelnd.twr",
+      "bytes": 3061,
+      "sha256": "d8ec2c73d59cb68a16d3748fc940b5960ecfd8a16f5f076ce667170e4ba11368"
+    },
+    {
+      "name": "def/whtsands.def",
+      "bytes": 2209,
+      "sha256": "4d5a201e44ac6349c364c3e744688d1d3382decc1fa11840aa0f3dbdd189460d"
+    },
+    {
+      "name": "def/whtsands.twr",
+      "bytes": 1072,
+      "sha256": "060e55ff28427e1bcc267cdbe935f23c9de57ac30d262bc666600e5c5745c89c"
+    },
+    {
+      "name": "img/3d.img",
+      "bytes": 7065,
+      "sha256": "ead2f72e60ee99ab84ff47e8e0e00d7ed5aca67e0bb109923dc0d4a90cfa7c48"
+    },
+    {
+      "name": "img/3d10.img",
+      "bytes": 4482,
+      "sha256": "ac5304e806a45453b51517b722cb75bd9b5563eb3188387272736cc594383c96"
+    },
+    {
+      "name": "img/3d13.img",
+      "bytes": 7306,
+      "sha256": "236373c27e23681175c292fd38f5e8f31a296feff8a16259d22ca74fae50c13a"
+    },
+    {
+      "name": "img/3d2.img",
+      "bytes": 6290,
+      "sha256": "05f2a9923774b925a46a371e8d92eec07f826215b9fd4b37f74817e4f359a0ec"
+    },
+    {
+      "name": "img/3d3.img",
+      "bytes": 2214,
+      "sha256": "7f60783c26ad5df68ab5e9e6fe975163840622a8c9074a3c5cc25787067769f4"
+    },
+    {
+      "name": "img/3d4.img",
+      "bytes": 4015,
+      "sha256": "624c6d451c5de06d9fba8f6370e8b957b517e82be0af8cd33e42dc48792daf75"
+    },
+    {
+      "name": "img/3d5.img",
+      "bytes": 2872,
+      "sha256": "b0d01512b6f61fafed0c76c31de8c6c76a8b56ebb5a33eda107d65422c20ccb4"
+    },
+    {
+      "name": "img/3d6.img",
+      "bytes": 8689,
+      "sha256": "48aab0505df487548b75489a7759cd3532b0ef57f0c5542d3ad125c2aceb4548"
+    },
+    {
+      "name": "img/3d7.img",
+      "bytes": 4415,
+      "sha256": "1ed80de7e0e2015dca87ddf2cab5ab5e195757b4bbd1df5786f3f8a6575d6c3f"
+    },
+    {
+      "name": "img/3d8.img",
+      "bytes": 7527,
+      "sha256": "b0b2ed36dd891a5e71d398457144d7c9ed48eeffb5c7b2da9e9ebcfb7172be64"
+    },
+    {
+      "name": "img/3d9.img",
+      "bytes": 6221,
+      "sha256": "70539a62006db63cfa3c552828f1180de690eaf25ea50056ae0b0e2a8419a579"
+    },
+    {
+      "name": "vga/cologo.vga",
+      "bytes": 28806,
+      "sha256": "5b5ee42f12af448cf60037abd78dba05a2329fd09140fca4a7840dc668459292"
+    },
+    {
+      "name": "vga/corps2b.vga",
+      "bytes": 39686,
+      "sha256": "1b093456949d286c73aed57cb20f1d1fcca95bca75831be2784906947ff95cae"
+    },
+    {
+      "name": "vga/crsh2a.vga",
+      "bytes": 35734,
+      "sha256": "f1b5f60a72ab0da6cc209240a3b1100b31e12f228d649774672ba2bdf26766a6"
+    },
+    {
+      "name": "vga/drunk2.vga",
+      "bytes": 40902,
+      "sha256": "ac83103dd5e583ca1e09bcea6beb3120e86ff04b345560257e42c61102e0723f"
+    },
+    {
+      "name": "vga/expl4a.vga",
+      "bytes": 30774,
+      "sha256": "317cb0e3b8eb9382b66b110bfcd87c2a378b1d46857ea631f74b911e2fd9690e"
+    },
+    {
+      "name": "vga/flash.vga",
+      "bytes": 182,
+      "sha256": "7df39e7124522f502303a7c73210194c0fd4e5e013e7dca0a6e89e2602bbfacf"
+    },
+    {
+      "name": "vga/flyby2.vga",
+      "bytes": 13094,
+      "sha256": "34da6e4a73deee8b2beab324e29e6dfbd5f5699b77cd3f190f7ac2dd55d25a47"
+    },
+    {
+      "name": "vga/gradsky.pal",
+      "bytes": 768,
+      "sha256": "1b18e40757738f49d79cef5bcb8c82d08d15f3ea63c6605bda61264f634159ac"
+    },
+    {
+      "name": "vga/hc6.pal",
+      "bytes": 768,
+      "sha256": "ab0f9cd8f9659680d1f9c598e08ef91b55d2d17b048a2b731624c126b42bff79"
+    },
+    {
+      "name": "vga/hc6new.vga",
+      "bytes": 23038,
+      "sha256": "3dcdd6f001c0e4a7a3dfd1b1f2a6b93324807154c9debafab3157d123f6b4336"
+    },
+    {
+      "name": "vga/pcors3a.vga",
+      "bytes": 37638,
+      "sha256": "316acc4c30665941ce0bfc380bae60a43c8f62b143c038d1e0dc2dad4233a3d8"
+    },
+    {
+      "name": "vga/prisbar4.vga",
+      "bytes": 13886,
+      "sha256": "8276792d9e0c562a00186c7de457ca18e4e487c81ef2820a62d1affd1d9b7c37"
+    },
+    {
+      "name": "vga/rv4a.vga",
+      "bytes": 15494,
+      "sha256": "a1cf500a59760fc1ef7e0157f3eb15146a2173a51c8b1891f230fd80110aefe7"
+    },
+    {
+      "name": "vga/searth1.vga",
+      "bytes": 36774,
+      "sha256": "a2a3e45d5616669e0d470581e544e44d31ea388364c6241dd162806b47d75f3e"
+    },
+    {
+      "name": "vga/skla1.vga",
+      "bytes": 1686,
+      "sha256": "724db1b9ff42b6912c0f52219e6506804be47ec8b7980d9505ede8fe96f2c59d"
+    },
+    {
+      "name": "vga/skla2.vga",
+      "bytes": 1406,
+      "sha256": "33b29f905a4dbaa50f32e970c19827a2193d016b41316dc6737d83372e446754"
+    },
+    {
+      "name": "vga/skla3.vga",
+      "bytes": 1686,
+      "sha256": "a061ab23f63abc96c36b47d9e5dc82012dffcc3edb9a7a7da59feb43d6024ee7"
+    },
+    {
+      "name": "vga/skla4.vga",
+      "bytes": 1686,
+      "sha256": "cd7fd3cc962ae2d52a2f47cd546c3dd6434e49b3d1196a648a3d51006adf5e6b"
+    },
+    {
+      "name": "vga/sky.pal",
+      "bytes": 768,
+      "sha256": "c24b55fcd9a04ca9ef148bb722964825890d682a4c1e04b4e3c5b3619df3abe7"
+    },
+    {
+      "name": "vga/ssflak1.vga",
+      "bytes": 678,
+      "sha256": "fb20c6ab3902d20940909cb17853c8aa619991bfe2cf35c887286a5beb3147fd"
+    },
+    {
+      "name": "vga/ssflak2.vga",
+      "bytes": 1046,
+      "sha256": "8f2728e6bca34103ac7ed5dd5adec3977fa55f11e87d41692f952ba711586ed8"
+    },
+    {
+      "name": "vga/ssflak3.vga",
+      "bytes": 2374,
+      "sha256": "6440382b9f262a3496c5b31a3836a78d8cad06ef8b618a2250d8e933272c1dde"
+    },
+    {
+      "name": "vga/s_drunk1.vga",
+      "bytes": 16774,
+      "sha256": "8e04aa6c80ac304cb580fe9fd6e5ad1481317395572cd26fcc729b7c758eaa9c"
+    },
+    {
+      "name": "vga/tcloud5s.vga",
+      "bytes": 20742,
+      "sha256": "346c45b0d757ab1ee11463c4d71eb958accc5918da9cad0a3aa314fde17337f1"
+    },
+    {
+      "name": "vga/tnambc.vga",
+      "bytes": 32006,
+      "sha256": "74e96537990e16da2bf119a49820aad7c3909d171aef684d19eb1fce3095893b"
+    },
+    {
+      "name": "vga/toilet2a.vga",
+      "bytes": 14086,
+      "sha256": "5dca1db83bea13db4343f8089dc19554963cfa8a361a903ac9f217822b5d0d68"
+    },
+    {
+      "name": "dmo/demo.ndx",
+      "bytes": 536,
+      "sha256": "3b1b800f85b5155ae2d13528a19da77f121da2ab431ec5d69c56ffc85b1f45ae"
+    },
+    {
+      "name": "dmo/demo1.dmo",
+      "bytes": 20004,
+      "sha256": "9904703d3dbc16754dc0779bd68409c16e86845cc23af81601b8784e3a0c0f22"
+    },
+    {
+      "name": "dmo/demo5.dmo",
+      "bytes": 11767,
+      "sha256": "f5e0dfd3f73d742356e6b8b2f22d67563ecc6cb5e2877ae5ace0b164049b0a95"
+    },
+    {
+      "name": "dmo/demo6.dmo",
+      "bytes": 13245,
+      "sha256": "8b3a6140973cb20d0faf2f89c89b2dd779e5b8ad9a9b08ebcb72035aeb78b861"
+    },
+    {
+      "name": "corncob.doc",
+      "bytes": 131861,
+      "sha256": "51d6ff247fec18f9b2001b125f1598b3a2dfc3deabb548508a4a055d0b1300ae"
+    },
+    {
+      "name": "moag.inf",
+      "bytes": 25096,
+      "sha256": "7bb933d63124b931f72b35c780007521e14b88042cbd3db520a4b08e5812ff06"
+    },
+    {
+      "name": "mbuilder.doc",
+      "bytes": 29693,
+      "sha256": "bdf54858640808bead7eff21e6122470719a0c4b6f63375d18afc19659a10ae6"
+    },
+    {
+      "name": "hints.txt",
+      "bytes": 20968,
+      "sha256": "06ee6271f02bbb095fd32157c67238b7389de756d6e13be059757d8bac29849f"
+    },
+    {
+      "name": "pict.dat",
+      "bytes": 2858,
+      "sha256": "600160f54d5401ad012bfc33b54ba5c219c49efa0a0a4f461e30ece975d27b0d"
+    },
+    {
+      "name": "3.adl",
+      "bytes": 942,
+      "sha256": "63ccc441c59ca92e152ecb010a3481c1a9b0294b3a4b3c22e3d71080d3a6ff56"
+    },
+    {
+      "name": "def3.adl",
+      "bytes": 942,
+      "sha256": "63ccc441c59ca92e152ecb010a3481c1a9b0294b3a4b3c22e3d71080d3a6ff56"
+    },
+    {
+      "name": "boss.txt",
+      "bytes": 55,
+      "sha256": "91f1f33be697b468503d3faa9c693a2b00e550d3f06fd4846c3bdc70ff7489f1"
+    },
+    {
+      "name": "rolfiles.txt",
+      "bytes": 467,
+      "sha256": "ef8cd785d91a1638f72beb4d0333cd799d181d76b32218983b721e3921f955a2"
+    }
+  ]
+}

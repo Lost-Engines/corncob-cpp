@@ -7,6 +7,7 @@
 #include <tuple>
 #include "maths/integer.h"
 #include "resources/survey_types.h"
+#include "world/airfields.h"
 
 namespace corncob::resources {
 
@@ -110,16 +111,17 @@ std::string distance(int32_t x, int32_t y) {
 
 } // anonymous namespace
 
-airfield_status survey_airfield(world::theatre const &theatre) {
+airfield_status survey_airfield(world::theatre const &theatre, unsigned int const airfield) {
+  auto const origin{world::multiple_airfields(theatre) && airfield < world::airfield_count ? world::airfield_start(theatre, airfield) : maths::world_position{theatre.start}};
   /// INT counts every incomplete objective in a single-airfield theater and every unwrecked plane within its start box
   int32_t constexpr boarding_region{524'288}, pilot_height{720};
   airfield_status result;
   for(auto const &object : theatre.objects) {
-    if(!object.has(world::object_flag::present)) continue;
+    if(!object.has(world::object_flag::present) || (airfield < world::airfield_count && !world::belongs_to_airfield(theatre, object, airfield))) continue;
     using enum world::object_type;
     if(object.type == aircraft && (object.flags & 0x100) == 0
-      && std::abs(static_cast<int64_t>(object.position.x) - theatre.start.x) < boarding_region
-      && std::abs(static_cast<int64_t>(object.position.y) - theatre.start.y) < boarding_region
+      && std::abs(static_cast<int64_t>(object.position.x) - origin.x) < boarding_region
+      && std::abs(static_cast<int64_t>(object.position.y) - origin.y) < boarding_region
       && std::abs(static_cast<int64_t>(object.position.z) - pilot_height) < boarding_region) ++result.planes;
     if(!object.has(world::object_flag::objective_complete)
       && (object.type == generator_orb || object.type == destroyed_generator_orb || object.type == objective_saucer
@@ -205,10 +207,11 @@ std::string describe_survey_entry(survey_entry const &entry, maths::world_positi
   if(!objective.empty() && (entry.flags & 0x200) == 0) result += std::format("\\(         Mission Objective:  {}\\)\r\n", objective);
   return result;
 }
-std::vector<std::string> airfield_survey(world::theatre const &theatre) {
+std::vector<std::string> airfield_survey(world::theatre const &theatre, unsigned int const airfield) {
   /// A theater with one tower reports all 64 tiles, including distant mission objectives
   std::vector<survey_entry> entries;
   for(auto const &object : theatre.objects) {
+    if(!world::belongs_to_airfield(theatre, object, airfield)) continue;
     if(!object.has(world::object_flag::present) || (survey_types[std::to_underlying(object.type)].attributes & 1u) == 0) continue;
     entries.push_back({
       .position{maths::world_position{object.position}},
@@ -217,11 +220,11 @@ std::vector<std::string> airfield_survey(world::theatre const &theatre) {
     });
   }
   group_survey_entries(entries);
-  std::string text{"\\(Objects near RDU ^international Airport:\\)\r\n\r\n\\(Object                    Quality:  Range/Dir:    Alt:\\)\r\n\\(                                     (Mi.)       (ft.)\\)\r\n"};
+  std::string text{"\\(Objects near " + std::string{world::airfield_names[airfield]} + ":\\)\r\n\r\n\\(Object                    Quality:  Range/Dir:    Alt:\\)\r\n\\(                                     (Mi.)       (ft.)\\)\r\n"};
   unsigned int previous{0};
   for(auto const &entry : entries) {
     if((entry.group & group_mask) != previous) text += "\r\n\r\n";
-    text += describe_survey_entry(entry, theatre.start);
+    text += describe_survey_entry(entry, world::multiple_airfields(theatre) ? world::airfield_start(theatre, airfield) : theatre.start);
     previous = entry.group & group_mask;
   }
   text += "\r\n\r\n";

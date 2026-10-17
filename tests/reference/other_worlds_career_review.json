@@ -1,0 +1,10 @@
+{
+  "reference_sha256": "7dc6b71c77532e79ab5f05a48aa1b42bb57f0b975136102d42b133742b7b11be",
+  "fixture_sha256": "62b2cfc1e6bc7f9820f89a25341f7ddf849ea772f4deb2cfb9f668e151d6a405",
+  "cases": 512,
+  "routine": "MOAG.EXE file 0x17ae4..0x17dfe",
+  "stubs": [
+    "time(long*) supplies a fixed wall clock; every other helper runs unchanged"
+  ],
+  "scope": "Complete promotion, medal and friendly-loss suspension decision, including native cached theatre lookup, strcmp, duplicate theatre definitions, current-index restrictions, per-theatre aircraft losses, signed comparisons and byte wrapping."
+}

@@ -90,7 +90,7 @@ std::vector<uint8_t> encode_theatre(theatre const &source) {
     for(unsigned int x{0}; x != theatre::columns; ++x) {
       std::vector<placed_object const*> placements;
       for(auto const &object : source.objects) {
-        if(!object.has(object_flag::present)) continue;
+        if(!object.has(object_flag::present) || object.pose == model_pose::editor_cursor) continue;
         int64_t const column{(static_cast<int64_t>(object.position.x) - theatre::origin) >> 21};
         int64_t const row{(static_cast<int64_t>(object.position.y) - theatre::origin) >> 21};
         if(column == x && row == y) placements.push_back(&object);
@@ -117,7 +117,7 @@ std::vector<uint8_t> encode_theatre(theatre const &source) {
         word(object->flags);
         for(unsigned int axis{0}; axis != 3; ++axis) word(static_cast<uint16_t>(object->velocity[axis]));
         word(object->timer);
-        word(static_cast<uint16_t>(std::to_underlying(object->type) ^ low_x ^ low_y));
+        word(static_cast<uint16_t>(std::to_underlying(object->type) ^ (source.expansion ? 0 : low_x ^ low_y)));
       }
     }
   }
@@ -155,7 +155,9 @@ void apply_briefing(theatre &theatre, std::span<uint8_t const> const source) {
   if(source.front() != 'X') return;
   std::istringstream input{theatre.briefing.substr(1, theatre.briefing.find('\n'))};
   int angle{0}, diameter{0}, colour{0}, gravity{0}, density{0}, stars{0}, height{0};
-  if(!(input >> angle >> diameter >> colour >> gravity >> density >> stars >> height)) throw std::invalid_argument{"embedded theatre has an invalid X directive"};
+  if(!(input >> angle >> diameter >> colour >> gravity >> density >> stars)) throw std::invalid_argument{"embedded theatre has an invalid X directive"};
+  // Older TWR headers omit atmosphere height; READUNIVPARAMS retains the engine default in that case.
+  input >> height;
   theatre.sky = {
     .sun_angle{static_cast<maths::angle>(angle)},
     .first_sun_diameter{static_cast<uint16_t>(diameter)},

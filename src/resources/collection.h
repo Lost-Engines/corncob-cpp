@@ -31,9 +31,10 @@ struct presentation_panel {
 class collection {
 private:
   std::unordered_map<std::string_view, std::span<uint8_t const>> entries;
+  collection const *fallback;
 
 public:
-  explicit collection(std::span<uint8_t const> source);
+  explicit collection(std::span<uint8_t const> source, collection const *fallback = nullptr);
   std::span<uint8_t const> file(std::string_view name) const;
   std::string_view text(std::string_view name) const;
   std::array<uint8_t, 4096> menu_font() const;

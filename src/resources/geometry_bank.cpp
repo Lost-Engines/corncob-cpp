@@ -185,6 +185,25 @@ geometry_bank::geometry_bank(std::span<uint8_t const> const source) :
   load_model(map_marker_model);
   load_model(sun_model);
   load_model(experimental_model);
+  // Other Worlds' extra 5c86 model is the builder cursor: six coloured spheres around the local axes.
+  disc_cloud cursor;
+  std::array<maths::fixed_vector, 6> const positions{
+    maths::fixed_vector{500, 0, 0}, maths::fixed_vector{-500, 0, 0}, maths::fixed_vector{0, 500, 0},
+    maths::fixed_vector{0, -500, 0}, maths::fixed_vector{0, 0, 500}, maths::fixed_vector{0, 0, -500},
+  };
+  std::array<uint16_t, 6> constexpr colours{13, 4, 9, 14, 0, 15};
+  for(unsigned int i{0}; i != positions.size(); ++i) cursor.discs.push_back({
+    .position{maths::fixed_vector{positions[i]}},
+    .diameter{250},
+    .colour{colours[i]},
+  });
+  unsigned int const index{static_cast<unsigned int>(primitives.size())};
+  primitives.emplace_back(std::move(cursor));
+  model marker;
+  for(auto &octant : marker.octants) octant.push_back({
+    .primitive_index{index},
+  });
+  models.emplace(editor_cursor_model, std::move(marker));
 }
 
 object_definition const &geometry_bank::definition(world::object_type const type) const {
@@ -196,6 +215,7 @@ model_levels geometry_bank::appearance(world::placed_object const &object) const
   if(object.pose == world::model_pose::experimental_aircraft) return {experimental_model, experimental_model, 0x4ee3};
   if(object.type == world::object_type::aircraft && (object.flags & 0x100u) != 0) return {0x47a1, 0x47a1, 0x4ee3};
   switch(object.pose) {
+  case world::model_pose::editor_cursor: return {editor_cursor_model, editor_cursor_model, editor_cursor_model};
   case world::model_pose::damaged:
     if(object.type == world::object_type::aircraft || object.type == world::object_type::internal_aircraft) return {0x47a1, 0x47a1, 0x4ee3};
     if(object.type == world::object_type::generator_orb) return {0x3227, 0x3227, 0x3227};

@@ -115,6 +115,8 @@ add_library(corncob_core STATIC
   src/game/scenery.h
   src/game/session.cpp
   src/game/session.h
+  src/game/recorded_flight.cpp
+  src/game/mission_builder.cpp
   src/game/map_view.cpp
   src/game/map_view.h
   src/game/pilot_motion.cpp
@@ -170,6 +172,8 @@ add_library(corncob_core STATIC
   src/world/motion.h
   src/world/training.cpp
   src/world/training.h
+  src/world/airfields.cpp
+  src/world/theatre_catalog.cpp
   src/world/world.cpp
   src/world/world.h
   src/resources/cockpit_mask.cpp
@@ -179,10 +183,14 @@ configure_first_party(corncob_core)
 target_include_directories(corncob_core SYSTEM PUBLIC "${PROJECT_SOURCE_DIR}")
 target_compile_definitions(corncob_core PUBLIC VECTORSTORM_NO_BOOST)
 embed_resource(front_end front_end.dat)
+embed_resource(other_worlds other_worlds.dat)
 embed_resource(cockpit cockpit.img)
 embed_resource(title_music music/destiny3.ogg)
 embed_resource(riding_music music/ridingt.ogg)
 embed_resource(dreams_music music/dreamso2.ogg)
+embed_resource(voyage_music music/other_worlds/voyage3.ogg)
+embed_resource(heavens_music music/other_worlds/heavens.ogg)
+embed_resource(daybreak_music music/other_worlds/daybreak.ogg)
 embed_resource(engine_data engine.dat)
 embed_resource(white_sands white_sands.cct)
 embed_resource(morning morning.cct)
@@ -247,6 +255,8 @@ if(BUILD_TESTING)
   corncob_check(flight_checks native_flight "${PROJECT_SOURCE_DIR}/tests/reference/flight.bin")
   corncob_check(control_checks native_controls "${PROJECT_SOURCE_DIR}/tests/reference/controls.bin")
   corncob_check(landing_checks native_landing "${PROJECT_SOURCE_DIR}/tests/reference/landing.bin" "${PROJECT_SOURCE_DIR}/tests/reference/landing_recovery.bin")
+  corncob_check(recording_checks original_recorded_flights "${PROJECT_SOURCE_DIR}/tests/reference/recordings.txt")
+  corncob_check(expansion_checks combined_campaigns "${PROJECT_BINARY_DIR}/expansion-checks")
   corncob_check(session_checks scripted_session)
   corncob_check(motion_checks native_motion "${PROJECT_SOURCE_DIR}/tests/reference/motion.bin")
   corncob_check(collision_checks native_collisions "${PROJECT_SOURCE_DIR}/tests/reference/collision.bin")
@@ -262,6 +272,7 @@ if(BUILD_TESTING)
   corncob_check(score_checks native_score "${PROJECT_SOURCE_DIR}/tests/reference/score.bin")
   corncob_check(pilot_checks native_pilots "${PROJECT_SOURCE_DIR}/tests/reference/pilots.bin")
   corncob_check(career_review_checks native_career_review "${PROJECT_SOURCE_DIR}/tests/reference/career_review.bin")
+  add_test(NAME native_other_worlds_career_review COMMAND career_review_checks "${PROJECT_SOURCE_DIR}/tests/reference/other_worlds_career_review.bin" other_worlds)
   corncob_check(campaign_checks persistent_campaign "${PROJECT_BINARY_DIR}/campaign-checks" "${PROJECT_SOURCE_DIR}/tests/reference")
   corncob_check(training_checks native_training "${PROJECT_SOURCE_DIR}/tests/reference/training.bin")
   corncob_check(debris_checks native_debris "${PROJECT_SOURCE_DIR}/tests/reference/debris.bin")

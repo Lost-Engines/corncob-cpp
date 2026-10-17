@@ -1,18 +1,15 @@
 # Corncob 3D
 
-A native C++26 reconstruction of Corncob 3D, beginning with the normal 3.42 game.
-One executable brings together the original front end, flight, scoring and ending.
+A native C++26 reconstruction of Corncob 3D and **The Other Worlds Campaign**.
+One executable includes both games, their worlds, training, music and sound effects.
 
-The four original theatres and generated training support walking, flight,
-ejection and remote control, weapons, active enemies and the original special
-sites. Named pilots retain their careers, medals, high scores and changed worlds.
-The story, animated introduction, help screens, outcomes, reports and interactive
-Earth-saved ending run in the same executable. Original AdLib music and sound
-effects are included.
+Fly, land anywhere, walk around, eject and remotely control your aircraft. Named
+pilots retain their careers, medals, scores and changes to each world. The original
+story, animated introductions, help, mission reports and endings are included.
 
-The game is playable, with continuing fidelity checks against the DOS executable.
-[Reconstruction notes](docs/reconstruction.md) describe verified behaviour and the
-remaining comparison work.
+[Reconstruction notes](docs/reconstruction.md) describe the comparisons with the
+original DOS programs. [Other Worlds notes](docs/other_worlds.md) cover the combined
+campaigns, demonstrations and mission builder.
 
 ## Build and run
 
@@ -31,6 +28,40 @@ ctest --test-dir build --output-on-failure
 
 Original cockpit, world and model resources are embedded. No DOS executable, external game
 installation or resource download is needed at runtime.
+
+## Campaigns and worlds
+
+Choose **Select campaign / world group** from the main menu, or press **S**:
+
+- **Earth:** the four original theatres.
+- **Other Worlds:** all thirteen supplied campaign theatre definitions, including
+  the expansion's versions of the Earth worlds.
+- **Practice and examples:** the empty airfield universe, demonstration world and
+  empty universe.
+
+Use Left/Right in the world selector to change groups. Long lists scroll with the
+arrow keys. Open a theatre, then choose **Fly mission**; worlds with several bases
+let you choose your starting airfield. Landing at another base retains that location
+for your next sortie.
+
+Pilot names are shared between campaigns, with separate ranks, medals, scores,
+worlds and completion requirements. Existing Earth saves stay in their original
+location; Other Worlds careers live in its `other_worlds` subdirectory.
+
+The same menu includes the three original recorded demonstration flights, the
+Other Worlds title animation, gameplay hints and mission-builder instructions.
+Demonstrations do not alter your career. **Mission Builder** opens a fresh empty
+world; **B** in the world selector edits a fresh copy of any selected theatre.
+**F5** saves an edited world and returns to the menu. See the
+[builder controls](docs/other_worlds.md#mission-builder) for editing and export details.
+
+`--list-theatres` lists all twenty world identifiers. For example:
+
+```sh
+./build/corncob --theatre other_worlds/iceworld
+```
+
+## Playing
 
 The window uses the largest integer multiple of its 640 x 480 display that fits
 within the available desktop. The native 640 x 350 EGA framebuffer is presented
@@ -72,8 +103,8 @@ Title and menu music has its own saved Music toggle in the main menu;
 Original message boxes explain mission selection, map controls and warnings; O
 toggles them. The homing pointer along the viewport border points back to base.
 Control-C aborts a sortie without awarding points.
-The experimental aircraft at White Sands requires campaign clearance before
-its throttle operates. Create or activate a pilot through the duty roster to save
+In the Earth campaign, the experimental aircraft at White Sands requires campaign
+clearance before its throttle operates. Other Worlds permits it from the outset. Create or activate a pilot through the duty roster to save
 your career and changes to each theatre. The duty roster also renames and deletes
 pilots; deleting a pilot removes their worlds and retires their high scores.
 Pilot records use Insert to switch between decorations and the full statistics

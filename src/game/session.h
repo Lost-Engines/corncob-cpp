@@ -5,6 +5,8 @@
 #include <string>
 #include "flight/landing.h"
 #include "game/map_view.h"
+#include "game/mission_builder.h"
+#include "game/recorded_flight.h"
 #include "game/pilot_motion.h"
 #include "game/vision.h"
 #include "game/rocket.h"
@@ -50,6 +52,7 @@ enum class action {
   drop_bomb,
   plant_charge,
   arm_charges,
+  toggle_invulnerability,
 };
 
 struct view_input {
@@ -113,6 +116,10 @@ private:
   bool walking{false};
   maths::angles head_angles;
   std::optional<map_view> map;
+  std::optional<mission_builder> builder;
+  std::optional<recorded_flight> recording;
+  unsigned int recorded_index{0}, recorded_ticks{0};
+  bool recording_complete{false};
   bool experimental_clearance{false};
   bool beginner_flight{false};
   bool invincible{false};
@@ -167,6 +174,12 @@ public:
   bool autopilot_engaged() const noexcept;
   bool looking_around() const noexcept;
   bool in_map() const noexcept;
+  bool in_builder() const noexcept;
+  bool in_recording() const noexcept;
+  void begin_builder();
+  void begin_recording(std::span<uint8_t const> data);
+  void edit(builder_command command);
+  void builder_speed(unsigned int setting);
   bool messages_enabled() const noexcept;
   std::optional<resources::radio_notice> take_radio();
   bool request_exit();

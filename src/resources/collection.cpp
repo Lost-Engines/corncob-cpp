@@ -31,7 +31,7 @@ std::string filename(std::istream &input) {
 
 } // anonymous namespace
 
-collection::collection(std::span<uint8_t const> const source) {
+collection::collection(std::span<uint8_t const> const source, collection const *const fallback) : fallback{fallback} {
   /// Index immutable named assets without unpacking them onto the user's filesystem
   if(source.size() < 10 || std::string_view{reinterpret_cast<char const*>(source.data()), 8} != "CORNUI01")
     throw std::invalid_argument{"invalid embedded presentation collection"};
@@ -53,6 +53,7 @@ collection::collection(std::span<uint8_t const> const source) {
 std::span<uint8_t const> collection::file(std::string_view const name) const {
   /// Keep missing-resource errors specific without accessing an external installation
   auto const found{entries.find(name)};
+  if(found == entries.end() && fallback) return fallback->file(name);
   if(found == entries.end()) throw std::invalid_argument{"embedded asset missing: " + std::string{name}};
   return found->second;
 }

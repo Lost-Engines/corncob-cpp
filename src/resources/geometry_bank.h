@@ -107,6 +107,7 @@ private:
   void load_model(model_address address);
 
 public:
+  static model_address constexpr editor_cursor_model{0xffff};
   static model_address constexpr map_marker_model{0x5b3e};
   static model_address constexpr sun_model{0x545c};
   static model_address constexpr experimental_model{0x6838};

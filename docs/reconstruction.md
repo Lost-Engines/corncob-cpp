@@ -31,6 +31,8 @@ under `third_party/`.
 
 ## Connected game
 
+The executable also includes [Other Worlds Campaign](other_worlds.md), with a grouped world selector, separate campaign careers, multiple airfields, recorded demonstrations and its mission builder.
+
 One session retains the aircraft, on-foot pilot, world, weapons and active actors.
 It supports walking/jumping, boarding and re-entry, powered flight and landing,
 ejection, free fall, parachuting and remote flight. Four original theatres and
@@ -139,12 +141,11 @@ has not been exercised during automated checks.
 
 The executable joins title/story, roster, theatre selection/intelligence, training,
 controls/help, flight, outcomes, reports and the interactive Earth-saved ending.
-The missing C front end is reconstructed from unchanged MOAG 3.42 captures. Twenty
-complete 640 x 400 screens match the DOS RGB pixels exactly: main menu, empty and
-populated roster, both career reports, training and its number/wickedness menus,
-training information, keyboard/joystick setup, the score menu and all three empty
-score tables, documentation, Other Worlds information, combat selection, opening
-a theater and its career report. The renderer retains CP437 framing, original
+The missing C front end is reconstructed from unchanged MOAG 3.42 captures. Eighteen retained
+complete 640 x 400 screens match the DOS RGB pixels exactly, covering the duty
+roster, career reports, training and control setup, score tables, documentation,
+Other Worlds information and theatre reports. The main menu and new-world
+selector deliberately extend the originals to expose both campaigns. The renderer retains CP437 framing, original
 colours, shadows, highlighted letters and character-cell positions.
 
 Arrow keys and the original letter shortcuts follow the DOS hierarchy. Training
