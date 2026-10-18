@@ -491,13 +491,8 @@ void session::update_person(input_state const &input, flight::time_step const st
     person.last_step_tick = static_cast<uint16_t>(fast_ticks);
     person.attitude.heading += static_cast<maths::angle>(person.step_wobble);
     person.step_wobble = maths::negate(person.step_wobble);
-    maths::angles const heading{
-      .heading{person.attitude.heading},
-    };
-    maths::fixed_vector const forward{timed_word(static_cast<int16_t>(input.walk_forward ? 800 : -800), step), 0, 0};
-    auto const motion{maths::transform(maths::make_inverse_rotation(heading), forward)};
-    person.position.x += maths::rounded_divide(maths::scale(motion.x >> 4, step.elapsed), step.normal);
-    person.position.y += maths::rounded_divide(maths::scale(motion.y >> 4, step.elapsed), step.normal);
+    auto const motion{walking_displacement(person.attitude.heading, {static_cast<int16_t>(input.walk_forward ? 800 : -800), 0, 0}, step)};
+    person.position += motion;
   }
   if(input.jump && person.standing) {
     person.charging_jump = true;

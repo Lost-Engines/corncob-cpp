@@ -23,6 +23,7 @@ struct person_state {
   uint16_t swing_frames{0};
 };
 
+maths::world_position walking_displacement(maths::angle heading, maths::fixed_vector const &stride, flight::time_step step);
 void damp_fall_velocity(maths::fixed_vector &velocity, int16_t horizontal_damping, int16_t terminal_velocity, flight::time_step step);
 void swing_parachute(person_state &person, flight::control_input const &input);
 
