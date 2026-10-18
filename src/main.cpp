@@ -253,6 +253,8 @@ auto main(int const argc, char const *const argv[])->int {
   window_state state{game, front, sound_enabled, frame};
   glfwSetWindowUserPointer(window.get(), &state);
   glfwSetKeyCallback(window.get(), [](GLFWwindow *const window, int const key, int const /*scancode*/, int const action, int const modifiers){
+    // multimedia keys must not count as DOS input characters or dismiss dialogs
+    if(key == GLFW_KEY_UNKNOWN) return;
     auto &state{*static_cast<window_state*>(glfwGetWindowUserPointer(window))};
     auto &game{state.game};
     auto &front{state.front};
