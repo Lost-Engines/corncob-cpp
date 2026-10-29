@@ -80,10 +80,12 @@ known gaps, and [Other Worlds](docs/other_worlds.md) for campaign and builder de
 
 ## Development
 
-CI builds and tests Debug and Release on Linux, Windows and macOS. Every push to
-`master` publishes the three Release packages once all six builds pass, replacing
-older published releases while retaining their Git tags. Pull requests run the
-same checks; the workflow can also be run manually.
+CI builds and tests Debug and Release on Linux, Windows and macOS. Changes to
+game code, embedded assets or build configuration on `master` publish the three
+Release packages once all six builds pass, replacing older published releases
+while retaining their Git tags. Test, tool and workflow changes run the same checks
+without publishing a release; documentation-only changes skip CI. Pull requests
+and manual workflow runs build and test without publishing.
 
 Automated tests are disabled by default. Enable them explicitly when needed:
 

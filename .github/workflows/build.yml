@@ -3,7 +3,18 @@ name: Build and release
 on:
   push:
     branches: [master]
+    paths: &build_paths
+      - 'src/**'
+      - 'tests/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'assets/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - '.github/workflows/**'
   pull_request:
+    paths: *build_paths
   workflow_dispatch:
 
 permissions:
@@ -15,7 +26,36 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      release: ${{ steps.classify.outputs.release }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Identify code changes eligible for release
+        id: classify
+        env:
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          release=false
+          if [[ "$EVENT" == push && "$GITHUB_REF" == refs/heads/master ]]; then
+            base="$BEFORE"
+            if [[ "$base" == 0000000000000000000000000000000000000000 ]]; then
+              base=$(git hash-object -t tree /dev/null)
+            fi
+            git cat-file -e "${base}^{tree}"
+            if ! git diff --quiet "$base" "$GITHUB_SHA" -- src assets CMakeLists.txt cmake ':!cmake/package.cmake'; then
+              release=true
+            fi
+          fi
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: changes
     name: ${{ matrix.platform }} / ${{ matrix.configuration }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
@@ -160,8 +200,8 @@ jobs:
           retention-days: 7
 
   release:
-    needs: build
-    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [changes, build]
+    if: needs.changes.outputs.release == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
