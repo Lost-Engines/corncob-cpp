@@ -14,7 +14,8 @@ uint64_t scene_hash(corncob::graphics::scene_renderer const &renderer) {
   /// Normalize only the horizon colours before hashing the native probe's scenery region
   uint64_t hash{14'695'981'039'346'656'037ull};
   uint64_t constexpr fnv_prime{1'099'511'628'211ull};
-  uint8_t constexpr ground_colour{2}, sky_colour{11};
+  uint8_t constexpr ground_colour{2};
+  uint8_t constexpr sky_colour{11};
   auto const &crop{corncob::tests::native_tower_crop};
   for(int y{crop.top}; y != crop.bottom; ++y) {
     for(int x{crop.left}; x != crop.right; ++x) {
@@ -115,7 +116,10 @@ int main(int const argc, char const *const argv[]) {
   corncob::maths::random_source scene_random;
   corncob::graphics::scene_renderer renderer{geometry, cockpit};
   corncob::render::framebuffer output;
-  unsigned int frames{0}, objects{0}, polygons{0}, discs{0};
+  unsigned int frames{0};
+  unsigned int objects{0};
+  unsigned int polygons{0};
+  unsigned int discs{0};
   for(auto const data : {corncob::resources::white_sands_asset(), corncob::resources::morning_asset(),
                         corncob::resources::dusk_asset(), corncob::resources::wasteland_asset()}) {
     auto const theatre{corncob::world::decode_theatre(data)};

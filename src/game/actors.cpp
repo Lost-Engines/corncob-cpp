@@ -77,7 +77,7 @@ actors::actors(resources::geometry_bank const &geometry, world::theatre &theatre
   /// Keep the preceding active census separate from this pass's live actor updates
   active_updates.reserve(theatre.objects.size());
 }
-void actors::update_launcher(world::placed_object &object, actor_context const &/*context*/, flight::time_step const step) {
+void actors::update_launcher(world::placed_object &object, actor_context const&/*context*/, flight::time_step const step) {
   /// Site countdowns use the previous census, updating its population immediately when a constructor is attempted
   using enum world::object_type;
   auto const population{[&](world::object_type const type){return previous_counts[std::to_underlying(type)];}};
@@ -116,7 +116,9 @@ void actors::update_launcher(world::placed_object &object, actor_context const &
   } else if(launched == ground_vehicle) {
     spawned.timer = static_cast<uint16_t>(10'000 * step.normal / step.elapsed);
     spawned.collision_group = object.collision_group;
-  } else spawned.timer = 32'000;
+  } else {
+    spawned.timer = 32'000;
+  }
 }
 void actors::update_kla(world::placed_object &object, actor_context const &context, flight::time_step const step) {
   /// KLAs launch vertically, wait through their hundred-frame rest and then steer rather than teleporting their velocity
@@ -142,8 +144,9 @@ void actors::update_kla(world::placed_object &object, actor_context const &conte
   object.attitude.roll += static_cast<maths::angle>(timed(maths::word(parameters.roll_rate), step));
   unsigned int const error{static_cast<unsigned int>(std::max(std::abs(static_cast<int>(pitch_error)), std::abs(static_cast<int>(heading_error))))};
   int target_speed{parameters.normal_target_speed};
-  if(error <= parameters.lock_angle_limit && target->distance >= 200) target_speed = parameters.locked_target_speed;
-  else if(error > parameters.lock_angle_limit) target_speed = parameters.off_axis_target_speed;
+  if(error <= parameters.lock_angle_limit && target->distance >= 200) {
+    target_speed = parameters.locked_target_speed;
+  } else if(error > parameters.lock_angle_limit) target_speed = parameters.off_axis_target_speed;
   int speed{maths::magnitude(object.velocity)};
   speed += (target_speed - speed) / parameters.speed_relaxation_divisor
     + random.below(parameters.speed_noise_span) - parameters.speed_noise_span / 2;
@@ -160,8 +163,10 @@ void actors::update_aaa(world::placed_object &object, actor_context const &conte
   auto const &parameters{resources::aaa_qualities[object.quality()]};
   int16_t constexpr shell_speed{1500};
   if(parameters.lead_target != 0) {
-    for(unsigned int axis{0}; axis != 3; ++axis) target->direction[axis] = maths::word(target->direction[axis]
-      + static_cast<int32_t>(maths::word(target->distance)) * (context.target_velocity[axis] >> 4) / shell_speed);
+    for(unsigned int axis{0}; axis != 3; ++axis) {
+      target->direction[axis] = maths::word(target->direction[axis]
+        + static_cast<int32_t>(maths::word(target->distance)) * (context.target_velocity[axis] >> 4) / shell_speed);
+    }
     maths::fixed_vector const horizontal{target->direction.x, target->direction.y, 0};
     target->bearing.heading = static_cast<maths::angle>(maths::arctangent(maths::negate(target->direction.x), maths::negate(target->direction.y)) + 32'768);
     target->bearing.pitch = maths::arctangent(maths::word(maths::magnitude(horizontal)), maths::negate(target->direction.z));
@@ -204,8 +209,9 @@ void actors::update_saucer(world::placed_object &object, actor_context const &co
     return;
   }
   if(object.type == world::object_type::objective_saucer && object.timer >= 32'700) {
-    if((object.flags & 0x4000u) == 0) object.timer = 32'000;
-    else if(object.health >= 25) {
+    if((object.flags & 0x4000u) == 0) {
+      object.timer = 32'000;
+    } else if(object.health >= 25) {
       object.timer = 32'767;
       return;
     } else {
@@ -387,9 +393,11 @@ void actors::update_balloon(world::placed_object &object, flight::time_step cons
   if(skip_movement) return;
   auto const &parameters{resources::balloon_qualities[object.quality()]};
   int16_t const speed{timed(maths::word(parameters.vertical_launch_speed), step)};
-  if(object.velocity.z == 0 || object.position.z < 16'383) object.velocity.z = speed;
-  else if(object.position.z > 65'535) object.velocity.z = maths::negate(speed);
-  else if(random.next() <= static_cast<uint16_t>(timed(maths::word(parameters.reversal_threshold), step))) object.velocity.z = maths::negate(object.velocity.z);
+  if(object.velocity.z == 0 || object.position.z < 16'383) {
+    object.velocity.z = speed;
+  } else if(object.position.z > 65'535) {
+    object.velocity.z = maths::negate(speed);
+  } else if(random.next() <= static_cast<uint16_t>(timed(maths::word(parameters.reversal_threshold), step))) object.velocity.z = maths::negate(object.velocity.z);
 
 }
 void actors::update_orb(world::placed_object &object, actor_context const &context, flight::time_step const step) {
@@ -397,7 +405,8 @@ void actors::update_orb(world::placed_object &object, actor_context const &conte
   object.timer = 32'000;
   effects.orb_distortion = 0;
   if(object.type == world::object_type::destroyed_generator_orb && object.has(world::object_flag::objective_complete)) {
-    unsigned int constexpr collapse_height{11'200}, resting_height{3100};
+    unsigned int constexpr collapse_height{11'200};
+    unsigned int constexpr resting_height{3100};
     if((static_cast<uint32_t>(object.position.z) >> 16) != 0 || static_cast<uint16_t>(object.position.z) > collapse_height) {
       object.motion.spin = maths::fixed_vector{static_cast<int16_t>(random.below(60) + 20), static_cast<int16_t>(random.below(40) + 10), static_cast<int16_t>(random.below(110) + 30)};
       object.motion.gravity = maths::word((static_cast<uint16_t>(object.motion.gravity) & 0xff00u) | 35u);
@@ -430,19 +439,34 @@ void actors::update_orb(world::placed_object &object, actor_context const &conte
   bool complete{false};
   switch(object.quality()) {
   case 0:
-  case 4: complete = object.type == destroyed_generator_orb; break;
-  case 1: complete = population(fuel_dump) + population(tet) == 0; break;
-  case 2: complete = population(kla_site) + population(aaa_site) == 0; break;
-  case 3: complete = population(ground_vehicle) + population(vehicle_site) == 0; break;
-  case 5: complete = population(saucer) + population(objective_saucer) + population(saucer_site) == 0; break;
-  case 6: complete = population(mindbender) == 0; break;
-  case 7: complete = observed_aliens != 0 && population(alien) == 0; break;
+  case 4:
+    complete = object.type == destroyed_generator_orb;
+    break;
+  case 1:
+    complete = population(fuel_dump) + population(tet) == 0;
+    break;
+  case 2:
+    complete = population(kla_site) + population(aaa_site) == 0;
+    break;
+  case 3:
+    complete = population(ground_vehicle) + population(vehicle_site) == 0;
+    break;
+  case 5:
+    complete = population(saucer) + population(objective_saucer) + population(saucer_site) == 0;
+    break;
+  case 6:
+    complete = population(mindbender) == 0;
+    break;
+  case 7:
+    complete = observed_aliens != 0 && population(alien) == 0;
+    break;
   }
   if(complete) weapons.complete(object);
 }
 void actors::update_mortar(world::placed_object &object, actor_context const &context, flight::time_step const step) {
   /// MORTIM waits six frames between upward two-piece barrages and only fires in its near distance tier
-  unsigned int constexpr full_timer{10'000}, ready_timer{full_timer - 6};
+  unsigned int constexpr full_timer{10'000};
+  unsigned int constexpr ready_timer{full_timer - 6};
   if(object.timer > ready_timer) return;
   object.timer = ready_timer;
   auto const delta{vec3<int64_t>{object.position} - vec3<int64_t>{context.observer}};
@@ -471,10 +495,11 @@ void actors::refresh_census(maths::world_position const &observer) {
 actor_effects const &actors::advance(actor_context const &context, flight::time_step const step) {
   /// Run the original nearby object handlers and rebuild the census for the following pass
   effects = {};
-  static_cast<vehicle_effects &>(effects) = weapons.take_vehicle_effects();
+  static_cast<vehicle_effects&>(effects) = weapons.take_vehicle_effects();
   effects.sound.kla_quality = last_kla_quality;
   if(!census_ready) refresh_census(context.observer);
-  quality_counts aaa{}, kla{};
+  quality_counts aaa{};
+  quality_counts kla{};
   actor_census counts{};
   active_updates.clear();
   for(unsigned int i{0}; i != theatre.objects.size(); ++i) {
@@ -511,30 +536,50 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
     switch(object.type) {
     case kla_site:
     case vehicle_site:
-    case saucer_site: update_launcher(object, context, step); break;
-    case kla: update_kla(object, context, step); break;
-    case aaa_site: update_aaa(object, context, step); break;
-    case mortar: update_mortar(object, context, step); break;
+    case saucer_site:
+      update_launcher(object, context, step);
+      break;
+    case kla:
+      update_kla(object, context, step);
+      break;
+    case aaa_site:
+      update_aaa(object, context, step);
+      break;
+    case mortar:
+      update_mortar(object, context, step);
+      break;
     case shell:
       if((object.timer & 16'384u) != 0) {
         if(32'000 - object.timer > 30 * step.normal / step.elapsed) object.timer = 16'000;
       } else if(16'000 - object.timer > std::max(2, 5 * step.normal / step.elapsed)) object.timer = 32'000;
       break;
-    case aa_shell: update_shell(i, context, step); break;
+    case aa_shell:
+      update_shell(i, context, step);
+      break;
     case shard:
     case shard_2:
       object.shard_colour = static_cast<uint16_t>(object.position.z) != 0 && ((i - weapons.stored_objects()) & 3u) == 0
         ? static_cast<uint8_t>(random.below(2) * 2 + 12) : 0;
       break;
     case saucer:
-    case objective_saucer: update_saucer(object, context, step); break;
+    case objective_saucer:
+      update_saucer(object, context, step);
+      break;
     case ground_vehicle:
-    case rescue_van: update_vehicle(object, context, step); break;
-    case alien: update_alien(object, context, step); break;
+    case rescue_van:
+      update_vehicle(object, context, step);
+      break;
+    case alien:
+      update_alien(object, context, step);
+      break;
     case barrage_balloon:
-    case bee_swarm: update_balloon(object, step); break;
+    case bee_swarm:
+      update_balloon(object, step);
+      break;
     case generator_orb:
-    case destroyed_generator_orb: update_orb(object, context, step); break;
+    case destroyed_generator_orb:
+      update_orb(object, context, step);
+      break;
     case mindbender:
       ++object.timer;
       effects.hallucination = 0;
@@ -546,12 +591,12 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
       break;
     case portal:
       {
-        auto const &parameters{resources::portal_qualities[object.quality()]};
-        uint8_t colour{static_cast<uint8_t>(object.has(world::object_flag::objective_complete) ? 15 : parameters.colour)};
-        if(maths::word(random.next()) >= 0 || (object.timer & 16'384u) == 0) colour = static_cast<uint8_t>(parameters.flash_colour);
-        object.portal_colour = colour;
-        object.timer = 32'000;
-      }
+      auto const &parameters{resources::portal_qualities[object.quality()]};
+      uint8_t colour{static_cast<uint8_t>(object.has(world::object_flag::objective_complete) ? 15 : parameters.colour)};
+      if(maths::word(random.next()) >= 0 || (object.timer & 16'384u) == 0) colour = static_cast<uint8_t>(parameters.flash_colour);
+      object.portal_colour = colour;
+      object.timer = 32'000;
+    }
       break;
     case control_tower:
       if(auto const reset{tower_parking_reset(object.position, context.observer)}; reset != parking_reset::unchanged) effects.parking = reset;
@@ -567,14 +612,17 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
       break;
     }
     if(!theatre.slalom && (definition.properties & std::to_underlying(world::object_property::forcefield)) != 0) {
-      if(previous_counts[std::to_underlying(generator_orb)] == 0 && previous_counts[std::to_underlying(destroyed_generator_orb)] != 0) object.flags = 0;
-      else if(object.type == forcefield_x || object.type == forcefield_y || object.type == forcefield_z || object.type == forcefield_z1) {
+      if(previous_counts[std::to_underlying(generator_orb)] == 0 && previous_counts[std::to_underlying(destroyed_generator_orb)] != 0) {
+        object.flags = 0;
+      } else if(object.type == forcefield_x || object.type == forcefield_y || object.type == forcefield_z || object.type == forcefield_z1) {
         // quality zero only reveals its far model for eight frames after contact; the nearby barrier always remains visible
         if(object.quality() == 0 && object.timer <= 31'992) {
           object.timer = 31'990;
           object.pose = world::model_pose::distant_hidden;
         }
-      } else object.timer = 32'000;
+      } else {
+        object.timer = 32'000;
+      }
     }
   }
   observed_aliens = std::max(observed_aliens, counts[std::to_underlying(world::object_type::alien)]);

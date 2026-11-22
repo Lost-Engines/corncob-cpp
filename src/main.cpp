@@ -105,8 +105,9 @@ auto main(int const argc, char const *const argv[])->int {
   if(flight_model != "advanced" && flight_model != "beginner") return startup_failure("--flight-model must be advanced or beginner");
   int joystick_device{-1};
   auto const joystick_argument{arguments["joystick"].as<std::string>()};
-  if(joystick_argument == "none") joystick_device = -2;
-  else if(joystick_argument != "auto") {
+  if(joystick_argument == "none") {
+    joystick_device = -2;
+  } else if(joystick_argument != "auto") {
     auto const result{std::from_chars(joystick_argument.data(), joystick_argument.data() + joystick_argument.size(), joystick_device)};
     if(result.ec != std::errc{} || result.ptr != joystick_argument.data() + joystick_argument.size() || joystick_device < GLFW_JOYSTICK_1 || joystick_device > GLFW_JOYSTICK_LAST) {
       return startup_failure("--joystick must be auto, none or a device index from 0 to 15");
@@ -131,7 +132,9 @@ auto main(int const argc, char const *const argv[])->int {
   std::unique_ptr<corncob::game::campaign_store> campaign;
   try {
     campaign = std::make_unique<corncob::game::campaign_store>(arguments["save-dir"].as<std::string>());
-  } catch(std::exception const &error) { return startup_failure(error.what()); }
+  } catch(std::exception const &error) {
+    return startup_failure(error.what());
+  }
   corncob::world::theatre theatre;
   try {
     campaign->select_campaign(corncob::world::find_theatre(theatre_name).campaign);
@@ -149,7 +152,10 @@ auto main(int const argc, char const *const argv[])->int {
   corncob::render::framebuffer frame;
   auto const cockpit{corncob::resources::decode_cockpit_mask(corncob::resources::cockpit_asset())};
   corncob::resources::geometry_bank geometry{corncob::resources::engine_data_asset(), slalom_mode};
-  if(slalom_mode) { theatre = corncob::world::generate_slalom(geometry); theatre_name = "training"; }
+  if(slalom_mode) {
+    theatre = corncob::world::generate_slalom(geometry);
+    theatre_name = "training";
+  }
   auto renderer{std::make_unique<corncob::graphics::scene_renderer>(geometry, cockpit, video)};
   auto game{std::make_unique<corncob::game::session>(geometry, std::move(theatre))};
   renderer->initialise(game->camera().position, game->random_stream());
@@ -160,7 +166,10 @@ auto main(int const argc, char const *const argv[])->int {
   }, arguments.contains("no-music") ? std::optional{false} : std::nullopt};
   game->set_experimental_clearance(game->world().expansion || (campaign->active_pilot() && campaign->active_pilot()->awards(corncob::game::medal::combat_master) != 0));
   game->set_beginner_flight(front.flight_controls().beginner_flight);
-  if(slalom_mode) { game->set_invincible(true); front.begin_flight(); }
+  if(slalom_mode) {
+    game->set_invincible(true);
+    front.begin_flight();
+  }
   auto observer{game->camera()};
 #ifndef NDEBUG
   bool const no_cockpit{arguments.contains("no-cockpit")};
@@ -171,8 +180,11 @@ auto main(int const argc, char const *const argv[])->int {
     observer.position = corncob::maths::world_position{game->world().start};
     observer.cockpit = !no_cockpit;
   }
-  if(cockpit_preview) corncob::resources::draw_cockpit_preview(cockpit, frame);
-  else renderer->preview(game->world(), observer, 0, 0, game->random_stream(), frame);
+  if(cockpit_preview) {
+    corncob::resources::draw_cockpit_preview(cockpit, frame);
+  } else {
+    renderer->preview(game->world(), observer, 0, 0, game->random_stream(), frame);
+  }
 #else
   renderer->preview(game->world(), observer, 0, 0, game->random_stream(), frame);
 #endif // NDEBUG
@@ -207,9 +219,11 @@ auto main(int const argc, char const *const argv[])->int {
   }};
   if(arguments.contains("list-joysticks")) {
     bool found{false};
-    for(int device{GLFW_JOYSTICK_1}; device <= GLFW_JOYSTICK_LAST; ++device) if(glfwJoystickPresent(device)) {
-      std::cout << device << ": " << glfwGetJoystickName(device) << '\n';
-      found = true;
+    for(int device{GLFW_JOYSTICK_1}; device <= GLFW_JOYSTICK_LAST; ++device) {
+      if(glfwJoystickPresent(device)) {
+        std::cout << device << ": " << glfwGetJoystickName(device) << '\n';
+        found = true;
+      }
     }
     if(!found) std::cout << "No joysticks connected" << std::endl;
     return EXIT_SUCCESS;
@@ -227,9 +241,15 @@ auto main(int const argc, char const *const argv[])->int {
   if(!window) return startup_failure("cannot create the Corncob window");
   if(automatic_scale && !compositor_sizing) {
     if(auto *monitor{glfwGetPrimaryMonitor()}) {
-      int x{0}, y{0}, width{0}, height{0};
+      int x{0};
+      int y{0};
+      int width{0};
+      int height{0};
       glfwGetMonitorWorkarea(monitor, &x, &y, &width, &height);
-      int left{0}, top{0}, right{0}, bottom{0};
+      int left{0};
+      int top{0};
+      int right{0};
+      int bottom{0};
       glfwGetWindowFrameSize(window.get(), &left, &top, &right, &bottom);
       if(width > left + right && height > top + bottom) {
         auto const fitted{corncob::render::fit_viewport(width - left - right, height - top - bottom, display_width, display_height)};
@@ -240,7 +260,8 @@ auto main(int const argc, char const *const argv[])->int {
   }
   glfwShowWindow(window.get());
   if(compositor_sizing) {
-    int width{0}, height{0};
+    int width{0};
+    int height{0};
     glfwGetWindowSize(window.get(), &width, &height);
     glfwRestoreWindow(window.get());
     double const deadline{glfwGetTime() + 1.0};
@@ -273,16 +294,48 @@ auto main(int const argc, char const *const argv[])->int {
         return;
       }
       switch(key) {
-      case GLFW_KEY_UP: case GLFW_KEY_LEFT: case GLFW_KEY_KP_4: case GLFW_KEY_KP_8: front.command(up); break;
-      case GLFW_KEY_DOWN: case GLFW_KEY_RIGHT: case GLFW_KEY_KP_2: case GLFW_KEY_KP_6: front.command(down); break;
-      case GLFW_KEY_HOME: case GLFW_KEY_KP_7: front.command(home); break;
-      case GLFW_KEY_END: case GLFW_KEY_KP_1: front.command(end); break;
-      case GLFW_KEY_PAGE_UP: case GLFW_KEY_KP_9: front.command(page_up); break;
-      case GLFW_KEY_PAGE_DOWN: case GLFW_KEY_KP_3: front.command(page_down); break;
-      case GLFW_KEY_ENTER: case GLFW_KEY_KP_ENTER: front.command(accept); break;
-      case GLFW_KEY_ESCAPE: case GLFW_KEY_BACKSPACE: front.command(cancel); break;
-      case GLFW_KEY_F1: front.show_boss(); break;
-      default: front.command(any_key); break;
+      case GLFW_KEY_UP:
+      case GLFW_KEY_LEFT:
+      case GLFW_KEY_KP_4:
+      case GLFW_KEY_KP_8:
+        front.command(up);
+        break;
+      case GLFW_KEY_DOWN:
+      case GLFW_KEY_RIGHT:
+      case GLFW_KEY_KP_2:
+      case GLFW_KEY_KP_6:
+        front.command(down);
+        break;
+      case GLFW_KEY_HOME:
+      case GLFW_KEY_KP_7:
+        front.command(home);
+        break;
+      case GLFW_KEY_END:
+      case GLFW_KEY_KP_1:
+        front.command(end);
+        break;
+      case GLFW_KEY_PAGE_UP:
+      case GLFW_KEY_KP_9:
+        front.command(page_up);
+        break;
+      case GLFW_KEY_PAGE_DOWN:
+      case GLFW_KEY_KP_3:
+        front.command(page_down);
+        break;
+      case GLFW_KEY_ENTER:
+      case GLFW_KEY_KP_ENTER:
+        front.command(accept);
+        break;
+      case GLFW_KEY_ESCAPE:
+      case GLFW_KEY_BACKSPACE:
+        front.command(cancel);
+        break;
+      case GLFW_KEY_F1:
+        front.show_boss();
+        break;
+      default:
+        front.command(any_key);
+        break;
       }
       return;
     }
@@ -305,50 +358,114 @@ auto main(int const argc, char const *const argv[])->int {
         return;
       }
       switch(key) {
-      case GLFW_KEY_UP: front.command(up); break;
-      case GLFW_KEY_DOWN: front.command(down); break;
-      case GLFW_KEY_LEFT: front.command(previous); break;
-      case GLFW_KEY_RIGHT: front.command(next); break;
-      case GLFW_KEY_INSERT: front.command(details); break;
-      case GLFW_KEY_HOME: front.command(home); break;
-      case GLFW_KEY_END: front.command(end); break;
-      case GLFW_KEY_PAGE_UP: front.command(page_up); break;
-      case GLFW_KEY_PAGE_DOWN: front.command(page_down); break;
-      case GLFW_KEY_ENTER: case GLFW_KEY_KP_ENTER: front.command(accept); break;
+      case GLFW_KEY_UP:
+        front.command(up);
+        break;
+      case GLFW_KEY_DOWN:
+        front.command(down);
+        break;
+      case GLFW_KEY_LEFT:
+        front.command(previous);
+        break;
+      case GLFW_KEY_RIGHT:
+        front.command(next);
+        break;
+      case GLFW_KEY_INSERT:
+        front.command(details);
+        break;
+      case GLFW_KEY_HOME:
+        front.command(home);
+        break;
+      case GLFW_KEY_END:
+        front.command(end);
+        break;
+      case GLFW_KEY_PAGE_UP:
+        front.command(page_up);
+        break;
+      case GLFW_KEY_PAGE_DOWN:
+        front.command(page_down);
+        break;
+      case GLFW_KEY_ENTER:
+      case GLFW_KEY_KP_ENTER:
+        front.command(accept);
+        break;
 
       case GLFW_KEY_SPACE:
         if(!front.editing_name() && (front.current_page() == corncob::game::interface_page::help
             || front.current_page() == corncob::game::interface_page::title || front.current_page() == corncob::game::interface_page::story
             || front.current_page() == corncob::game::interface_page::high_scores || front.current_page() == corncob::game::interface_page::notice)) front.command(accept);
         break;
-      case GLFW_KEY_BACKSPACE: front.command(backspace); break;
-      case GLFW_KEY_ESCAPE: front.command(cancel); break;
-      case GLFW_KEY_F4: front.command(help); break;
-      default: break;
+      case GLFW_KEY_BACKSPACE:
+        front.command(backspace);
+        break;
+      case GLFW_KEY_ESCAPE:
+        front.command(cancel);
+        break;
+      case GLFW_KEY_F4:
+        front.command(help);
+        break;
+      default:
+        break;
       }
       return;
     }
-    if(game->in_recording() && key == GLFW_KEY_ESCAPE) { front.leave_sortie(); return; }
+    if(game->in_recording() && key == GLFW_KEY_ESCAPE) {
+      front.leave_sortie();
+      return;
+    }
     if(game->in_builder()) {
       using enum corncob::game::builder_command;
       if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8) game->builder_speed(static_cast<unsigned int>(key - GLFW_KEY_0));
       switch(key) {
-      case GLFW_KEY_LEFT_SHIFT: game->edit(cursor); break;
-      case GLFW_KEY_LEFT_CONTROL: game->edit(hide_cursor); break;
-      case GLFW_KEY_C: game->edit(create); break;
-      case GLFW_KEY_SPACE: game->edit(select); break;
-      case GLFW_KEY_D: game->edit(erase); break;
-      case GLFW_KEY_EQUAL: game->edit(next_type); break;
-      case GLFW_KEY_MINUS: game->edit(previous_type); break;
-      case GLFW_KEY_RIGHT_BRACKET: game->edit(next_quality); break;
-      case GLFW_KEY_LEFT_BRACKET: game->edit(previous_quality); break;
-      case GLFW_KEY_F9: game->edit(special); break;
-      case GLFW_KEY_F10: game->edit(complete); break;
-      case GLFW_KEY_CAPS_LOCK: game->edit(level); break;
-      case GLFW_KEY_H: game->edit((modifiers & GLFW_MOD_ALT) != 0 ? remember_height : lock_height); break;
-      case GLFW_KEY_B: case GLFW_KEY_M: case GLFW_KEY_ESCAPE: game->edit(map); break;
-      case GLFW_KEY_F5: front.leave_sortie(); break;
-      default: break;
+      case GLFW_KEY_LEFT_SHIFT:
+        game->edit(cursor);
+        break;
+      case GLFW_KEY_LEFT_CONTROL:
+        game->edit(hide_cursor);
+        break;
+      case GLFW_KEY_C:
+        game->edit(create);
+        break;
+      case GLFW_KEY_SPACE:
+        game->edit(select);
+        break;
+      case GLFW_KEY_D:
+        game->edit(erase);
+        break;
+      case GLFW_KEY_EQUAL:
+        game->edit(next_type);
+        break;
+      case GLFW_KEY_MINUS:
+        game->edit(previous_type);
+        break;
+      case GLFW_KEY_RIGHT_BRACKET:
+        game->edit(next_quality);
+        break;
+      case GLFW_KEY_LEFT_BRACKET:
+        game->edit(previous_quality);
+        break;
+      case GLFW_KEY_F9:
+        game->edit(special);
+        break;
+      case GLFW_KEY_F10:
+        game->edit(complete);
+        break;
+      case GLFW_KEY_CAPS_LOCK:
+        game->edit(level);
+        break;
+      case GLFW_KEY_H:
+        game->edit((modifiers & GLFW_MOD_ALT) != 0 ? remember_height : lock_height);
+        break;
+      case GLFW_KEY_B:
+      case GLFW_KEY_M:
+      case GLFW_KEY_ESCAPE:
+        game->edit(map);
+        break;
+      case GLFW_KEY_F5:
+        front.leave_sortie();
+        break;
+      default:
+        break;
       }
       return;
     }
@@ -358,39 +475,89 @@ auto main(int const argc, char const *const argv[])->int {
     }
     switch(key) {
     case GLFW_KEY_M:
-      if(game->messages_enabled()) front.show_radio(game->world().training ? corncob::resources::radio_notice::no_training_map : corncob::resources::radio_notice::map_instructions, state.frame, !game->world().training);
-      else game->press(corncob::game::action::toggle_map);
+      if(game->messages_enabled()) {
+        front.show_radio(game->world().training ? corncob::resources::radio_notice::no_training_map : corncob::resources::radio_notice::map_instructions, state.frame, !game->world().training);
+      } else {
+        game->press(corncob::game::action::toggle_map);
+      }
       break;
-    case GLFW_KEY_O: game->press(corncob::game::action::toggle_messages); break;
-    case GLFW_KEY_C: if((modifiers & GLFW_MOD_CONTROL) != 0) front.abort_sortie(); break;
-    case GLFW_KEY_V: game->press(corncob::game::action::call_rescue); break;
+    case GLFW_KEY_O:
+      game->press(corncob::game::action::toggle_messages);
+      break;
+    case GLFW_KEY_C:
+      if((modifiers & GLFW_MOD_CONTROL) != 0) front.abort_sortie();
+      break;
+    case GLFW_KEY_V:
+      game->press(corncob::game::action::call_rescue);
+      break;
     case GLFW_KEY_ESCAPE:
-      if(game->is_paused()) game->press(corncob::game::action::pause);
-      else if(game->request_exit()) front.leave_sortie();
+      if(game->is_paused()) {
+        game->press(corncob::game::action::pause);
+      } else if(game->request_exit()) front.leave_sortie();
       break;
-    case GLFW_KEY_F1: front.show_boss(); break;
-    case GLFW_KEY_F2: front.show_intelligence(game->world(), corncob::world::nearest_airfield(game->world(), game->camera().position)); break;
-    case GLFW_KEY_F3: front.show_current_score(game->results(), game->world().training); break;
-    case GLFW_KEY_F4: front.show_flight_help(); break;
-    case GLFW_KEY_S: state.sound_enabled = !state.sound_enabled; break;
-    case GLFW_KEY_A: game->press(corncob::game::action::toggle_autopilot); break;
-    case GLFW_KEY_R: game->press(corncob::game::action::toggle_rear); break;
-    case GLFW_KEY_L: game->press(corncob::game::action::toggle_cockpit); break;
-    case GLFW_KEY_NUM_LOCK: game->press(corncob::game::action::toggle_look); break;
-    case GLFW_KEY_G: game->press(corncob::game::action::toggle_ground); break;
-    case GLFW_KEY_F: game->press(corncob::game::action::toggle_flaps); break;
-    case GLFW_KEY_I: game->press((modifiers & GLFW_MOD_ALT) != 0 ? corncob::game::action::toggle_invulnerability : corncob::game::action::rocket); break;
-    case GLFW_KEY_E: game->press(corncob::game::action::eject); break;
+    case GLFW_KEY_F1:
+      front.show_boss();
+      break;
+    case GLFW_KEY_F2:
+      front.show_intelligence(game->world(), corncob::world::nearest_airfield(game->world(), game->camera().position));
+      break;
+    case GLFW_KEY_F3:
+      front.show_current_score(game->results(), game->world().training);
+      break;
+    case GLFW_KEY_F4:
+      front.show_flight_help();
+      break;
+    case GLFW_KEY_S:
+      state.sound_enabled = !state.sound_enabled;
+      break;
+    case GLFW_KEY_A:
+      game->press(corncob::game::action::toggle_autopilot);
+      break;
+    case GLFW_KEY_R:
+      game->press(corncob::game::action::toggle_rear);
+      break;
+    case GLFW_KEY_L:
+      game->press(corncob::game::action::toggle_cockpit);
+      break;
+    case GLFW_KEY_NUM_LOCK:
+      game->press(corncob::game::action::toggle_look);
+      break;
+    case GLFW_KEY_G:
+      game->press(corncob::game::action::toggle_ground);
+      break;
+    case GLFW_KEY_F:
+      game->press(corncob::game::action::toggle_flaps);
+      break;
+    case GLFW_KEY_I:
+      game->press((modifiers & GLFW_MOD_ALT) != 0 ? corncob::game::action::toggle_invulnerability : corncob::game::action::rocket);
+      break;
+    case GLFW_KEY_E:
+      game->press(corncob::game::action::eject);
+      break;
     case GLFW_KEY_SPACE:
-      if(game->is_paused()) front.show_flight_help();
-      else game->press(corncob::game::action::parachute);
+      if(game->is_paused()) {
+        front.show_flight_help();
+      } else {
+        game->press(corncob::game::action::parachute);
+      }
       break;
-    case GLFW_KEY_CAPS_LOCK: game->press(corncob::game::action::toggle_remote); break;
-    case GLFW_KEY_B: game->press(corncob::game::action::drop_bomb); break;
-    case GLFW_KEY_SEMICOLON: game->press(corncob::game::action::plant_charge); break;
-    case GLFW_KEY_D: game->press(corncob::game::action::arm_charges); break;
-    case GLFW_KEY_P: game->press(corncob::game::action::pause); break;
-    default: break;
+    case GLFW_KEY_CAPS_LOCK:
+      game->press(corncob::game::action::toggle_remote);
+      break;
+    case GLFW_KEY_B:
+      game->press(corncob::game::action::drop_bomb);
+      break;
+    case GLFW_KEY_SEMICOLON:
+      game->press(corncob::game::action::plant_charge);
+      break;
+    case GLFW_KEY_D:
+      game->press(corncob::game::action::arm_charges);
+      break;
+    case GLFW_KEY_P:
+      game->press(corncob::game::action::pause);
+      break;
+    default:
+      break;
     }
   });
   glfwSetCharCallback(window.get(), [](GLFWwindow *const window, unsigned int const codepoint){
@@ -416,7 +583,8 @@ auto main(int const argc, char const *const argv[])->int {
   corncob::render::framebuffer flight_frame;
   bool flight_frame_valid{false};
   unsigned int frame_number{0};
-  double previous_time{glfwGetTime()}, accumulated_time{0.0};
+  double previous_time{glfwGetTime()};
+  double accumulated_time{0.0};
   double constexpr simulation_period{40.0 * 1024.0 / 1'193'182.0};
   bool clock_was_flying{front.in_flight()};
   while(!glfwWindowShouldClose(window.get())) {
@@ -527,8 +695,11 @@ auto main(int const argc, char const *const argv[])->int {
         .slalom_progress{game->slalom_progress()},
       };
       auto const *const panel{!game->in_map() && game->player() == corncob::game::player_mode::in_aircraft ? &telemetry : nullptr};
-      if(preview) renderer->preview(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), game->random_stream(), flight_frame, panel);
-      else renderer->render(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), game->random_stream(), flight_frame, panel);
+      if(preview) {
+        renderer->preview(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), game->random_stream(), flight_frame, panel);
+      } else {
+        renderer->render(game->world(), observer, game->frame_number(), static_cast<uint16_t>(game->timer()), game->random_stream(), flight_frame, panel);
+      }
       if(game->in_builder()) {
         corncob::graphics::interface_canvas overlay{flight_frame, interface_assets.file("font8.bin"), 8};
         overlay.rectangle(0, 0, 640, 34, {0, 0, 0});
@@ -550,7 +721,7 @@ auto main(int const argc, char const *const argv[])->int {
     }};
     if(!inspect && front.in_flight()) {
       if(glfwGetWindowAttrib(window.get(), GLFW_FOCUSED)) {
-        auto held{[&window](int const key){ return glfwGetKey(window.get(), key) == GLFW_PRESS; }};
+        auto held{[&window](int const key){return glfwGetKey(window.get(), key) == GLFW_PRESS;}};
         input = {
           .stick{
             .roll{static_cast<int16_t>(((held(GLFW_KEY_RIGHT) || held(GLFW_KEY_KP_6)) - (held(GLFW_KEY_LEFT) || held(GLFW_KEY_KP_4))) * 512)},
@@ -593,7 +764,7 @@ auto main(int const argc, char const *const argv[])->int {
         }
       }
       accumulated_time += elapsed;
-      auto draw_one{[&]{ draw_flight(false); }};
+      auto draw_one{[&]{draw_flight(false);}};
       while(accumulated_time >= simulation_period) {
         game->advance(input, std::function_ref<void()>{draw_one});
         update_audio();
@@ -631,13 +802,17 @@ auto main(int const argc, char const *const argv[])->int {
         corncob::platform::write_binary(briefing_path, corncob::world::theatre_briefing(theatre_name));
         front.finish_editing();
         editing_session = false;
-      } else front.finish_sortie(result, previous ? &*previous : nullptr, previous_theatre ? &*previous_theatre : nullptr);
+      } else {
+        front.finish_sortie(result, previous ? &*previous : nullptr, previous_theatre ? &*previous_theatre : nullptr);
+      }
       if(result.has(corncob::game::sortie_status::earth_saved)) front.begin_ending(renderer->indexed_frame(), renderer->colours());
     }
     if(front.in_flight() && !inspect && game->take_tower()) front.show_intelligence(game->world(), corncob::world::nearest_airfield(game->world(), game->camera().position));
-    if(front.in_flight() && !inspect) if(auto const notice{game->take_radio()}) {
-      if(!flight_frame_valid) draw_flight(true);
-      front.show_radio(*notice, flight_frame);
+    if(front.in_flight() && !inspect) {
+      if(auto const notice{game->take_radio()}) {
+        if(!flight_frame_valid) draw_flight(true);
+        front.show_radio(*notice, flight_frame);
+      }
     }
     if(!front.in_flight() && !inspect) {
       if(clock_was_flying) game->suspend_clock();
@@ -651,8 +826,10 @@ auto main(int const argc, char const *const argv[])->int {
     }
 #ifndef NDEBUG
     if(inspect) {
-      if(!cockpit_preview) renderer->preview(game->world(), observer, frame_number,
-        static_cast<uint16_t>(static_cast<uint64_t>(now * 1'193'182.0 / 1024.0)), game->random_stream(), frame);
+      if(!cockpit_preview) {
+        renderer->preview(game->world(), observer, frame_number,
+          static_cast<uint16_t>(static_cast<uint64_t>(now * 1'193'182.0 / 1024.0)), game->random_stream(), frame);
+      }
     } else
 #endif // NDEBUG
     {

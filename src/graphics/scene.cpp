@@ -213,7 +213,9 @@ void scene_renderer::draw_ground_and_stars(world::theatre const &theatre, camera
   bool const dark{(palette[11].red >> 2) + (palette[11].green >> 2) + (palette[11].blue >> 2) <= 48};
   auto draw_point{[&](maths::world_position const &position, bool const star){
     auto delta{position - observer.position};
-    if(star) for(unsigned int axis{0}; axis != 3; ++axis) delta[axis] >>= 8;
+    if(star) {
+      for(unsigned int axis{0}; axis != 3; ++axis) delta[axis] >>= 8;
+    }
     int64_t maximum{0};
     for(unsigned int axis{0}; axis != 3; ++axis) maximum = std::max(maximum, std::abs(static_cast<int64_t>(delta[axis])));
     if(maximum >= 8'388'608) return false;
@@ -254,8 +256,10 @@ void scene_renderer::draw_model(resources::model_address const address, unsigned
           std::vector<maths::fixed_vector> clipped;
           if(transformed.empty()) continue;
           for(unsigned int i{0}; i != transformed.size(); ++i) {
-            auto const &a{transformed[i]}, &b{transformed[(i + 1) % transformed.size()]};
-            bool const inside_a{a.x > view.focal_x}, inside_b{b.x > view.focal_x};
+            auto const &a{transformed[i]};
+            auto const &b{transformed[(i + 1) % transformed.size()]};
+            bool const inside_a{a.x > view.focal_x};
+            bool const inside_b{b.x > view.focal_x};
             if(inside_a) clipped.push_back(maths::fixed_vector{a});
             if(inside_a != inside_b) clipped.push_back(inside_a ? intersection(b, a, view.focal_x) : intersection(a, b, view.focal_x));
           }
@@ -273,9 +277,11 @@ void scene_renderer::draw_model(resources::model_address const address, unsigned
               auto a{in_view(model_vertex(line.vertices[i - 1], matrix, origin, reduction), view)};
               auto b{in_view(model_vertex(line.vertices[i], matrix, origin, reduction), view)};
               if(a.x <= view.focal_x && b.x <= view.focal_x) continue;
-              if(a.x <= view.focal_x) a = intersection(a, b, view.focal_x);
-              else if(b.x <= view.focal_x) b = intersection(b, a, view.focal_x);
-              auto const first{project(a, view)}, last{project(b, view)};
+              if(a.x <= view.focal_x) {
+                a = intersection(a, b, view.focal_x);
+              } else if(b.x <= view.focal_x) b = intersection(b, a, view.focal_x);
+              auto const first{project(a, view)};
+              auto const last{project(b, view)};
               if(first && last) {
                 draw.wire(screen_point{*first}, screen_point{*last}, geometry.colour(line.colour));
                 ++statistics.lines;
@@ -424,11 +430,13 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     if(!object.has(world::object_flag::present) || (!observer.map_mode && !world::in_active_neighbourhood(object.position, observer.position))) continue;
     if(auto item{visibility(object, geometry.definition(object.type), observer.position, geometry.appearance(object), observer.map_mode)}) visible.push_back(std::move(*item));
   }
-  if(!observer.map_mode) std::ranges::stable_sort(visible, [](visible_object const &lhs, visible_object const &rhs){
-// CHECKFORRUNWAY paints ground-level runway pieces before the ordinary near-object pass
-    if(lhs.ground_first != rhs.ground_first) return lhs.ground_first;
-    return lhs.tier != rhs.tier ? lhs.tier > rhs.tier : lhs.distance > rhs.distance;
-  });
+  if(!observer.map_mode) {
+    std::ranges::stable_sort(visible, [](visible_object const &lhs, visible_object const &rhs){
+      // CHECKFORRUNWAY paints ground-level runway pieces before the ordinary near-object pass
+      if(lhs.ground_first != rhs.ground_first) return lhs.ground_first;
+      return lhs.tier != rhs.tier ? lhs.tier > rhs.tier : lhs.distance > rhs.distance;
+    });
+  }
   if(observer.map_mode) {
     // survey markers blink independently of the stopped actor timers
     geometry.set_map_colours(timer);
@@ -517,13 +525,17 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     }
   }
   if(observer.cockpit && video != render::video_mode::ega) {
-    for(unsigned int y{0}; y != indexed.height; ++y) for(unsigned int x{0}; x != indexed.width; ++x) {
-      bool in_view{false};
-      for(auto const &view : views) if(static_cast<int>(x) >= view.bounds.left && static_cast<int>(x) < view.bounds.right
-        && static_cast<int>(y) >= view.bounds.top && static_cast<int>(y) < view.bounds.bottom) in_view = true;
-      if(in_view) continue;
-      auto const colour{panel.pixels[(y * panel.height / indexed.height) * panel.width + x * panel.width / indexed.width]};
-      indexed.pixels[y * indexed.width + x] = indexed.monochrome ? static_cast<uint8_t>(colour == 0 ? 0 : 15) : colour;
+    for(unsigned int y{0}; y != indexed.height; ++y) {
+      for(unsigned int x{0}; x != indexed.width; ++x) {
+        bool in_view{false};
+        for(auto const &view : views) {
+          if(static_cast<int>(x) >= view.bounds.left && static_cast<int>(x) < view.bounds.right
+            && static_cast<int>(y) >= view.bounds.top && static_cast<int>(y) < view.bounds.bottom) in_view = true;
+        }
+        if(in_view) continue;
+        auto const colour{panel.pixels[(y * panel.height / indexed.height) * panel.width + x * panel.width / indexed.width]};
+        indexed.pixels[y * indexed.width + x] = indexed.monochrome ? static_cast<uint8_t>(colour == 0 ? 0 : 15) : colour;
+      }
     }
   }
   if(video != render::video_mode::ega) {
@@ -540,16 +552,20 @@ render_statistics scene_renderer::render(world::theatre const &theatre, camera c
     fill(main_view.right, main_view.top, static_cast<int>(size.width), main_view.bottom);
   }
   if(observer.palette_phase != vec3<uint16_t>{0, 0, 0}) {
-    for(auto &colour : palette) for(unsigned int axis{0}; axis != 3; ++axis) {
-      auto &channel{axis == 0 ? colour.red : axis == 1 ? colour.green : colour.blue};
-      uint8_t const phase{static_cast<uint8_t>((channel >> 2) + (observer.palette_phase[axis] >> 8))};
-      uint8_t const value{static_cast<uint8_t>((phase & 64u) != 0 ? 63u - (phase & 63u) : phase & 63u)};
-      channel = static_cast<uint8_t>((value << 2) | (value >> 4));
+    for(auto &colour : palette) {
+      for(unsigned int axis{0}; axis != 3; ++axis) {
+        auto &channel{axis == 0 ? colour.red : axis == 1 ? colour.green : colour.blue};
+        uint8_t const phase{static_cast<uint8_t>((channel >> 2) + (observer.palette_phase[axis] >> 8))};
+        uint8_t const value{static_cast<uint8_t>((phase & 64u) != 0 ? 63u - (phase & 63u) : phase & 63u)};
+        channel = static_cast<uint8_t>((value << 2) | (value >> 4));
+      }
     }
   }
   if(observer.palette_phase == vec3<uint16_t>{0, 0, 0}) render::fade_palette(palette, observer.palette_brightness);
-  for(unsigned int i{0}; i != output.pixels.size(); ++i) output.pixels[i] = indexed.monochrome
-    ? (indexed.pixels[i] != 0 ? render::rgba_pixel{255, 255, 255} : render::rgba_pixel{0, 0, 0}) : palette[indexed.pixels[i] & 15u];
+  for(unsigned int i{0}; i != output.pixels.size(); ++i) {
+    output.pixels[i] = indexed.monochrome
+      ? (indexed.pixels[i] != 0 ? render::rgba_pixel{255, 255, 255} : render::rgba_pixel{0, 0, 0}) : palette[indexed.pixels[i] & 15u];
+  }
   return statistics;
 }
 

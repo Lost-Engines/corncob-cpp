@@ -36,21 +36,25 @@ int main(int const argc, char const *const argv[]) {
     actors.refresh_census(observer);
     for(auto &entry : theatre.objects) entry.flags = 0;
     unsigned int cursor{0};
-    for(unsigned int type{0}; type != census_types.size(); ++type) for(unsigned int n{0}; n != data.word(offset + 95 + type * 2); ++n) {
-      theatre.objects[cursor].type = census_types[type];
-      theatre.objects[cursor++].flags = census_types[type] == world::object_type::alien ? geometry.definition(world::object_type::alien).flags : 0x11;
+    for(unsigned int type{0}; type != census_types.size(); ++type) {
+      for(unsigned int n{0}; n != data.word(offset + 95 + type * 2); ++n) {
+        theatre.objects[cursor].type = census_types[type];
+        theatre.objects[cursor++].flags = census_types[type] == world::object_type::alien ? geometry.definition(world::object_type::alien).flags : 0x11;
+      }
     }
     actors.refresh_census(observer);
     for(auto &entry : theatre.objects) entry.flags = 0;
     unsigned int const main_index{data.byte(offset + 121) != 0 ? 1u : 0u};
-    if(main_index != 0) theatre.objects[0] = {
-      .position{maths::world_position{observer}},
-      .attitude{},
-      .type{world::object_type::generator_orb},
-      .flags{geometry.definition(world::object_type::generator_orb).flags},
-      .timer{32'000},
-      .health{65},
-    };
+    if(main_index != 0) {
+      theatre.objects[0] = {
+        .position{maths::world_position{observer}},
+        .attitude{},
+        .type{world::object_type::generator_orb},
+        .flags{geometry.definition(world::object_type::generator_orb).flags},
+        .timer{32'000},
+        .health{65},
+      };
+    }
     theatre.objects[main_index] = initial;
     auto const &effects{actors.advance({observer, observer, velocity, data.byte(offset + 94) != 0, 0}, {data.signed_word(offset + 92), 5})};
     corncob::tests::compare_actor(theatre.objects[main_index], corncob::tests::read_actor(data, offset + 122), i, "orb/mindbender");

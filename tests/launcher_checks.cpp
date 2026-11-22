@@ -22,7 +22,8 @@ int main(int const argc, char const *const argv[]) {
   unsigned int launches{0};
   for(unsigned int i{0}, offset{12}; i != 768; ++i, offset += 238) {
     auto const initial{corncob::tests::read_actor(data, offset)};
-    unsigned int const sites{data.word(offset + 74)}, population{data.word(offset + 76)};
+    unsigned int const sites{data.word(offset + 74)};
+    unsigned int const population{data.word(offset + 76)};
     bool const full{data.byte(offset + 84) != 0};
     world::object_type const child{initial.type == world::object_type::kla_site ? world::object_type::kla
       : initial.type == world::object_type::vehicle_site ? world::object_type::ground_vehicle : world::object_type::saucer};
@@ -47,7 +48,10 @@ int main(int const argc, char const *const argv[]) {
     bool const spawned{!full && theatre.objects[1].flags != 0};
     if(spawned != expected_spawn) throw std::runtime_error{"native launcher allocation case " + std::to_string(i)};
     if(weapons.random_stream().seed() != data.dword(offset + 159)) throw std::runtime_error{"native launcher random continuation " + std::to_string(i)};
-    if(spawned) { corncob::tests::compare_actor(theatre.objects[1], corncob::tests::read_actor(data, offset + 164), i, "child"); ++launches; }
+    if(spawned) {
+      corncob::tests::compare_actor(theatre.objects[1], corncob::tests::read_actor(data, offset + 164), i, "child");
+      ++launches;
+    }
   }
   std::cout << "768 original site updates and " << launches << " complete actor constructors match" << std::endl;
   return EXIT_SUCCESS;
