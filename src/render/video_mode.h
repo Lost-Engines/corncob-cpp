@@ -17,15 +17,18 @@ struct video_size {
 constexpr video_size dimensions(video_mode const mode) noexcept {
   /// Original 3DVID.INC: BIOS 10h, BIOS 0Dh and the software-programmed Hercules 81h branch.
   switch(mode) {
-  case video_mode::ega_low: return {
+  case video_mode::ega_low:
+    return {
     .width{320},
     .height{200},
   };
-  case video_mode::hercules: return {
+  case video_mode::hercules:
+    return {
     .width{720},
     .height{348},
   };
-  default: return {
+  default:
+    return {
     .width{640},
     .height{350},
   };

@@ -120,7 +120,8 @@ private:
   std::optional<mission_builder> builder;
   std::optional<slalom_course> course;
   std::optional<recorded_flight> recording;
-  unsigned int recorded_index{0}, recorded_ticks{0};
+  unsigned int recorded_index{0};
+  unsigned int recorded_ticks{0};
   bool recording_complete{false};
   bool experimental_clearance{false};
   bool beginner_flight{false};

@@ -11,7 +11,7 @@ namespace {
 
 screen_point needle(screen_point const &centre, screen_point const &diameter, maths::angle const angle) noexcept {
   /// ANGTOCORD rounds the high product word; the stored gauge sizes are diameters rather than radii
-  auto rounded{[](int const value){ return (value + 0x8000) >> 16; }};
+  auto rounded{[](int const value){return (value + 0x8000) >> 16;}};
   return {centre.x + rounded(maths::sine(angle) * diameter.x), centre.y + rounded(maths::negate(maths::cosine(angle)) * diameter.y)};
 }
 
@@ -20,7 +20,8 @@ screen_point needle(screen_point const &centre, screen_point const &diameter, ma
 void draw_gunsight(indexed_framebuffer &target, random_source &random, clip_rectangle const &bounds, screen_point const &centre) {
   /// DRAWGS uses four double-width grey strokes in both cockpit and on-foot views
   raster sight{target, bounds, random};
-  int const x{centre.x}, y{centre.y};
+  int const x{centre.x};
+  int const y{centre.y};
   for(int offset{0}; offset != 2; ++offset) {
     sight.line({x - 12, y + offset}, {x - 4, y + offset}, 7);
     sight.line({x + 13, y + offset}, {x + 5, y + offset}, 7);
@@ -142,17 +143,28 @@ void instrument_panel::draw(indexed_framebuffer &target, random_source &random, 
   }};
   // the original spreads these four instruments over fourteen alternating video-page frames
   switch(frame % 14) {
-  case 0: case 1: temperature = static_cast<maths::angle>(aircraft.engine_temperature / 3 - 5400); break;
-  case 2: case 3: case 8: case 9:
+  case 0:
+  case 1:
+    temperature = static_cast<maths::angle>(aircraft.engine_temperature / 3 - 5400);
+    break;
+  case 2:
+  case 3:
+  case 8:
+  case 9:
     pitch = static_cast<maths::angle>(-aircraft.attitude.pitch);
     if(maths::word(aircraft.attitude.roll + 16'384) < 0) pitch = static_cast<maths::angle>(-pitch + 32'768);
     break;
-  case 4: case 5: case 10: case 11: compass = static_cast<maths::angle>(-aircraft.attitude.heading); break;
+  case 4:
+  case 5:
+  case 10:
+  case 11:
+    compass = static_cast<maths::angle>(-aircraft.attitude.heading);
+    break;
   default:
     {
-      unsigned int const speed{static_cast<uint16_t>(aircraft.body_velocity.x) * (aircraft.variant == flight::aircraft_variant::experimental ? 4u : 1u)};
-      airspeed = static_cast<maths::angle>((speed % 19'648) * 65'536 / 19'648);
-    }
+    unsigned int const speed{static_cast<uint16_t>(aircraft.body_velocity.x) * (aircraft.variant == flight::aircraft_variant::experimental ? 4u : 1u)};
+    airspeed = static_cast<maths::angle>((speed % 19'648) * 65'536 / 19'648);
+  }
     break;
   }
   int32_t const height{std::max(0, aircraft.position.z - 720)};
