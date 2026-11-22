@@ -2,10 +2,10 @@
 #include <algorithm>
 #include <bit>
 #include <cstdlib>
+#include "vectorstorm/vector/vector2.h"
 #include "maths/integer.h"
 #include "resources/actor_tables.h"
 #include "world/motion.h"
-#include "vectorstorm/vector/vector2.h"
 
 namespace corncob::game {
 
@@ -77,7 +77,7 @@ actors::actors(resources::geometry_bank const &geometry, world::theatre &theatre
   /// Keep the preceding active census separate from this pass's live actor updates
   active_updates.reserve(theatre.objects.size());
 }
-void actors::update_launcher(world::placed_object &object, actor_context const &context, flight::time_step const step) {
+void actors::update_launcher(world::placed_object &object, actor_context const &/*context*/, flight::time_step const step) {
   /// Site countdowns use the previous census, updating its population immediately when a constructor is attempted
   using enum world::object_type;
   auto const population{[&](world::object_type const type){return previous_counts[std::to_underlying(type)];}};
@@ -117,7 +117,6 @@ void actors::update_launcher(world::placed_object &object, actor_context const &
     spawned.timer = static_cast<uint16_t>(10'000 * step.normal / step.elapsed);
     spawned.collision_group = object.collision_group;
   } else spawned.timer = 32'000;
-  (void)context;
 }
 void actors::update_kla(world::placed_object &object, actor_context const &context, flight::time_step const step) {
   /// KLAs launch vertically, wait through their hundred-frame rest and then steer rather than teleporting their velocity
@@ -169,8 +168,9 @@ void actors::update_aaa(world::placed_object &object, actor_context const &conte
   }
   steer(target->bearing.pitch, object.attitude.pitch, parameters.pitch_turn_limit, step);
   steer(target->bearing.heading, object.attitude.heading, parameters.heading_turn_limit, step);
-  if(object.position.z >= 0 && object.position.z <= 2000 && maths::word(object.attitude.pitch) >= -1200)
+  if(object.position.z >= 0 && object.position.z <= 2000 && maths::word(object.attitude.pitch) >= -1200) {
     object.attitude.pitch = static_cast<maths::angle>(-1200);
+  }
   if(random.next() >= parameters.fire_threshold) return;
   auto const index{weapons.spawn(world::object_type::aa_shell, object.position)};
   if(!index) return;
@@ -250,8 +250,9 @@ void actors::update_saucer(world::placed_object &object, actor_context const &co
     transition = parameters.coast_exit_threshold;
     break;
   }
-  if((random.next() >> 1) <= static_cast<uint16_t>(timed(maths::word(transition), step)))
+  if((random.next() >> 1) <= static_cast<uint16_t>(timed(maths::word(transition), step))) {
     object.flags = static_cast<uint16_t>((object.flags & ~6u) | ((object.flags + 2u) & 6u));
+  }
   if(shifts <= 13) {
     if(object.position.z >= 65'536 && (random.next() >> 1) <= parameters.bomb_threshold) {
       if(auto const index{weapons.spawn(world::object_type::bomb, object.position)}) {
@@ -489,8 +490,9 @@ actor_effects const &actors::advance(actor_context const &context, flight::time_
     if(!object.has(world::object_flag::updates)) continue;
     if(i < weapons.stored_objects()) {
       if(object.timer != 0) --object.timer;
-      if(object.motion.spin != maths::fixed_vector{0, 0, 0} || object.motion.gravity != 0 || object.motion.dispersion != 0 || object.velocity != maths::fixed_vector{0, 0, 0})
+      if(object.motion.spin != maths::fixed_vector{0, 0, 0} || object.motion.gravity != 0 || object.motion.dispersion != 0 || object.velocity != maths::fixed_vector{0, 0, 0}) {
         world::advance_motion(object, definition.rotate_below_tier != 0, random, step);
+      }
     }
     count_actor(object, counts);
     if(object.type == world::object_type::aaa_site) ++aaa[object.quality()];

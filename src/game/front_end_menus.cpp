@@ -1,14 +1,14 @@
-#include "front_end.h"
-#include "game/report_format.h"
 #include <algorithm>
 #include <format>
 #include <numeric>
-#include "graphics/menu_canvas.h"
 #include "maths/integer.h"
-#include "resources/assets.h"
+#include "front_end.h"
+#include "game/report_format.h"
+#include "graphics/menu_canvas.h"
 #include "resources/airfield_survey.h"
-#include "world/theatre_catalog.h"
+#include "resources/assets.h"
 #include "world/airfields.h"
+#include "world/theatre_catalog.h"
 
 namespace corncob::game {
 
@@ -510,8 +510,9 @@ void front_end::render_menus(render::framebuffer &target) const {
           else if(marker == ')') highlighted = false;
         }
       }
-      for(unsigned int i{0}; i < 15 && i + scroll < document_lines.size(); ++i)
+      for(unsigned int i{0}; i < 15 && i + scroll < document_lines.size(); ++i) {
         screen.rich_text(3, 6 + static_cast<int>(i), document_lines[i + scroll], 7, 73, highlighted);
+      }
       if(document_lines.size() > 15) {
         for(int row{6}; row < 21; ++row) screen.text(76, row, "\xb1", 7);
         unsigned int const height{std::max(1u, (225u + static_cast<unsigned int>(document_lines.size()) - 1) / static_cast<unsigned int>(document_lines.size()))};
@@ -617,8 +618,9 @@ void front_end::render_menus(render::framebuffer &target) const {
     } else canvas.clear();
     screen.panel(left, top, right, bottom, 16, false, context);
     unsigned int const visible{static_cast<unsigned int>(bottom - top - 2)};
-    for(unsigned int i{0}; i != visible && i + scroll < document_lines.size(); ++i)
+    for(unsigned int i{0}; i != visible && i + scroll < document_lines.size(); ++i) {
       screen.rich_text(left + 1, top + 1 + static_cast<int>(i), document_lines[i + scroll], 7, static_cast<unsigned int>(right - left - 3));
+    }
     if(document_lines.size() > visible) {
       for(int y{top + 1}; y < bottom - 1; ++y) screen.text(right - 1, y, "\xb1", 7);
       unsigned int const thumb_height{std::max(1u, (visible * visible + static_cast<unsigned int>(document_lines.size()) - 1) / static_cast<unsigned int>(document_lines.size()))};

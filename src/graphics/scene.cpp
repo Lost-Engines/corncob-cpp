@@ -1,5 +1,4 @@
 #include "scene.h"
-#include "render/palette.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -8,9 +7,10 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include "graphics/radar.h"
-#include "graphics/map_projection.h"
 #include "graphics/homing.h"
+#include "graphics/map_projection.h"
+#include "graphics/radar.h"
+#include "render/palette.h"
 
 namespace corncob::graphics {
 

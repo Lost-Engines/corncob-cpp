@@ -11,21 +11,21 @@
 #include <boost/program_options.hpp>
 #include <boost/scope/scope_exit.hpp>
 #include <GLFW/glfw3.h>
+#include "platform/audio_output.h"
+#include "platform/framebuffer_presenter.h"
+#include "platform/joystick.h"
+#include "platform/storage.h"
 #include "audio/effects.h"
 #include "audio/music.h"
 #include "game/front_end.h"
 #include "game/session.h"
 #include "graphics/scene.h"
-#include "platform/audio_output.h"
-#include "platform/framebuffer_presenter.h"
-#include "platform/joystick.h"
-#include "platform/storage.h"
 #include "render/framebuffer.h"
 #include "resources/assets.h"
-#include "world/theatre_catalog.h"
-#include "world/airfields.h"
 #include "resources/cockpit_mask.h"
 #include "resources/geometry_bank.h"
+#include "world/airfields.h"
+#include "world/theatre_catalog.h"
 #include "world/world.h"
 
 namespace {
@@ -108,8 +108,9 @@ auto main(int const argc, char const *const argv[])->int {
   if(joystick_argument == "none") joystick_device = -2;
   else if(joystick_argument != "auto") {
     auto const result{std::from_chars(joystick_argument.data(), joystick_argument.data() + joystick_argument.size(), joystick_device)};
-    if(result.ec != std::errc{} || result.ptr != joystick_argument.data() + joystick_argument.size() || joystick_device < GLFW_JOYSTICK_1 || joystick_device > GLFW_JOYSTICK_LAST)
+    if(result.ec != std::errc{} || result.ptr != joystick_argument.data() + joystick_argument.size() || joystick_device < GLFW_JOYSTICK_1 || joystick_device > GLFW_JOYSTICK_LAST) {
       return startup_failure("--joystick must be auto, none or a device index from 0 to 15");
+    }
   }
   auto const aspect_argument{arguments["aspect"].as<std::string>()};
   if(aspect_argument != "square" && aspect_argument != "crt") return startup_failure("--aspect must be square or crt");
@@ -587,8 +588,9 @@ auto main(int const argc, char const *const argv[])->int {
             .rotate_object{held(GLFW_KEY_A)},
           },
         };
-        if(auto const joystick{corncob::platform::poll_joystick(front.flight_controls().joystick_device)})
+        if(auto const joystick{corncob::platform::poll_joystick(front.flight_controls().joystick_device)}) {
           corncob::game::apply_joystick(input, *joystick, input.view.modifier || game->looking_around());
+        }
       }
       accumulated_time += elapsed;
       auto draw_one{[&]{ draw_flight(false); }};
@@ -608,7 +610,7 @@ auto main(int const argc, char const *const argv[])->int {
     }
     update_audio();
     if(!inspect && (front.take_finish() || (front.in_flight() && game->finished()))) {
-      if(slalom_mode) break; // Source experiments never write into a named pilot's campaign.
+      if(slalom_mode) break;                                                   // Source experiments never write into a named pilot's campaign.
       auto const result{game->results(front.take_abort())};
       auto const previous{campaign->active_pilot() ? std::optional{*campaign->active_pilot()} : std::nullopt};
       auto const active_theatre{campaign->active_theatre()};

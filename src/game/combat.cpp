@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <utility>
 #include "maths/integer.h"
-#include "world/motion.h"
 #include "resources/actor_tables.h"
+#include "world/motion.h"
 
 namespace corncob::game {
 
@@ -39,15 +39,17 @@ uint16_t lifetime(unsigned int const frames, flight::time_step const step) noexc
 bool objects_overlap(world::placed_object const &a, world::placed_object const &b) noexcept {
   /// Retain box contacts and the original asymmetric spherical and fast-projectile predicates
   if(a.collision_group == b.collision_group || !a.has(world::object_flag::present) || !b.has(world::object_flag::present)) return false;
-  if(((a.flags | b.flags) & flag(world::object_flag::box_collision)) != 0)
+  if(((a.flags | b.flags) & flag(world::object_flag::box_collision)) != 0) {
     return world::boxes_overlap(a.position, a.collision_extents, b.position, b.collision_extents);
+  }
   if(((a.flags | b.flags) & flag(world::object_flag::collision_callback)) == 0) return false;
   auto const delta{separation(a.position, b.position)};
   if(!delta) return false;
   uint32_t const distance{maths::magnitude(*delta)};
   uint32_t const ar{static_cast<uint16_t>(a.collision_extents.x)}, br{static_cast<uint16_t>(b.collision_extents.x)};
-  if(a.type != world::object_type::bullets && a.type != world::object_type::missile)
+  if(a.type != world::object_type::bullets && a.type != world::object_type::missile) {
     return ar != 0 && br != 0 && distance < (br >= ar ? br : br + ar);
+  }
   if(!b.has(world::object_flag::collision_callback)) return false;
   if(std::max(ar, br) >= distance) return true;
   uint32_t const speed{maths::magnitude(a.velocity)};
@@ -255,7 +257,7 @@ unsigned int combat::scatter(world::placed_object const &source, unsigned int co
     world::object_type type{world::object_type::incendiary_fragment};
     if(!incendiary) {
       // the native routine randomizes a template velocity before overwriting it; consume that draw too
-      (void)random.below(4000);
+      static_cast<void>(random.below(4000));
       type = mortar || (random.next() & 0x8000u) == 0 ? world::object_type::flotsam_2 : world::object_type::flotsam_1;
     }
     ++attempted;
@@ -601,7 +603,7 @@ void combat::update_projectile(unsigned int const index, maths::world_position c
   default:
     break;
   }
-  (void)step;
+  static_cast<void>(step);
 }
 void combat::move(maths::world_position const &observer, flight::time_step const step, bool const on_foot, uint32_t const fast_ticks) {
   /// Advance independent effect/bullet lifetimes and retain fixed pool indices for collisions and later saves
@@ -623,8 +625,9 @@ void combat::move(maths::world_position const &observer, flight::time_step const
       continue;
     }
     --object.timer;
-    if(object.type != world::object_type::bomb || (object.flags & 4u) == 0)
+    if(object.type != world::object_type::bomb || (object.flags & 4u) == 0) {
       world::advance_motion(object, geometry.definition(object.type).rotate_below_tier != 0, random, step);
+    }
     update_projectile(i, observer, step);
   }
   for(unsigned int i{scenery_count + effect_capacity}; i != theatre.objects.size(); ++i) {

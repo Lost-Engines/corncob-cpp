@@ -2,10 +2,10 @@
 
 #include <array>
 #include <span>
-#include "graphics/instruments.h"
-#include "graphics/ground_detail.h"
-#include "graphics/raster.h"
 #include "maths/fixed.h"
+#include "graphics/ground_detail.h"
+#include "graphics/instruments.h"
+#include "graphics/raster.h"
 #include "render/framebuffer.h"
 #include "resources/cockpit_mask.h"
 #include "resources/geometry_bank.h"
