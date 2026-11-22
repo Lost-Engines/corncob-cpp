@@ -5,9 +5,9 @@
 #include <cstdlib>
 #include <utility>
 #include "maths/integer.h"
-#include "resources/actor_tables.h"
 #include "game/frame_clock.h"
 #include "game/scenery.h"
+#include "resources/actor_tables.h"
 #include "world/airfields.h"
 
 namespace corncob::game {
@@ -622,8 +622,9 @@ void session::advance(input_state const &requested, std::optional<std::function_
     std::array<int16_t, 3> constexpr rates{310, 186, 242};
     palette_phase[axis] += static_cast<uint16_t>(maths::multiply(timed_word(rates[axis], step), maths::word(effects.hallucination)));
   }
-  if(std::ranges::none_of(theatre.objects, [](auto const &object){return object.type == world::object_type::mindbender && object.has(world::object_flag::present);}))
+  if(std::ranges::none_of(theatre.objects, [](auto const &object){return object.type == world::object_type::mindbender && object.has(world::object_flag::present);})) {
     palette_phase = vec3<uint16_t>{0, 0, 0};
+  }
   if(effects.rescued) {
     mode = player_mode::rescued;
     notice = "Rescued";

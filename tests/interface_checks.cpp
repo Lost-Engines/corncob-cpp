@@ -6,8 +6,8 @@
 #include <memory>
 #include <stdexcept>
 #include "game/front_end.h"
-#include "resources/assets.h"
 #include "render/video_mode.h"
+#include "resources/assets.h"
 
 namespace {
 
@@ -79,9 +79,11 @@ int main(int const argc, char const *const argv[]) {
   save_capture("record-statistics");
   auto const menu_font{assets.menu_font()};
   auto const medals{assets.file("medal.fnc")};
-  for(unsigned int offset{0}; offset != medals.size(); offset += 17)
-    for(unsigned int row{0}; row != 16; ++row)
+  for(unsigned int offset{0}; offset != medals.size(); offset += 17) {
+    for(unsigned int row{0}; row != 16; ++row) {
       if(menu_font[medals[offset + 16] * 16u + row] != medals[offset + row]) throw std::runtime_error{"medal glyph differs from its original font record"};
+  }
+    }
   front.command(game::interface_command::cancel);
   front.command(game::interface_command::cancel);
   front.character('t');
@@ -173,8 +175,7 @@ int main(int const argc, char const *const argv[]) {
   for(bool const direct_flight : {false, true}) for(auto const advance : {game::interface_command::accept, game::interface_command::next}) {
     game::front_end help{assets, career, true, direct_flight};
     auto const destination{direct_flight ? game::interface_page::flight : game::interface_page::menu};
-    if(direct_flight) { help.begin_flight(); help.show_flight_help(); }
-    else help.command(game::interface_command::help);
+    if(direct_flight) { help.begin_flight(); help.show_flight_help(); } else help.command(game::interface_command::help);
     help.command(game::interface_command::help);
     for(unsigned int page{0}; page != flight_help_page_count; ++page) {
       if(help.current_page() != game::interface_page::help) throw std::runtime_error{"help ended before its final page"};
@@ -218,8 +219,9 @@ int main(int const argc, char const *const argv[]) {
       auto const box{corncob::resources::read_radio_message(type).border};
       front.show_radio(type, backdrop);
       front.render(frame);
-      if(frame.width != size.width || frame.height != size.height || frame.pixels.size() != backdrop.pixels.size())
+      if(frame.width != size.width || frame.height != size.height || frame.pixels.size() != backdrop.pixels.size()) {
         throw std::runtime_error{"radio message changed the flight display dimensions"};
+      }
       auto const displayed{corncob::render::fit_viewport(1280, 960, static_cast<int>(frame.width), static_cast<int>(frame.height))};
       if(displayed.width != viewport.width || displayed.height != viewport.height) throw std::runtime_error{"radio message changed the displayed enlargement"};
       unsigned int text_pixels{0};
@@ -228,8 +230,9 @@ int main(int const argc, char const *const argv[]) {
         auto const &actual{frame.pixels[y * size.width + x]}, &expected{backdrop.pixels[y * size.width + x]};
         if(message_x >= box.left && message_x < box.left + box.width && message_y >= box.top && message_y < box.top + box.height) {
           if(actual.red == 170 && actual.green == 170 && actual.blue == 170) ++text_pixels;
-        } else if(actual.red != expected.red || actual.green != expected.green || actual.blue != expected.blue)
+        } else if(actual.red != expected.red || actual.green != expected.green || actual.blue != expected.blue) {
           throw std::runtime_error{"radio overlay moved or resampled the surrounding scene"};
+        }
       }
       if(text_pixels < 20) throw std::runtime_error{"adapted radio text disappeared"};
       front.command(game::interface_command::accept);

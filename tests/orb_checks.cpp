@@ -57,8 +57,9 @@ int main(int const argc, char const *const argv[]) {
     if(weapons.random_stream().seed() != data.dword(offset + 202)) throw std::runtime_error{"native orb PRNG continuation " + std::to_string(i)};
     if(weapons.stats().objectives_completed != data.word(offset + 206)) throw std::runtime_error{"native objective completion " + std::to_string(i)};
     auto const expected_velocity{data.vector(offset + 196)};
-    for(unsigned int axis{0}; axis != 3; ++axis)
+    for(unsigned int axis{0}; axis != 3; ++axis) {
       if(maths::word(velocity[axis] + effects.attraction[axis]) != expected_velocity[axis]) throw std::runtime_error{"native orb attraction " + std::to_string(i)};
+    }
     uint16_t const distortion{static_cast<uint16_t>((data.byte(offset + 208) & 2u) != 0 ? data.word(offset + 209) : 0)};
     uint16_t const hallucination{static_cast<uint16_t>((data.byte(offset + 208) & 1u) != 0 ? data.word(offset + 211) : 0)};
     if(effects.orb_distortion != distortion || effects.hallucination != hallucination) throw std::runtime_error{"native orb/mindbender visual effects " + std::to_string(i)};
